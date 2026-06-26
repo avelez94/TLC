@@ -49,21 +49,28 @@ export default function Login() {
     }
 
     if (data.user) {
+      // Wait for session to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single()
 
-      if (profileError) {
-        setError('Could not load your profile. Please contact support.')
-        setLoading(false)
+      if (profileError || !profile) {
+        // Fallback to portal the user clicked
+        if (portal === 'coaching') {
+          router.push('/coaching-portal')
+        } else {
+          router.push('/impact-portal')
+        }
         return
       }
 
-      if (profile?.role === 'admin') {
+      if (profile.role === 'admin') {
         router.push('/admin')
-      } else if (profile?.role === 'coaching_client') {
+      } else if (profile.role === 'coaching_client') {
         router.push('/coaching-portal')
       } else {
         router.push('/impact-portal')
