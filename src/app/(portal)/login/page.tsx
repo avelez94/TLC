@@ -49,30 +49,14 @@ export default function Login() {
     }
 
     if (data.user) {
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Read role from user metadata — no database round trip, works on all devices
+      const role = data.user.user_metadata?.role || 'impact_participant'
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profileError || !profile) {
-        await supabase.auth.signOut()
-        setError('Could not load your profile. Please contact support.')
-        setLoading(false)
-        return
-      }
-
-      const role = profile.role
-
-      // Admin can access everything
       if (role === 'admin') {
         router.push('/admin')
         return
       }
 
-      // Coaching client tried to log into impact portal
       if (portal === 'impact' && role === 'coaching_client') {
         await supabase.auth.signOut()
         setError('This account does not have access to The Impact Lab. Please sign in through the Coaching Portal.')
@@ -80,7 +64,6 @@ export default function Login() {
         return
       }
 
-      // Impact participant tried to log into coaching portal
       if (portal === 'coaching' && role === 'impact_participant') {
         await supabase.auth.signOut()
         setError('This account does not have access to the Coaching Portal. Please sign in through The Impact Lab.')
@@ -88,7 +71,6 @@ export default function Login() {
         return
       }
 
-      // Role matches portal
       if (role === 'coaching_client') {
         router.push('/coaching-portal')
       } else {
