@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
-type Page = 'dashboard' | 'programs' | 'cohort' | 'reps' | 'journal' | 'community' | 'library' | 'progress' | 'certificates'
+type Page = 'dashboard' | 'programs' | 'cohort' | 'reps' | 'journal' | 'community' | 'announcements' | 'library' | 'assessments' | 'evaluations' | 'progress' | 'my-impact' | 'certificates' | 'profile'
 
 const participant = {
   name: 'Jordan Williams',
@@ -32,12 +34,18 @@ const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'reps', label: 'Weekly Reps', icon: '⚡' },
   { id: 'journal', label: 'Reflection Journal', icon: '📓' },
   { id: 'community', label: 'Community', icon: '💬' },
+  { id: 'announcements', label: 'Announcements', icon: '📢' },
   { id: 'library', label: 'Resource Library', icon: '📚' },
-  { id: 'progress', label: 'Progress', icon: '📊' },
+  { id: 'assessments', label: 'Assessments', icon: '📊' },
+  { id: 'evaluations', label: 'Evaluations', icon: '✅' },
+  { id: 'progress', label: 'My Progress', icon: '📈' },
+  { id: 'my-impact', label: 'My Impact', icon: '🌟' },
   { id: 'certificates', label: 'Certificates', icon: '🏆' },
+  { id: 'profile', label: 'Profile', icon: '👤' },
 ]
 
 export default function ImpactPortal() {
+  const router = useRouter()
   const [page, setPage] = useState<Page>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [reps, setReps] = useState(weeklyReps)
@@ -54,17 +62,57 @@ export default function ImpactPortal() {
     { name: 'Priya S.', time: '2 days ago', text: 'Session 3 was the best one yet. The discussion about reading the real job to be done changed how I am thinking about my work.', likes: 9 },
   ])
   const [newPost, setNewPost] = useState('')
+  const [impactEntries, setImpactEntries] = useState([
+    { id: 1, category: 'win', title: 'Had the conversation I had been avoiding', body: 'Finally talked to my manager about the timeline concerns. We are now aligned and I feel lighter.', domain: 'Career', date: 'June 24, 2025' },
+    { id: 2, category: 'leadership', title: 'Led my first team retrospective', body: 'Used the facilitation techniques from Session 2. The team said it was the most productive retro we have had.', domain: 'Leadership', date: 'June 10, 2025' },
+  ])
+  const [showImpactForm, setShowImpactForm] = useState(false)
+  const [newImpact, setNewImpact] = useState({ category: 'win', title: '', body: '', domain: 'Career' })
+  const [evalSubmitted, setEvalSubmitted] = useState(false)
+  const [evalResponses, setEvalResponses] = useState({ session_quality: '', facilitator: '', application: '', recommend: '', comments: '' })
 
   const cardStyle = { background: 'white', borderRadius: '6px', border: '1px solid rgba(0,23,55,0.08)', padding: '1.5rem', marginBottom: '1.25rem' }
   const inputStyle = { width: '100%', padding: '0.75rem 1rem', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.9rem', color: 'var(--ink)', background: 'white', outline: 'none' }
+  const labelStyle = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: 'var(--gold)', display: 'block', marginBottom: '0.5rem' }
   const completedRep = reps.filter(r => r.completed).length
 
   const navigate = (id: Page) => { setPage(id); setActiveRep(null); setMobileNavOpen(false) }
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const Sidebar = () => (
+    <div style={{ width: '240px', background: 'var(--navy3)', borderRight: '1px solid rgba(200,136,32,0.15)', display: 'flex', flexDirection: 'column', flexShrink: 0, height: 'calc(100vh - 64px)', position: 'sticky', top: '64px', overflowY: 'auto' }}>
+      <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(200,136,32,0.12)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
+            {participant.name.split(' ').map(n => n[0]).join('')}
+          </div>
+          <div>
+            <div style={{ color: 'white', fontSize: '0.8rem', fontWeight: 600 }}>{participant.name}</div>
+            <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.6rem', fontFamily: 'var(--font-jetbrains), monospace', letterSpacing: '0.08em' }}>{participant.program}</div>
+          </div>
+        </div>
+      </div>
+      <nav style={{ flex: 1, padding: '0.75rem 0' }}>
+        {navItems.map(({ id, label, icon }) => (
+          <button key={id} onClick={() => navigate(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.62rem 1.25rem', background: page === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${page === id ? 'var(--gold)' : 'transparent'}`, color: page === id ? 'var(--gold)' : 'rgba(255,255,255,0.5)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+            <span style={{ fontSize: '0.82rem' }}>{icon}</span>{label}
+          </button>
+        ))}
+      </nav>
+      <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', cursor: 'pointer', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>
+      </div>
+    </div>
+  )
+
   return (
     <div style={{ minHeight: '100vh', fontFamily: 'var(--font-montserrat), sans-serif', background: 'var(--paper)' }}>
 
-      {/* TOP NAV */}
+      {/* TOP BAR */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--navy3)', borderBottom: '1px solid rgba(200,136,32,0.15)', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.25rem' }}>
         <Link href="/" style={{ display: 'block' }}>
           <Image src="/images/impact-lab-logo.png" alt="The Impact Lab" width={120} height={34} style={{ width: '120px', height: 'auto' }} />
@@ -73,7 +121,7 @@ export default function ImpactPortal() {
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem' }}>
             {participant.name.split(' ').map(n => n[0]).join('')}
           </div>
-          <button onClick={() => setMobileNavOpen(!mobileNavOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'white', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <button className="mobile-hamburger" onClick={() => setMobileNavOpen(!mobileNavOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'white', display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', transition: 'transform 0.2s', transform: mobileNavOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', opacity: mobileNavOpen ? 0 : 1, transition: 'opacity 0.2s' }} />
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', transition: 'transform 0.2s', transform: mobileNavOpen ? 'translateY(-7px) rotate(-45deg)' : 'none' }} />
@@ -81,7 +129,7 @@ export default function ImpactPortal() {
         </div>
       </div>
 
-      {/* SLIDE-OUT NAV */}
+      {/* MOBILE NAV */}
       {mobileNavOpen && (
         <div style={{ position: 'fixed', top: '64px', left: 0, right: 0, bottom: 0, background: 'var(--navy3)', zIndex: 199, overflowY: 'auto', borderTop: '2px solid var(--gold)' }}>
           <div style={{ padding: '1rem 0' }}>
@@ -91,43 +139,19 @@ export default function ImpactPortal() {
               </button>
             ))}
             <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '0.5rem' }}>
-              <Link href="/login" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', display: 'block', textAlign: 'center' }}>Sign out</Link>
+              <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', cursor: 'pointer', display: 'block', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DESKTOP LAYOUT */}
       <div style={{ display: 'flex', paddingTop: '64px', minHeight: '100vh' }}>
+        <div className="desktop-sidebar"><Sidebar /></div>
 
-        {/* Desktop sidebar */}
-        <div className="portal-sidebar" style={{ width: '240px', background: 'var(--navy3)', borderRight: '1px solid rgba(200,136,32,0.15)', display: 'flex', flexDirection: 'column', flexShrink: 0, minHeight: 'calc(100vh - 64px)', position: 'sticky', top: '64px', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
-          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(200,136,32,0.12)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
-                {participant.name.split(' ').map(n => n[0]).join('')}
-              </div>
-              <div>
-                <div style={{ color: 'white', fontSize: '0.8rem', fontWeight: 600 }}>{participant.name}</div>
-                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.6rem', fontFamily: 'var(--font-jetbrains), monospace', letterSpacing: '0.08em' }}>{participant.program}</div>
-              </div>
-            </div>
-          </div>
-          <nav style={{ flex: 1, padding: '0.75rem 0' }}>
-            {navItems.map(({ id, label, icon }) => (
-              <button key={id} onClick={() => navigate(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.7rem 1.25rem', background: page === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${page === id ? 'var(--gold)' : 'transparent'}`, color: page === id ? 'var(--gold)' : 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif' }}>
-                <span style={{ fontSize: '0.85rem' }}>{icon}</span>{label}
-              </button>
-            ))}
-          </nav>
-          <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <Link href="/login" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', display: 'block', textAlign: 'center' }}>Sign out</Link>
-          </div>
-        </div>
-
-        {/* MAIN CONTENT */}
+        {/* MAIN */}
         <div style={{ flex: 1, padding: 'clamp(1.25rem, 3vw, 2rem)', minWidth: 0 }}>
 
+          {/* DASHBOARD */}
           {page === 'dashboard' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Dashboard</span>
@@ -177,6 +201,7 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* MY PROGRAMS */}
           {page === 'programs' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>My Programs</span>
@@ -198,9 +223,19 @@ export default function ImpactPortal() {
                 </div>
                 <button onClick={() => navigate('cohort')} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>Access Program</button>
               </div>
+              <div style={{ ...cardStyle, opacity: 0.6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--slate)', display: 'block', marginBottom: '0.35rem' }}>Program 01</span>
+                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--slate)', letterSpacing: '0.04em' }}>Impact Finders</h3>
+                  </div>
+                  <span style={{ background: 'var(--mist)', color: 'var(--slate)', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', padding: '0.25rem 0.75rem', borderRadius: '2px' }}>Completed</span>
+                </div>
+              </div>
             </div>
           )}
 
+          {/* CURRENT COHORT */}
           {page === 'cohort' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Current Cohort</span>
@@ -227,15 +262,8 @@ export default function ImpactPortal() {
                 ))}
               </div>
               <div style={cardStyle}>
-                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>Announcements</h3>
-                <div style={{ background: 'rgba(200,136,32,0.08)', border: '1px solid rgba(200,136,32,0.2)', borderRadius: '4px', padding: '1rem' }}>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', letterSpacing: '0.1em' }}>July 1, 2025</span>
-                  <p style={{ color: 'var(--ink)', fontSize: '0.85rem', lineHeight: 1.6, marginTop: '0.35rem' }}>Reminder: Complete your Week 4 rep before our next session on July 8. Come ready to share what you applied and what you noticed.</p>
-                </div>
-              </div>
-              <div style={cardStyle}>
-                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>Materials</h3>
-                {['Session 3 Slides', 'Impact Makers Workbook', 'Week 4 Rep Guide', 'Session 3 Recording'].map(item => (
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>Session Materials</h3>
+                {['Session 3 Slides', 'Impact Makers Workbook', 'Week 4 Rep Guide', 'Session 3 Recording', 'Reflection Questions — Session 3'].map(item => (
                   <div key={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)' }}>
                     <span style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>{item}</span>
                     <button style={{ background: 'none', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: '2px', padding: '0.25rem 0.65rem', fontSize: '0.68rem', cursor: 'pointer' }}>View</button>
@@ -245,6 +273,7 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* WEEKLY REPS */}
           {page === 'reps' && activeRep === null && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Weekly Reps</span>
@@ -269,6 +298,7 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* REP DETAIL */}
           {page === 'reps' && activeRep !== null && (() => {
             const rep = reps.find(r => r.id === activeRep)!
             return (
@@ -277,17 +307,17 @@ export default function ImpactPortal() {
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>{rep.week}</span>
                 <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>{rep.title}</h1>
                 <div style={cardStyle}>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.6rem' }}>The Rep</span>
+                  <span style={labelStyle}>The Rep</span>
                   <p style={{ color: 'var(--ink)', fontSize: '0.95rem', lineHeight: 1.75 }}>{rep.instructions}</p>
                 </div>
                 <div style={{ ...cardStyle, background: 'var(--navy)' }}>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.6rem' }}>Why it matters</span>
+                  <span style={{ ...labelStyle, color: 'var(--gold)' }}>Why it matters</span>
                   <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.92rem', lineHeight: 1.75 }}>{rep.why}</p>
                 </div>
                 <div style={cardStyle}>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.35rem' }}>Due date</span>
+                  <span style={labelStyle}>Due date</span>
                   <p style={{ color: 'var(--ink)', fontWeight: 600, marginBottom: '1.5rem' }}>{rep.due}</p>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.6rem' }}>Reflection</span>
+                  <span style={labelStyle}>Reflection — What happened when you did this rep?</span>
                   <textarea value={repReflection} onChange={e => setRepReflection(e.target.value)} placeholder="Write your reflection here..." rows={5} style={{ ...inputStyle, resize: 'vertical' }} disabled={rep.completed} />
                   {!rep.completed && (
                     <button onClick={() => { setReps(reps.map(r => r.id === activeRep ? { ...r, completed: true, reflection: repReflection } : r)); setActiveRep(null) }} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>Submit Rep</button>
@@ -298,6 +328,7 @@ export default function ImpactPortal() {
             )
           })()}
 
+          {/* REFLECTION JOURNAL */}
           {page === 'journal' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Reflection Journal</span>
@@ -321,11 +352,12 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* COMMUNITY */}
           {page === 'community' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Community</span>
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '0.5rem' }}>Cohort Community</h1>
-              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Share wins, ask questions, and encourage one another.</p>
+              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Share wins, ask questions, and encourage one another. This is your cohort space.</p>
               <div style={cardStyle}>
                 <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share a win, ask a question, or encourage someone..." rows={3} style={{ ...inputStyle, resize: 'none' }} />
                 <button onClick={() => { if (newPost.trim()) { setCommunityPosts([{ name: participant.name, time: 'Just now', text: newPost, likes: 0 }, ...communityPosts]); setNewPost('') } }} className="btn btn-primary" style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>Post</button>
@@ -350,15 +382,40 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* ANNOUNCEMENTS */}
+          {page === 'announcements' && (
+            <div>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Announcements</span>
+              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Announcements</h1>
+              {[
+                { date: 'July 1, 2025', title: 'Session 4 reminder', body: 'Reminder: Complete your Week 4 rep before our next session on July 8. Come ready to share what you applied and what you noticed.', type: 'reminder' },
+                { date: 'June 20, 2025', title: 'New resource added', body: 'The Session 3 recording is now available in your Resource Library. Watch it before our next session to refresh on the key concepts.', type: 'resource' },
+                { date: 'June 15, 2025', title: 'Office hours available', body: 'Tramaine is hosting optional office hours on June 22 at 5:00 PM for anyone who wants to discuss their Weekly Rep or ask questions before Session 4.', type: 'event' },
+                { date: 'June 1, 2025', title: 'Welcome to Impact Makers', body: 'Welcome to the Spring 2025 cohort. Your workbook has been added to the Resource Library and your first Weekly Rep is now available.', type: 'welcome' },
+              ].map((ann, i) => (
+                <div key={i} style={{ ...cardStyle, borderLeft: `4px solid var(--gold)` }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{ann.date}</span>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)', background: 'var(--mist)', padding: '0.15rem 0.45rem', borderRadius: '2px', textTransform: 'uppercase' }}>{ann.type}</span>
+                  </div>
+                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>{ann.title}</h3>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7 }}>{ann.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* RESOURCE LIBRARY */}
           {page === 'library' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Resource Library</span>
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Library</h1>
               {[
                 { category: 'Session Recordings', items: ['Session 1 Recording — April 1', 'Session 2 Recording — April 8', 'Session 3 Recording — April 15'] },
-                { category: 'Workbooks and Worksheets', items: ['Impact Makers Workbook', 'Week 1 Rep Worksheet', 'Contribution Self-Assessment'] },
+                { category: 'Workbooks and Worksheets', items: ['Impact Makers Workbook', 'Week 1 Rep Worksheet', 'Contribution Self-Assessment', 'Session 3 Reflection Questions'] },
                 { category: 'Recommended Reading', items: ['The Effective Executive — Peter Drucker', 'Drive — Daniel Pink', 'The War of Art — Steven Pressfield'] },
                 { category: 'Templates', items: ['Weekly Reflection Template', 'One-on-One Prep Template', 'Feedback Request Template'] },
+                { category: 'Session Slides', items: ['Session 1 Slides', 'Session 2 Slides', 'Session 3 Slides'] },
               ].map(({ category, items }) => (
                 <div key={category} style={cardStyle}>
                   <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>{category}</h3>
@@ -373,16 +430,75 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* ASSESSMENTS */}
+          {page === 'assessments' && (
+            <div>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Assessments</span>
+              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Assessments</h1>
+              {[
+                { title: 'Pre-Program Self-Assessment', desc: 'Baseline assessment completed before the program began.', status: 'Completed', date: 'March 28, 2025', type: 'pre' },
+                { title: 'Contribution Style Inventory', desc: 'Understanding how you naturally contribute and where you hold back.', status: 'Completed', date: 'April 1, 2025', type: 'self' },
+                { title: 'Mid-Program Assessment', desc: 'How have your habits and contributions changed since the program began?', status: 'Pending', date: 'Due July 8, 2025', type: 'mid' },
+                { title: 'Post-Program Assessment', desc: 'Final reflection on growth and impact created through the program.', status: 'Upcoming', date: 'Available July 15', type: 'post' },
+              ].map(({ title, desc, status, date, type }) => (
+                <div key={title} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.05rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{title}</h3>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)', background: 'var(--mist)', padding: '0.15rem 0.45rem', borderRadius: '2px', textTransform: 'uppercase' }}>{type}</span>
+                    </div>
+                    <p style={{ color: 'var(--slate)', fontSize: '0.85rem', lineHeight: 1.55, marginBottom: '0.5rem' }}>{desc}</p>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', letterSpacing: '0.1em' }}>{date}</span>
+                  </div>
+                  <span style={{ padding: '0.3rem 0.75rem', borderRadius: '2px', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: status === 'Completed' ? 'rgba(200,136,32,0.1)' : status === 'Pending' ? 'rgba(0,23,55,0.08)' : 'transparent', color: status === 'Completed' ? 'var(--gold)' : 'var(--slate)', border: status === 'Upcoming' ? '1px solid rgba(0,23,55,0.1)' : 'none', whiteSpace: 'nowrap' as const }}>{status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* EVALUATIONS */}
+          {page === 'evaluations' && (
+            <div>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Evaluations</span>
+              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '0.5rem' }}>Session Evaluation</h1>
+              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Your feedback helps improve the program for everyone. Please complete this after each session.</p>
+              {evalSubmitted ? (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>✓</div>
+                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>Evaluation submitted.</h3>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>Thank you for your feedback. It helps make the program better.</p>
+                </div>
+              ) : (
+                <form onSubmit={e => { e.preventDefault(); setEvalSubmitted(true) }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {[
+                    { key: 'session_quality', label: 'How would you rate the quality of this session?', placeholder: 'Share your thoughts on the content, pacing, and value...' },
+                    { key: 'facilitator', label: 'How effective was the facilitator?', placeholder: 'Clarity, engagement, ability to draw out insights...' },
+                    { key: 'application', label: 'How likely are you to apply what you learned?', placeholder: 'What specifically will you apply and how?' },
+                    { key: 'recommend', label: 'Would you recommend this program to others?', placeholder: 'Who would benefit from it and why?' },
+                    { key: 'comments', label: 'Any additional comments or suggestions?', placeholder: 'What worked well? What could be improved?' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key} style={cardStyle}>
+                      <label style={labelStyle}>{label}</label>
+                      <textarea value={evalResponses[key as keyof typeof evalResponses]} onChange={e => setEvalResponses({ ...evalResponses, [key]: e.target.value })} placeholder={placeholder} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                    </div>
+                  ))}
+                  <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start', fontSize: '0.85rem' }}>Submit Evaluation</button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* MY PROGRESS */}
           {page === 'progress' && (
             <div>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Progress</span>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>My Progress</span>
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Your Progress</h1>
-              <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
-                  { label: 'Sessions Completed', value: participant.sessionsCompleted, total: participant.sessionsTotal, icon: '📅', percent: false },
+                  { label: 'Sessions Attended', value: participant.sessionsCompleted, total: participant.sessionsTotal, icon: '📅', percent: false },
                   { label: 'Weekly Reps Done', value: participant.repsCompleted, total: participant.repsTotal, icon: '⚡', percent: false },
                   { label: 'Reflections Submitted', value: participant.reflections, total: 8, icon: '📓', percent: false },
-                  { label: 'Program Progress', value: 60, total: 100, icon: '🎯', percent: true },
+                  { label: 'Program Completion', value: 60, total: 100, icon: '🎯', percent: true },
                 ].map(({ label, value, total, icon, percent }) => (
                   <div key={label} style={cardStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
@@ -396,9 +512,85 @@ export default function ImpactPortal() {
                   </div>
                 ))}
               </div>
+              <div style={cardStyle}>
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Attendance</h3>
+                {[
+                  { n: 1, date: 'April 1', attended: true },
+                  { n: 2, date: 'April 8', attended: true },
+                  { n: 3, date: 'April 15', attended: true },
+                  { n: 4, date: 'July 8', attended: null },
+                  { n: 5, date: 'July 15', attended: null },
+                ].map(({ n, date, attended }) => (
+                  <div key={n} style={{ display: 'flex', gap: '1rem', padding: '0.65rem 0', borderBottom: '1px solid var(--mist)', alignItems: 'center' }}>
+                    <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: attended === true ? 'var(--gold)' : attended === false ? 'rgba(255,59,48,0.1)' : 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, flexShrink: 0, color: attended === true ? 'var(--navy)' : 'var(--slate)' }}>
+                      {attended === true ? '✓' : n}
+                    </span>
+                    <span style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>Session {n} — {date}</span>
+                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: attended === true ? 'var(--gold)' : 'var(--slate)', textTransform: 'uppercase' }}>
+                      {attended === true ? 'Attended' : attended === false ? 'Missed' : 'Upcoming'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
+          {/* MY IMPACT */}
+          {page === 'my-impact' && (
+            <div>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>My Impact</span>
+              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '0.5rem' }}>Your Impact Portfolio</h1>
+              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Document the impact you are creating outside of this program because of what you are learning. Wins, stories, habits, conversations, and moments that matter.</p>
+              <button onClick={() => setShowImpactForm(!showImpactForm)} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.65rem 1.25rem', marginBottom: '1.5rem' }}>
+                {showImpactForm ? 'Cancel' : '+ Add Impact Entry'}
+              </button>
+              {showImpactForm && (
+                <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1.25rem' }}>New impact entry</h3>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={labelStyle}>Category</label>
+                    <select value={newImpact.category} onChange={e => setNewImpact({ ...newImpact, category: e.target.value })} style={inputStyle}>
+                      {['win', 'story', 'habit', 'conversation', 'problem_solved', 'leadership', 'family', 'career', 'community', 'faith'].map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={labelStyle}>Life Domain</label>
+                    <select value={newImpact.domain} onChange={e => setNewImpact({ ...newImpact, domain: e.target.value })} style={inputStyle}>
+                      {['Career', 'Leadership', 'Family', 'Self', 'Community', 'Faith', 'Relationships', 'Health', 'Finances'].map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={labelStyle}>Title</label>
+                    <input value={newImpact.title} onChange={e => setNewImpact({ ...newImpact, title: e.target.value })} placeholder="What happened?" style={inputStyle} />
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={labelStyle}>Tell the story</label>
+                    <textarea value={newImpact.body} onChange={e => setNewImpact({ ...newImpact, body: e.target.value })} placeholder="Describe the impact you created. Be specific." rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
+                  </div>
+                  <button onClick={() => {
+                    if (newImpact.title.trim()) {
+                      setImpactEntries([{ id: impactEntries.length + 1, ...newImpact, date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }, ...impactEntries])
+                      setNewImpact({ category: 'win', title: '', body: '', domain: 'Career' })
+                      setShowImpactForm(false)
+                    }
+                  }} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Save Entry</button>
+                </div>
+              )}
+              {impactEntries.map(entry => (
+                <div key={entry.id} style={{ ...cardStyle, borderLeft: '4px solid var(--gold)' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{entry.date}</span>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)', background: 'var(--mist)', padding: '0.15rem 0.45rem', borderRadius: '2px', textTransform: 'uppercase' }}>{entry.category.replace('_', ' ')}</span>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)', background: 'var(--mist)', padding: '0.15rem 0.45rem', borderRadius: '2px' }}>{entry.domain}</span>
+                  </div>
+                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>{entry.title}</h3>
+                  <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7 }}>{entry.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* CERTIFICATES */}
           {page === 'certificates' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Certificates</span>
@@ -416,7 +608,8 @@ export default function ImpactPortal() {
                   { req: 'Attend 4 of 5 sessions', done: true },
                   { req: 'Complete 8 of 10 weekly reps', done: false },
                   { req: 'Submit 6 reflections', done: false },
-                  { req: 'Complete final submission', done: false },
+                  { req: 'Complete post-program assessment', done: false },
+                  { req: 'Submit final program evaluation', done: false },
                 ].map(({ req, done }) => (
                   <div key={req} style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', padding: '0.4rem 0' }}>
                     <span style={{ color: done ? 'var(--gold)' : 'var(--mist)', fontSize: '0.85rem' }}>{done ? '✓' : '○'}</span>
@@ -427,17 +620,51 @@ export default function ImpactPortal() {
             </div>
           )}
 
+          {/* PROFILE */}
+          {page === 'profile' && (
+            <div>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Profile</span>
+              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Your Profile</h1>
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '1.25rem' }}>
+                    {participant.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{participant.name}</h3>
+                    <span style={{ color: 'var(--slate)', fontSize: '0.82rem' }}>{participant.program} Participant</span>
+                  </div>
+                </div>
+                {[
+                  { label: 'Full Name', value: participant.name },
+                  { label: 'Current Program', value: participant.program },
+                  { label: 'Cohort', value: participant.cohort },
+                  { label: 'Time Zone', value: 'America/New_York' },
+                  { label: 'Notifications', value: 'Email and in-app' },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--mist)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)' }}>{label}</span>
+                    <span style={{ color: 'var(--ink)', fontSize: '0.88rem', fontWeight: 500 }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={handleSignOut} className="btn btn-ghost-dark" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Sign Out</button>
+            </div>
+          )}
+
         </div>
       </div>
 
       <style>{`
-        .portal-sidebar { display: flex; }
+        .desktop-sidebar { display: flex; }
+        .mobile-hamburger { display: none; }
         @media (max-width: 768px) {
-          .portal-sidebar { display: none !important; }
+          .desktop-sidebar { display: none !important; }
+          .mobile-hamburger { display: flex !important; }
           .stat-grid { grid-template-columns: 1fr !important; }
           .two-col-grid { grid-template-columns: 1fr !important; }
         }
-        input:focus, textarea:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(200,136,32,0.1); }
+        input:focus, textarea:focus, select:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(200,136,32,0.1); }
       `}</style>
     </div>
   )
