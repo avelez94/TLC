@@ -49,7 +49,6 @@ export default function Login() {
     }
 
     if (data.user) {
-      // Wait for session to be fully established
       await new Promise(resolve => setTimeout(resolve, 500))
 
       const { data: profile, error: profileError } = await supabase
@@ -59,18 +58,38 @@ export default function Login() {
         .single()
 
       if (profileError || !profile) {
-        // Fallback to portal the user clicked
-        if (portal === 'coaching') {
-          router.push('/coaching-portal')
-        } else {
-          router.push('/impact-portal')
-        }
+        await supabase.auth.signOut()
+        setError('Could not load your profile. Please contact support.')
+        setLoading(false)
         return
       }
 
-      if (profile.role === 'admin') {
+      const role = profile.role
+
+      // Admin can access everything
+      if (role === 'admin') {
         router.push('/admin')
-      } else if (profile.role === 'coaching_client') {
+        return
+      }
+
+      // Coaching client tried to log into impact portal
+      if (portal === 'impact' && role === 'coaching_client') {
+        await supabase.auth.signOut()
+        setError('This account does not have access to The Impact Lab. Please sign in through the Coaching Portal.')
+        setLoading(false)
+        return
+      }
+
+      // Impact participant tried to log into coaching portal
+      if (portal === 'coaching' && role === 'impact_participant') {
+        await supabase.auth.signOut()
+        setError('This account does not have access to the Coaching Portal. Please sign in through The Impact Lab.')
+        setLoading(false)
+        return
+      }
+
+      // Role matches portal
+      if (role === 'coaching_client') {
         router.push('/coaching-portal')
       } else {
         router.push('/impact-portal')
@@ -155,7 +174,7 @@ export default function Login() {
               </div>
 
               {error && (
-                <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: '#ff6b6b', fontSize: '0.85rem' }}>
+                <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: '#ff6b6b', fontSize: '0.85rem', lineHeight: 1.5 }}>
                   {error}
                 </div>
               )}
