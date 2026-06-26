@@ -37,23 +37,29 @@ export default function Login() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
-      setError(error.message)
+    if (authError) {
+      setError(authError.message)
       setLoading(false)
       return
     }
 
     if (data.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single()
+
+      if (profileError) {
+        setError('Could not load your profile. Please contact support.')
+        setLoading(false)
+        return
+      }
 
       if (profile?.role === 'admin') {
         router.push('/admin')
@@ -79,7 +85,7 @@ export default function Login() {
         <div style={{ width: '100%', maxWidth: '480px' }}>
 
           {portal === null && (
-            <>
+            <div>
               <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Welcome back</span>
                 <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 5vw, 3rem)', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Where are you signing in?</h1>
@@ -87,9 +93,12 @@ export default function Login() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <button onClick={() => setPortal('coaching')} style={{ width: '100%', padding: '1.75rem', background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(200,136,32,0.2)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s, background 0.15s' }}
+                <button
+                  onClick={() => setPortal('coaching')}
+                  style={{ width: '100%', padding: '1.75rem', background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(200,136,32,0.2)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s, background 0.15s' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(200,136,32,0.06)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(200,136,32,0.2)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)' }}>
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(200,136,32,0.2)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.4rem', color: 'white', letterSpacing: '0.04em' }}>Coaching Portal</span>
                     <span style={{ color: 'var(--gold)', fontSize: '1.1rem' }}>&#8594;</span>
@@ -97,9 +106,12 @@ export default function Login() {
                   <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>Sign in to access your coaching dashboard, sessions, and action plan.</p>
                 </button>
 
-                <button onClick={() => setPortal('impact')} style={{ width: '100%', padding: '1.75rem', background: 'rgba(10,37,71,0.5)', border: '1.5px solid rgba(200,136,32,0.2)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s, background 0.15s' }}
+                <button
+                  onClick={() => setPortal('impact')}
+                  style={{ width: '100%', padding: '1.75rem', background: 'rgba(10,37,71,0.5)', border: '1.5px solid rgba(200,136,32,0.2)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s, background 0.15s' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(200,136,32,0.06)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(200,136,32,0.2)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,37,71,0.5)' }}>
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(200,136,32,0.2)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,37,71,0.5)' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                     <Image src="/images/impact-lab-logo.png" alt="The Impact Lab" width={180} height={50} style={{ width: '180px', height: 'auto' }} />
                     <span style={{ color: 'var(--gold)', fontSize: '1.1rem' }}>&#8594;</span>
@@ -111,12 +123,15 @@ export default function Login() {
               <div style={{ textAlign: 'center', marginTop: '2rem' }}>
                 <Link href="/register" style={{ color: 'var(--gold)', fontSize: '0.85rem' }}>Join a cohort &#8594;</Link>
               </div>
-            </>
+            </div>
           )}
 
           {portal !== null && (
-            <>
-              <button onClick={() => { setPortal(null); setEmail(''); setPassword(''); setError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+            <div>
+              <button
+                onClick={() => { setPortal(null); setEmail(''); setPassword(''); setError('') }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-montserrat), sans-serif' }}
+              >
                 &#8592; Back
               </button>
 
@@ -152,7 +167,11 @@ export default function Login() {
                     </button>
                   </div>
                 </div>
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', background: loading ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.15s' }}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ width: '100%', padding: '0.95rem', background: loading ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.15s' }}
+                >
                   {loading ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>
@@ -162,8 +181,9 @@ export default function Login() {
                 {portal === 'impact' && <Link href="/register" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>Join a cohort</Link>}
                 {portal === 'coaching' && <Link href="/contact" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>Need access?</Link>}
               </div>
-            </>
+            </div>
           )}
+
         </div>
       </div>
 
