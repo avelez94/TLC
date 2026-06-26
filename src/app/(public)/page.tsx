@@ -172,7 +172,6 @@ export default function Home() {
             </div>
             <div>
               <p style={{ color: 'var(--slate)', fontSize: '1rem', lineHeight: 1.8, marginBottom: '1rem' }}>The Impact Lab is TLC Leadership Consulting &amp; Coaching&apos;s virtual learning environment. It brings together cohort-based learning experiences for people who want to grow, strengthen their contribution, and create greater impact in their work, their families, and their communities.</p>
-              <p style={{ color: 'var(--slate)', fontSize: '1rem', lineHeight: 1.8, marginBottom: '1.75rem' }}>Whether you are seeking greater clarity, developing the habits behind meaningful contribution, or learning to lead others more effectively, you will find a learning experience designed for where you are today.</p>
               <Link href="/impact" className="btn btn-primary">Explore The Impact Lab</Link>
             </div>
           </div>
