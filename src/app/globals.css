@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: var(--font-montserrat), system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+  }
+}
+
+:root {
+  --navy:       #001737;
+  --navy2:      #0A2547;
+  --navy3:      #061428;
+  --gold:       #C88820;
+  --gold2:      #E09A28;
+  --paper:      #F7F5F0;
+  --ink:        #1C2430;
+  --slate:      #4A5260;
+  --mist:       #E8E6E1;
+  --white:      #FFFFFF;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  font-family: var(--font-montserrat), system-ui, sans-serif !important;
+  color: var(--ink);
+  background: var(--white);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}
+
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+
+.reveal {
+  opacity: 0;
+  transform: translateY(38px);
+  transition: opacity 0.65s cubic-bezier(0.16,1,0.3,1),
+              transform 0.65s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 5vw, 2.75rem);
+}
+
+.eyebrow {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.gold-bar {
+  display: block;
+  width: 2.5rem;
+  height: 2.5px;
+  background: var(--gold);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-montserrat), sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  padding: 0.85rem 2rem;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+  line-height: 1;
+  white-space: nowrap;
+}
+.btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.btn:active { transform: scale(0.97); }
+
+.btn-primary { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+.btn-primary:hover { background: var(--gold2); border-color: var(--gold2); }
+
+.btn-ghost-light { background: transparent; color: var(--white); border-color: rgba(255,255,255,0.4); }
+.btn-ghost-light:hover { border-color: var(--white); }
+
+.btn-ghost-dark { background: transparent; color: var(--navy); border-color: var(--navy); }
+.btn-ghost-dark:hover { background: var(--navy); color: var(--white); }
+
+.page-hero {
+  background: var(--navy);
+  padding: calc(115px + clamp(2rem, 4vw, 3.5rem)) 0 clamp(2rem, 4vw, 3.5rem);
+}
+.page-hero .eyebrow { margin-bottom: 0.75rem; }
+.page-hero h1 {
+  font-family: var(--font-bebas), sans-serif !important;
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  color: var(--white);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-top: 0.5rem;
+}
+.page-hero .sub {
+  color: rgba(255,255,255,0.6);
+  font-size: clamp(1rem, 2vw, 1.12rem);
+  max-width: 580px;
+  margin-top: 1.25rem;
+  line-height: 1.8;
+}
+
+.content-section { padding: clamp(4.5rem, 9vw, 8rem) 0; }
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(3rem, 6vw, 5.5rem);
+  align-items: start;
+}
+@media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+.prose h3 { font-family: var(--font-bebas), sans-serif !important; font-size: 1.5rem; letter-spacing: 0.04em; color: var(--navy); margin: 1.75rem 0 0.6rem; }
+.prose h3:first-child { margin-top: 0; }
+.prose p { color: var(--slate); line-height: 1.8; margin-bottom: 1rem; font-size: 0.96rem; }
+.prose ul { margin-left: 0; list-style: none; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+.prose ul li { color: var(--slate); font-size: 0.92rem; line-height: 1.65; padding-left: 1.1rem; position: relative; }
+.prose ul li::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }

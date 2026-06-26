@@ -1,0 +1,18 @@
+import Nav from '@/components/Nav'
+import Footer from '@/components/Footer'
+
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      <Nav />
+      <main id="main">
+        {children}
+      </main>
+      <Footer />
+    </>
+  )
+}
