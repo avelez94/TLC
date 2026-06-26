@@ -158,4 +158,23 @@ export default function Login() {
               </form>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.25rem' }}>
-                <Link href="/reset" style={{ color: 'rgba(255,255,255,0.4)', fontSize:
+                <Link href="/reset" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>Forgot password?</Link>
+                {portal === 'impact' && <Link href="/register" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>Join a cohort</Link>}
+                {portal === 'coaching' && <Link href="/contact" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>Need access?</Link>}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: '1.5rem clamp(1.25rem, 5vw, 2.75rem)', borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+        <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>&copy; 2025 TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
+      </div>
+
+      <style>{`
+        input::placeholder { color: rgba(255,255,255,0.25); }
+        input:focus { border-color: var(--gold) !important; }
+      `}</style>
+    </div>
+  )
+}
