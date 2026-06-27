@@ -612,47 +612,13 @@ export default function Admin() {
           {/* PROGRAMS */}
           {page === 'programs' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Programs</span>
-                  <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>All Programs</h1>
-                </div>
-                <button onClick={() => setShowProgramForm(!showProgramForm)} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>
-                  {showProgramForm ? 'Cancel' : '+ New Program'}
-                </button>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Programs</span>
+                <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>Your Programs</h1>
+                <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginTop: '0.35rem' }}>Click any program to edit its details and manage its cohorts.</p>
               </div>
-              {showProgramForm && (
-                <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)', marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1.25rem' }}>Create a Program</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={labelStyle}>Program Name</label>
-                      <input value={newProgram.name} onChange={e => setNewProgram({ ...newProgram, name: e.target.value })} placeholder="e.g. Impact Leaders" style={inputStyle} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Type</label>
-                      <select value={newProgram.type} onChange={e => setNewProgram({ ...newProgram, type: e.target.value })} style={inputStyle}>
-                        <option value="cohort">Cohort</option>
-                        <option value="coaching">Coaching</option>
-                        <option value="self_paced">Self-Paced</option>
-                      </select>
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={labelStyle}>Description</label>
-                      <textarea value={newProgram.description} onChange={e => setNewProgram({ ...newProgram, description: e.target.value })} placeholder="What is this program about?" rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
-                    </div>
-                  </div>
-                  <button onClick={handleCreateProgram} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
-                    {actionLoading ? 'Creating...' : 'Create Program'}
-                  </button>
-                </div>
-              )}
-              {programs.length === 0 && !showProgramForm && (
-                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
-                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No programs yet. Create your first one.</p>
-                  <button onClick={() => setShowProgramForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Create Program</button>
-                </div>
-              )}
+
+
               {programs.map(p => (
                 <div key={p.id} style={cardStyle}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }} onClick={() => setExpandedProgram(expandedProgram === p.id ? null : p.id)}>
