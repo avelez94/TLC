@@ -1,113 +1,68 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment } from '@/types'
 
-type Page = 'dashboard' | 'users' | 'programs' | 'cohorts' | 'enrollments' | 'reps' | 'announcements' | 'resources' | 'attendance' | 'assessments' | 'evaluations' | 'certificates' | 'messages' | 'reports'
+type Page = 'dashboard' | 'users' | 'programs' | 'cohorts' | 'reps' | 'announcements' | 'resources' | 'attendance' | 'certificates' | 'reports'
 
 const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
   { id: 'users', label: 'Users', icon: '👥' },
   { id: 'programs', label: 'Programs', icon: '🎯' },
   { id: 'cohorts', label: 'Cohorts', icon: '📅' },
-  { id: 'enrollments', label: 'Enrollments', icon: '📋' },
   { id: 'reps', label: 'Weekly Reps', icon: '⚡' },
   { id: 'announcements', label: 'Announcements', icon: '📢' },
   { id: 'resources', label: 'Resources', icon: '📚' },
   { id: 'attendance', label: 'Attendance', icon: '✅' },
-  { id: 'assessments', label: 'Assessments', icon: '📊' },
-  { id: 'evaluations', label: 'Evaluations', icon: '📝' },
   { id: 'certificates', label: 'Certificates', icon: '🏆' },
-  { id: 'messages', label: 'Messages', icon: '💬' },
   { id: 'reports', label: 'Reports', icon: '📈' },
-]
-
-const sampleUsers = [
-  { id: '1', name: 'Jordan Williams', email: 'impact@impact.com', role: 'impact_participant', program: 'Impact Makers', status: 'active', joined: 'April 1, 2025' },
-  { id: '2', name: 'Marcus Johnson', email: 'coach@coach.com', role: 'coaching_client', program: 'Coaching', status: 'active', joined: 'May 6, 2025' },
-  { id: '3', name: 'Alicia Martinez', email: 'alicia@test.com', role: 'impact_participant', program: 'Impact Makers', status: 'active', joined: 'April 1, 2025' },
-  { id: '4', name: 'Derek Thompson', email: 'derek@test.com', role: 'impact_participant', program: 'Impact Makers', status: 'active', joined: 'April 1, 2025' },
-  { id: '5', name: 'Priya Singh', email: 'priya@test.com', role: 'impact_participant', program: 'Impact Makers', status: 'active', joined: 'April 1, 2025' },
-]
-
-const samplePrograms = [
-  { id: '1', name: 'Impact Finders', type: 'cohort', cohorts: 3, participants: 42, status: 'active' },
-  { id: '2', name: 'Impact Makers', type: 'cohort', cohorts: 5, participants: 78, status: 'active' },
-  { id: '3', name: 'Impact Leaders', type: 'cohort', cohorts: 2, participants: 24, status: 'active' },
-  { id: '4', name: 'Executive Coaching', type: 'coaching', cohorts: 0, participants: 12, status: 'active' },
-]
-
-const sampleCohorts = [
-  { id: '1', name: 'Impact Makers — Spring 2025', program: 'Impact Makers', start: 'April 1, 2025', end: 'July 15, 2025', participants: 18, status: 'active' },
-  { id: '2', name: 'Impact Finders — Spring 2025', program: 'Impact Finders', start: 'March 1, 2025', end: 'May 31, 2025', participants: 22, status: 'completed' },
-  { id: '3', name: 'Impact Makers — Fall 2025', program: 'Impact Makers', start: 'September 1, 2025', end: 'November 15, 2025', participants: 0, status: 'upcoming' },
-]
-
-const sampleEvaluations = [
-  { id: '1', user: 'Jordan Williams', cohort: 'Impact Makers — Spring 2025', session: 3, type: 'session', submitted: 'June 16, 2025', rating: 'Excellent' },
-  { id: '2', user: 'Alicia Martinez', cohort: 'Impact Makers — Spring 2025', session: 3, type: 'session', submitted: 'June 16, 2025', rating: 'Very Good' },
-  { id: '3', user: 'Derek Thompson', cohort: 'Impact Makers — Spring 2025', session: 3, type: 'facilitator', submitted: 'June 16, 2025', rating: 'Excellent' },
 ]
 
 export default function Admin() {
   const router = useRouter()
   const [page, setPage] = useState<Page>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [users, setUsers] = useState(sampleUsers)
-  const [programs, setPrograms] = useState(samplePrograms)
-  const [cohorts, setCohorts] = useState(sampleCohorts)
+  const [loading, setLoading] = useState(true)
+
+  // Data state
+  const [users, setUsers] = useState<Profile[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [cohorts, setCohorts] = useState<Cohort[]>([])
+  const [reps, setReps] = useState<WeeklyRep[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
+  const [certificates, setCertificates] = useState<Certificate[]>([])
+  const [enrollments, setEnrollments] = useState<CohortEnrollment[]>([])
+
+  // UI state
+  const [userFilter, setUserFilter] = useState('all')
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [showProgramForm, setShowProgramForm] = useState(false)
   const [showCohortForm, setShowCohortForm] = useState(false)
   const [showRepForm, setShowRepForm] = useState(false)
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false)
   const [showResourceForm, setShowResourceForm] = useState(false)
+  const [expandedUser, setExpandedUser] = useState<string | null>(null)
+  const [expandedProgram, setExpandedProgram] = useState<string | null>(null)
+  const [expandedCohort, setExpandedCohort] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [inviteError, setInviteError] = useState('')
-  const [userFilter, setUserFilter] = useState('all')
-  const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
-  const [newProgram, setNewProgram] = useState({ name: '', type: 'cohort' })
-  const [newCohort, setNewCohort] = useState({ name: '', program: 'Impact Makers', start: '', end: '', zoom_link: '' })
-  const [newRep, setNewRep] = useState({ cohort: 'Impact Makers — Spring 2025', week: '', title: '', instructions: '', why: '', due: '' })
-  const [newAnnouncement, setNewAnnouncement] = useState({ cohort: 'all', title: '', body: '' })
-  const [newResource, setNewResource] = useState({ title: '', type: 'pdf', url: '', program: 'Impact Makers', topic: '', portal_type: 'impact' })
-  const [reps, setReps] = useState([
-    { id: '1', cohort: 'Impact Makers — Spring 2025', week: 3, title: 'Have one meaningful conversation', due: 'July 8, 2025', submissions: 14, total: 18 },
-    { id: '2', cohort: 'Impact Makers — Spring 2025', week: 4, title: 'Practice active listening', due: 'July 8, 2025', submissions: 6, total: 18 },
-  ])
-  const [announcements, setAnnouncements] = useState([
-    { id: '1', cohort: 'Impact Makers — Spring 2025', title: 'Session 4 reminder', date: 'July 1, 2025', body: 'Complete your Week 4 rep before July 8.' },
-    { id: '2', cohort: 'All', title: 'Welcome to the platform', date: 'April 1, 2025', body: 'Your portal is now live.' },
-  ])
-  const [resources, setResources] = useState([
-    { id: '1', title: 'Impact Makers Workbook', type: 'pdf', program: 'Impact Makers', portal_type: 'impact', topic: 'Program materials' },
-    { id: '2', title: 'Executive Presence Self-Assessment', type: 'worksheet', program: 'Coaching', portal_type: 'coaching', topic: 'Self-assessment' },
-    { id: '3', title: 'Session 3 Recording', type: 'recording', program: 'Impact Makers', portal_type: 'impact', topic: 'Session recordings' },
-  ])
-  const [attendance, setAttendance] = useState([
-    { session: 1, date: 'April 1', attendees: [
-      { name: 'Jordan Williams', attended: true },
-      { name: 'Alicia Martinez', attended: true },
-      { name: 'Derek Thompson', attended: true },
-      { name: 'Priya Singh', attended: false },
-    ]},
-    { session: 2, date: 'April 8', attendees: [
-      { name: 'Jordan Williams', attended: true },
-      { name: 'Alicia Martinez', attended: true },
-      { name: 'Derek Thompson', attended: false },
-      { name: 'Priya Singh', attended: true },
-    ]},
-    { session: 3, date: 'April 15', attendees: [
-      { name: 'Jordan Williams', attended: true },
-      { name: 'Alicia Martinez', attended: true },
-      { name: 'Derek Thompson', attended: true },
-      { name: 'Priya Singh', attended: true },
-    ]},
-  ])
+  const [actionLoading, setActionLoading] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
 
+  // Form state
+  const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
+  const [newProgram, setNewProgram] = useState({ name: '', description: '', type: 'cohort' })
+  const [newCohort, setNewCohort] = useState({ name: '', program_id: '', start_date: '', end_date: '', zoom_link: '', status: 'upcoming' })
+  const [newRep, setNewRep] = useState({ cohort_id: '', week_number: '', title: '', instructions: '', why_it_matters: '', due_date: '' })
+  const [newAnnouncement, setNewAnnouncement] = useState({ cohort_id: '', title: '', body: '' })
+  const [newResource, setNewResource] = useState({ title: '', description: '', type: 'pdf', url: '', program_id: '', topic: '', portal_type: 'impact' })
+
+  // Styles
   const cardStyle = { background: 'white', borderRadius: '6px', border: '1px solid rgba(0,23,55,0.08)', padding: '1.5rem', marginBottom: '1.25rem' }
   const inputStyle = { width: '100%', padding: '0.75rem 1rem', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.9rem', color: 'var(--ink)', background: 'white', outline: 'none' }
   const labelStyle = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: 'var(--gold)', display: 'block', marginBottom: '0.5rem' }
@@ -115,6 +70,46 @@ export default function Admin() {
   const tdStyle = { padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--ink)', borderBottom: '1px solid var(--mist)', verticalAlign: 'middle' as const }
 
   const navigate = (id: Page) => { setPage(id); setMobileNavOpen(false) }
+
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(''), 4000)
+  }
+
+  // Data fetching
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    const [
+      { data: usersData },
+      { data: programsData },
+      { data: cohortsData },
+      { data: repsData },
+      { data: announcementsData },
+      { data: resourcesData },
+      { data: certsData },
+      { data: enrollmentsData },
+    ] = await Promise.all([
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('programs').select('*').order('name'),
+      supabase.from('cohorts').select('*, programs(name)').order('created_at', { ascending: false }),
+      supabase.from('weekly_reps').select('*, cohorts(name)').order('week_number'),
+      supabase.from('announcements').select('*, cohorts(name)').order('created_at', { ascending: false }),
+      supabase.from('resources').select('*, programs(name)').order('created_at', { ascending: false }),
+      supabase.from('certificates').select('*, profiles(full_name, email), programs(name)').order('issued_at', { ascending: false }),
+      supabase.from('cohort_enrollments').select('*, profiles(full_name, email, role), cohorts(name)').order('enrolled_at', { ascending: false }),
+    ])
+    if (usersData) setUsers(usersData)
+    if (programsData) setPrograms(programsData)
+    if (cohortsData) setCohorts(cohortsData)
+    if (repsData) setReps(repsData)
+    if (announcementsData) setAnnouncements(announcementsData)
+    if (resourcesData) setResources(resourcesData)
+    if (certsData) setCertificates(certsData)
+    if (enrollmentsData) setEnrollments(enrollmentsData)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -126,7 +121,6 @@ export default function Admin() {
     setInviteLoading(true)
     setInviteError('')
     setInviteSuccess('')
-
     try {
       const res = await fetch('/api/invite', {
         method: 'POST',
@@ -137,9 +131,10 @@ export default function Admin() {
       if (data.error) {
         setInviteError(data.error)
       } else {
-        setInviteSuccess(`Invitation sent to ${invite.email}. They will receive an email to set their password and will be automatically enrolled.`)
+        setInviteSuccess(`Invitation sent to ${invite.email}. They will receive an email to set their password.`)
         setInvite({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
         setShowInviteForm(false)
+        fetchAll()
       }
     } catch {
       setInviteError('Failed to send invite. Please try again.')
@@ -147,34 +142,164 @@ export default function Admin() {
     setInviteLoading(false)
   }
 
-  const roleBadge = (role: string) => {
-    const colors: Record<string, { bg: string; color: string }> = {
-      admin: { bg: 'rgba(200,136,32,0.15)', color: 'var(--gold)' },
-      coaching_client: { bg: 'rgba(0,23,55,0.08)', color: 'var(--navy)' },
-      impact_participant: { bg: 'rgba(10,37,71,0.08)', color: 'var(--slate)' },
+  const handleCreateProgram = async () => {
+    if (!newProgram.name.trim()) return
+    setActionLoading(true)
+    const { error } = await supabase.from('programs').insert({
+      name: newProgram.name,
+      description: newProgram.description || null,
+      type: newProgram.type,
+    })
+    if (!error) {
+      showSuccess('Program created.')
+      setNewProgram({ name: '', description: '', type: 'cohort' })
+      setShowProgramForm(false)
+      fetchAll()
     }
-    const style = colors[role] || colors.impact_participant
-    return (
-      <span style={{ ...style, fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '2px' }}>
-        {role.replace('_', ' ')}
-      </span>
-    )
+    setActionLoading(false)
+  }
+
+  const handleCreateCohort = async () => {
+    if (!newCohort.name.trim() || !newCohort.program_id) return
+    setActionLoading(true)
+    const { error } = await supabase.from('cohorts').insert({
+      name: newCohort.name,
+      program_id: newCohort.program_id,
+      start_date: newCohort.start_date || null,
+      end_date: newCohort.end_date || null,
+      zoom_link: newCohort.zoom_link || null,
+      status: newCohort.status,
+    })
+    if (!error) {
+      showSuccess('Cohort created.')
+      setNewCohort({ name: '', program_id: '', start_date: '', end_date: '', zoom_link: '', status: 'upcoming' })
+      setShowCohortForm(false)
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleCreateRep = async () => {
+    if (!newRep.title.trim() || !newRep.cohort_id) return
+    setActionLoading(true)
+    const { error } = await supabase.from('weekly_reps').insert({
+      cohort_id: newRep.cohort_id,
+      week_number: parseInt(newRep.week_number) || 1,
+      title: newRep.title,
+      instructions: newRep.instructions || null,
+      why_it_matters: newRep.why_it_matters || null,
+      due_date: newRep.due_date || null,
+    })
+    if (!error) {
+      showSuccess('Weekly rep created.')
+      setNewRep({ cohort_id: '', week_number: '', title: '', instructions: '', why_it_matters: '', due_date: '' })
+      setShowRepForm(false)
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleCreateAnnouncement = async () => {
+    if (!newAnnouncement.title.trim()) return
+    setActionLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('announcements').insert({
+      cohort_id: newAnnouncement.cohort_id || null,
+      title: newAnnouncement.title,
+      body: newAnnouncement.body || null,
+      created_by: user?.id || null,
+    })
+    if (!error) {
+      showSuccess('Announcement posted.')
+      setNewAnnouncement({ cohort_id: '', title: '', body: '' })
+      setShowAnnouncementForm(false)
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    await supabase.from('announcements').delete().eq('id', id)
+    fetchAll()
+  }
+
+  const handleCreateResource = async () => {
+    if (!newResource.title.trim()) return
+    setActionLoading(true)
+    const { error } = await supabase.from('resources').insert({
+      title: newResource.title,
+      description: newResource.description || null,
+      type: newResource.type,
+      url: newResource.url || null,
+      program_id: newResource.program_id || null,
+      topic: newResource.topic || null,
+      portal_type: newResource.portal_type,
+    })
+    if (!error) {
+      showSuccess('Resource added.')
+      setNewResource({ title: '', description: '', type: 'pdf', url: '', program_id: '', topic: '', portal_type: 'impact' })
+      setShowResourceForm(false)
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleDeleteResource = async (id: string) => {
+    await supabase.from('resources').delete().eq('id', id)
+    fetchAll()
+  }
+
+  const handleIssueCertificate = async (userId: string, programId: string) => {
+    setActionLoading(true)
+    const { error } = await supabase.from('certificates').insert({
+      user_id: userId,
+      program_id: programId,
+      requirements_met: {},
+    })
+    if (!error) {
+      showSuccess('Certificate issued.')
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleUpdateUserRole = async (userId: string, role: string) => {
+    await supabase.from('profiles').update({ role }).eq('id', userId)
+    fetchAll()
+  }
+
+  const handleUpdateCohortStatus = async (cohortId: string, status: string) => {
+    await supabase.from('cohorts').update({ status }).eq('id', cohortId)
+    fetchAll()
+  }
+
+  const roleBadge = (role: string) => {
+    const map: Record<string, { bg: string; color: string; label: string }> = {
+      admin: { bg: 'rgba(200,136,32,0.15)', color: 'var(--gold)', label: 'Admin' },
+      coaching_client: { bg: 'rgba(0,23,55,0.08)', color: 'var(--navy)', label: 'Coaching' },
+      impact_participant: { bg: 'rgba(10,37,71,0.06)', color: 'var(--slate)', label: 'Impact Lab' },
+    }
+    const s = map[role] || map.impact_participant
+    return <span style={{ ...s, fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '2px' }}>{s.label}</span>
   }
 
   const statusBadge = (status: string) => {
-    const colors: Record<string, { bg: string; color: string }> = {
+    const map: Record<string, { bg: string; color: string }> = {
       active: { bg: 'rgba(200,136,32,0.1)', color: 'var(--gold)' },
       completed: { bg: 'var(--mist)', color: 'var(--slate)' },
       upcoming: { bg: 'rgba(0,23,55,0.06)', color: 'var(--navy)' },
       pending: { bg: 'rgba(0,23,55,0.06)', color: 'var(--slate)' },
+      withdrawn: { bg: 'rgba(255,59,48,0.08)', color: '#ff6b6b' },
     }
-    const style = colors[status] || colors.active
-    return (
-      <span style={{ ...style, fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '2px' }}>
-        {status}
-      </span>
-    )
+    const s = map[status] || map.active
+    return <span style={{ ...s, fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '2px' }}>{status}</span>
   }
+
+  const filteredUsers = userFilter === 'all' ? users : users.filter(u => u.role === userFilter)
+
+  const activeCohorts = cohorts.filter(c => c.status === 'active')
+  const impactUsers = users.filter(u => u.role === 'impact_participant')
+  const coachingUsers = users.filter(u => u.role === 'coaching_client')
 
   const Sidebar = () => (
     <div style={{ width: '240px', background: 'var(--navy3)', borderRight: '1px solid rgba(200,136,32,0.15)', display: 'flex', flexDirection: 'column', flexShrink: 0, height: 'calc(100vh - 64px)', position: 'sticky', top: '64px', overflowY: 'auto' }}>
@@ -186,8 +311,8 @@ export default function Admin() {
       </div>
       <nav style={{ flex: 1, padding: '0.75rem 0' }}>
         {navItems.map(({ id, label, icon }) => (
-          <button key={id} onClick={() => setPage(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.62rem 1.25rem', background: page === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${page === id ? 'var(--gold)' : 'transparent'}`, color: page === id ? 'var(--gold)' : 'rgba(255,255,255,0.5)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif' }}>
-            <span style={{ fontSize: '0.82rem' }}>{icon}</span>{label}
+          <button key={id} onClick={() => setPage(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 1.25rem', background: page === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${page === id ? 'var(--gold)' : 'transparent'}`, color: page === id ? 'var(--gold)' : 'rgba(255,255,255,0.5)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+            <span>{icon}</span>{label}
           </button>
         ))}
       </nav>
@@ -198,11 +323,19 @@ export default function Admin() {
     </div>
   )
 
-  const filteredUsers = userFilter === 'all' ? users : users.filter(u => u.role === userFilter)
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Loading...</div>
+        <div style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Fetching your data</div>
+      </div>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', fontFamily: 'var(--font-montserrat), sans-serif', background: 'var(--paper)' }}>
 
+      {/* TOP BAR */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--navy3)', borderBottom: '1px solid rgba(200,136,32,0.15)', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--gold)', letterSpacing: '0.08em' }}>TLC</span>
@@ -239,6 +372,13 @@ export default function Admin() {
 
         <div style={{ flex: 1, padding: 'clamp(1.25rem, 3vw, 2rem)', minWidth: 0 }}>
 
+          {/* GLOBAL SUCCESS */}
+          {successMsg && (
+            <div style={{ background: 'rgba(200,136,32,0.1)', border: '1px solid rgba(200,136,32,0.3)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: 'var(--gold)', fontSize: '0.85rem' }}>
+              {successMsg}
+            </div>
+          )}
+
           {/* DASHBOARD */}
           {page === 'dashboard' && (
             <div>
@@ -246,10 +386,10 @@ export default function Admin() {
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Overview</h1>
               <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
-                  { label: 'Total Users', value: '94', sub: 'Active accounts' },
-                  { label: 'Active Cohorts', value: '3', sub: 'Currently running' },
-                  { label: 'Programs', value: '4', sub: 'Total programs' },
-                  { label: 'Certificates Issued', value: '47', sub: 'All time' },
+                  { label: 'Total Users', value: String(users.length), sub: 'All accounts' },
+                  { label: 'Impact Lab', value: String(impactUsers.length), sub: 'Participants' },
+                  { label: 'Coaching Clients', value: String(coachingUsers.length), sub: 'Active clients' },
+                  { label: 'Active Cohorts', value: String(activeCohorts.length), sub: 'Currently running' },
                 ].map(({ label, value, sub }) => (
                   <div key={label} style={{ ...cardStyle, marginBottom: 0 }}>
                     <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.5rem' }}>{label}</span>
@@ -261,11 +401,12 @@ export default function Admin() {
               <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={cardStyle}>
                   <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Active Cohorts</h3>
-                  {cohorts.filter(c => c.status === 'active').map(c => (
+                  {activeCohorts.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No active cohorts yet.</p>}
+                  {activeCohorts.map(c => (
                     <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <div>
                         <p style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{c.name}</p>
-                        <p style={{ color: 'var(--slate)', fontSize: '0.75rem' }}>{c.participants} participants</p>
+                        <p style={{ color: 'var(--slate)', fontSize: '0.75rem' }}>{enrollments.filter(e => e.cohort_id === c.id && e.status === 'active').length} enrolled</p>
                       </div>
                       {statusBadge(c.status)}
                     </div>
@@ -288,20 +429,18 @@ export default function Admin() {
                 </div>
               </div>
               <div style={cardStyle}>
-                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Program Overview</h3>
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Programs</h3>
+                {programs.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No programs yet. Create one in the Programs section.</p>}
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Program', 'Type', 'Cohorts', 'Participants', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
+                    <thead><tr>{['Program', 'Type', 'Cohorts', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
                     <tbody>
                       {programs.map(p => (
                         <tr key={p.id}>
                           <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{p.name}</span></td>
                           <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{p.type}</span></td>
-                          <td style={tdStyle}>{p.cohorts}</td>
-                          <td style={tdStyle}>{p.participants}</td>
-                          <td style={tdStyle}>{statusBadge(p.status)}</td>
+                          <td style={tdStyle}>{cohorts.filter(c => c.program_id === p.id).length}</td>
+                          <td style={tdStyle}>{statusBadge('active')}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -333,10 +472,8 @@ export default function Admin() {
               {showInviteForm && (
                 <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)', marginBottom: '1.5rem' }}>
                   <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>Invite a New User</h3>
-                  <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>They will receive an email with a link to set their own password and will be automatically enrolled in the selected program.</p>
-                  {inviteError && (
-                    <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '4px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{inviteError}</div>
-                  )}
+                  <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>They will receive an email to set their own password and will be automatically enrolled.</p>
+                  {inviteError && <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '4px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{inviteError}</div>}
                   <form onSubmit={handleInvite} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label style={labelStyle}>Full Name</label>
@@ -354,43 +491,33 @@ export default function Admin() {
                         <option value="admin">Admin</option>
                       </select>
                     </div>
-
                     {invite.role === 'impact_participant' && (
                       <div>
                         <label style={labelStyle}>Program</label>
                         <select value={invite.program_id} onChange={e => setInvite({ ...invite, program_id: e.target.value, cohort_id: '' })} style={inputStyle} required>
                           <option value="">Select a program...</option>
-                          {programs.filter(p => p.type === 'cohort').map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
+                          {programs.filter(p => p.type === 'cohort').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
                     )}
-
                     {invite.role === 'coaching_client' && (
                       <div>
                         <label style={labelStyle}>Program</label>
                         <select value={invite.program_id} onChange={e => setInvite({ ...invite, program_id: e.target.value })} style={inputStyle} required>
                           <option value="">Select a program...</option>
-                          {programs.filter(p => p.type !== 'cohort').map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
+                          {programs.filter(p => p.type !== 'cohort').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
                     )}
-
                     {invite.role === 'impact_participant' && invite.program_id && (
                       <div style={{ gridColumn: '1 / -1' }}>
                         <label style={labelStyle}>Cohort</label>
                         <select value={invite.cohort_id} onChange={e => setInvite({ ...invite, cohort_id: e.target.value })} style={inputStyle} required>
                           <option value="">Select a cohort...</option>
-                          {cohorts.filter(c => c.status === 'active' || c.status === 'upcoming').map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
+                          {cohorts.filter(c => c.program_id === invite.program_id && (c.status === 'active' || c.status === 'upcoming')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                     )}
-
                     <div style={{ gridColumn: '1 / -1' }}>
                       <button type="submit" disabled={inviteLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', width: '100%' }}>
                         {inviteLoading ? 'Sending...' : 'Send Invitation'}
@@ -402,10 +529,10 @@ export default function Admin() {
 
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
                 {[
-                  { value: 'all', label: 'All Users' },
-                  { value: 'impact_participant', label: 'Impact Lab' },
-                  { value: 'coaching_client', label: 'Coaching' },
-                  { value: 'admin', label: 'Admins' },
+                  { value: 'all', label: `All (${users.length})` },
+                  { value: 'impact_participant', label: `Impact Lab (${impactUsers.length})` },
+                  { value: 'coaching_client', label: `Coaching (${coachingUsers.length})` },
+                  { value: 'admin', label: `Admins (${users.filter(u => u.role === 'admin').length})` },
                 ].map(({ value, label }) => (
                   <button key={value} onClick={() => setUserFilter(value)} style={{ padding: '0.45rem 1rem', borderRadius: '2px', border: `1.5px solid ${userFilter === value ? 'var(--gold)' : 'rgba(0,23,55,0.15)'}`, background: userFilter === value ? 'rgba(200,136,32,0.08)' : 'white', color: userFilter === value ? 'var(--gold)' : 'var(--slate)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
                     {label}
@@ -414,27 +541,68 @@ export default function Admin() {
               </div>
 
               <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Name', 'Email', 'Role', 'Program', 'Joined', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.map(user => (
-                        <tr key={user.id}>
-                          <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{user.name}</span></td>
-                          <td style={tdStyle}><span style={{ color: 'var(--slate)', fontSize: '0.82rem' }}>{user.email}</span></td>
-                          <td style={tdStyle}>{roleBadge(user.role)}</td>
-                          <td style={tdStyle}><span style={{ color: 'var(--slate)', fontSize: '0.82rem' }}>{user.program}</span></td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{user.joined}</span></td>
-                          <td style={tdStyle}>
-                            <button style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '2px', padding: '0.25rem 0.65rem', fontSize: '0.72rem', cursor: 'pointer' }}>View</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {filteredUsers.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--slate)', fontSize: '0.88rem' }}>No users yet. Invite someone to get started.</div>
+                ) : (
+                  <div>
+                    {filteredUsers.map(user => (
+                      <div key={user.id}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.75rem', cursor: 'pointer' }} onClick={() => setExpandedUser(expandedUser === user.id ? null : user.id)}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
+                              {(user.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.88rem' }}>{user.full_name || 'No name'}</p>
+                              <p style={{ color: 'var(--slate)', fontSize: '0.78rem' }}>{user.email}</p>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            {roleBadge(user.role)}
+                            <span style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>{expandedUser === user.id ? '▲' : '▼'}</span>
+                          </div>
+                        </div>
+                        {expandedUser === user.id && (
+                          <div style={{ padding: '1.25rem 1.5rem', background: 'var(--paper)', borderBottom: '1px solid var(--mist)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                              <div>
+                                <span style={labelStyle}>Joined</span>
+                                <p style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>{new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                              </div>
+                              <div>
+                                <span style={labelStyle}>Timezone</span>
+                                <p style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>{user.timezone || 'Not set'}</p>
+                              </div>
+                              {user.role === 'impact_participant' && (
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                  <span style={labelStyle}>Enrollments</span>
+                                  {enrollments.filter(e => e.user_id === user.id).length === 0 ? (
+                                    <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>Not enrolled in any cohort yet.</p>
+                                  ) : enrollments.filter(e => e.user_id === user.id).map(e => (
+                                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--mist)' }}>
+                                      <span style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>{(e.cohorts as any)?.name || 'Unknown cohort'}</span>
+                                      {statusBadge(e.status)}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--slate)' }}>Change role:</span>
+                                <select value={user.role} onChange={e => handleUpdateUserRole(user.id, e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
+                                  <option value="impact_participant">Impact Lab</option>
+                                  <option value="coaching_client">Coaching</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -467,30 +635,53 @@ export default function Admin() {
                         <option value="self_paced">Self-Paced</option>
                       </select>
                     </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={labelStyle}>Description</label>
+                      <textarea value={newProgram.description} onChange={e => setNewProgram({ ...newProgram, description: e.target.value })} placeholder="What is this program about?" rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
+                    </div>
                   </div>
-                  <button onClick={() => {
-                    if (newProgram.name.trim()) {
-                      setPrograms([...programs, { id: String(programs.length + 1), name: newProgram.name, type: newProgram.type, cohorts: 0, participants: 0, status: 'active' }])
-                      setNewProgram({ name: '', type: 'cohort' })
-                      setShowProgramForm(false)
-                    }
-                  }} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Create Program</button>
+                  <button onClick={handleCreateProgram} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
+                    {actionLoading ? 'Creating...' : 'Create Program'}
+                  </button>
+                </div>
+              )}
+              {programs.length === 0 && !showProgramForm && (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No programs yet. Create your first one.</p>
+                  <button onClick={() => setShowProgramForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Create Program</button>
                 </div>
               )}
               {programs.map(p => (
-                <div key={p.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>{p.name}</h3>
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{p.type}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{p.cohorts} cohorts</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{p.participants} participants</span>
+                <div key={p.id} style={cardStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }} onClick={() => setExpandedProgram(expandedProgram === p.id ? null : p.id)}>
+                    <div>
+                      <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>{p.name}</h3>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{p.type}</span>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{cohorts.filter(c => c.program_id === p.id).length} cohorts</span>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{enrollments.filter(e => cohorts.find(c => c.program_id === p.id && c.id === e.cohort_id)).length} participants</span>
+                      </div>
                     </div>
+                    <span style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>{expandedProgram === p.id ? '▲' : '▼'}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {statusBadge(p.status)}
-                    <button style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '2px', padding: '0.3rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}>Manage</button>
-                  </div>
+                  {expandedProgram === p.id && (
+                    <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
+                      {p.description && <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.65, marginBottom: '1.25rem' }}>{p.description}</p>}
+                      <span style={labelStyle}>Cohorts in this program</span>
+                      {cohorts.filter(c => c.program_id === p.id).length === 0 ? (
+                        <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1rem' }}>No cohorts yet. Create one in the Cohorts section.</p>
+                      ) : cohorts.filter(c => c.program_id === p.id).map(c => (
+                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <span style={{ color: 'var(--ink)', fontSize: '0.85rem', fontWeight: 500 }}>{c.name}</span>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{enrollments.filter(e => e.cohort_id === c.id).length} enrolled</span>
+                            {statusBadge(c.status)}
+                          </div>
+                        </div>
+                      ))}
+                      <button onClick={() => { setPage('cohorts'); setNewCohort({ ...newCohort, program_id: p.id }); setShowCohortForm(true) }} className="btn btn-ghost-dark" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem', marginTop: '1rem' }}>+ Add Cohort</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -518,94 +709,104 @@ export default function Admin() {
                     </div>
                     <div>
                       <label style={labelStyle}>Program</label>
-                      <select value={newCohort.program} onChange={e => setNewCohort({ ...newCohort, program: e.target.value })} style={inputStyle}>
-                        {programs.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                      <select value={newCohort.program_id} onChange={e => setNewCohort({ ...newCohort, program_id: e.target.value })} style={inputStyle} required>
+                        <option value="">Select a program...</option>
+                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label style={labelStyle}>Start Date</label>
-                      <input type="date" value={newCohort.start} onChange={e => setNewCohort({ ...newCohort, start: e.target.value })} style={inputStyle} />
+                      <input type="date" value={newCohort.start_date} onChange={e => setNewCohort({ ...newCohort, start_date: e.target.value })} style={inputStyle} />
                     </div>
                     <div>
                       <label style={labelStyle}>End Date</label>
-                      <input type="date" value={newCohort.end} onChange={e => setNewCohort({ ...newCohort, end: e.target.value })} style={inputStyle} />
+                      <input type="date" value={newCohort.end_date} onChange={e => setNewCohort({ ...newCohort, end_date: e.target.value })} style={inputStyle} />
                     </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
+                    <div>
+                      <label style={labelStyle}>Status</label>
+                      <select value={newCohort.status} onChange={e => setNewCohort({ ...newCohort, status: e.target.value })} style={inputStyle}>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                    <div>
                       <label style={labelStyle}>Zoom Link</label>
                       <input value={newCohort.zoom_link} onChange={e => setNewCohort({ ...newCohort, zoom_link: e.target.value })} placeholder="https://zoom.us/j/..." style={inputStyle} />
                     </div>
                   </div>
-                  <button onClick={() => {
-                    if (newCohort.name.trim()) {
-                      setCohorts([...cohorts, { id: String(cohorts.length + 1), name: newCohort.name, program: newCohort.program, start: newCohort.start, end: newCohort.end, participants: 0, status: 'upcoming' }])
-                      setNewCohort({ name: '', program: 'Impact Makers', start: '', end: '', zoom_link: '' })
-                      setShowCohortForm(false)
-                    }
-                  }} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Create Cohort</button>
+                  <button onClick={handleCreateCohort} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
+                    {actionLoading ? 'Creating...' : 'Create Cohort'}
+                  </button>
+                </div>
+              )}
+              {cohorts.length === 0 && !showCohortForm && (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No cohorts yet. Create your first one.</p>
+                  <button onClick={() => setShowCohortForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Create Cohort</button>
                 </div>
               )}
               {cohorts.map(c => (
-                <div key={c.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.15rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.35rem' }}>{c.name}</h3>
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{c.program}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{c.start} to {c.end}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{c.participants} participants</span>
+                <div key={c.id} style={cardStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }} onClick={() => setExpandedCohort(expandedCohort === c.id ? null : c.id)}>
+                    <div>
+                      <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.15rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.35rem' }}>{c.name}</h3>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{(c.programs as any)?.name || 'No program'}</span>
+                        {c.start_date && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{c.start_date} to {c.end_date}</span>}
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{enrollments.filter(e => e.cohort_id === c.id && e.status === 'active').length} enrolled</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      {statusBadge(c.status)}
+                      <span style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>{expandedCohort === c.id ? '▲' : '▼'}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {statusBadge(c.status)}
-                    <button style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '2px', padding: '0.3rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}>Manage</button>
-                  </div>
+                  {expandedCohort === c.id && (
+                    <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                        {c.zoom_link && (
+                          <div>
+                            <span style={labelStyle}>Zoom Link</span>
+                            <a href={c.zoom_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.85rem', wordBreak: 'break-all' }}>{c.zoom_link}</a>
+                          </div>
+                        )}
+                        <div>
+                          <span style={labelStyle}>Change Status</span>
+                          <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                      </div>
+                      <span style={labelStyle}>Enrolled Participants</span>
+                      {enrollments.filter(e => e.cohort_id === c.id).length === 0 ? (
+                        <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No participants enrolled yet. Invite someone and assign them to this cohort.</p>
+                      ) : enrollments.filter(e => e.cohort_id === c.id).map(e => (
+                        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div>
+                            <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{(e.profiles as any)?.full_name || 'Unknown'}</span>
+                            <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.75rem' }}>{(e.profiles as any)?.email}</span>
+                          </div>
+                          {statusBadge(e.status)}
+                        </div>
+                      ))}
+                      <div style={{ marginTop: '1rem' }}>
+                        <span style={labelStyle}>Weekly Reps in this cohort</span>
+                        {reps.filter(r => r.cohort_id === c.id).length === 0 ? (
+                          <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No reps yet.</p>
+                        ) : reps.filter(r => r.cohort_id === c.id).map(r => (
+                          <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--mist)' }}>
+                            <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {r.week_number}</span>
+                            <p style={{ color: 'var(--ink)', fontSize: '0.85rem', fontWeight: 500 }}>{r.title}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* ENROLLMENTS */}
-          {page === 'enrollments' && (
-            <div>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Enrollments</span>
-              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Manage Enrollments</h1>
-              <div style={cardStyle}>
-                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Enroll a Participant</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={labelStyle}>Participant</label>
-                    <select style={inputStyle}>
-                      {users.filter(u => u.role === 'impact_participant').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Cohort</label>
-                    <select style={inputStyle}>
-                      {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Enroll</button>
-              </div>
-              <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Participant', 'Cohort', 'Program', 'Enrolled', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {users.filter(u => u.role === 'impact_participant').map(u => (
-                        <tr key={u.id}>
-                          <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{u.name}</span></td>
-                          <td style={tdStyle}>Impact Makers — Spring 2025</td>
-                          <td style={tdStyle}>Impact Makers</td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{u.joined}</span></td>
-                          <td style={tdStyle}>{statusBadge('active')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           )}
 
@@ -624,16 +825,17 @@ export default function Admin() {
               {showRepForm && (
                 <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)', marginBottom: '1.5rem' }}>
                   <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1.25rem' }}>Create a Weekly Rep</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label style={labelStyle}>Cohort</label>
-                      <select value={newRep.cohort} onChange={e => setNewRep({ ...newRep, cohort: e.target.value })} style={inputStyle}>
-                        {cohorts.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      <select value={newRep.cohort_id} onChange={e => setNewRep({ ...newRep, cohort_id: e.target.value })} style={inputStyle} required>
+                        <option value="">Select a cohort...</option>
+                        {cohorts.filter(c => c.status === 'active' || c.status === 'upcoming').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label style={labelStyle}>Week Number</label>
-                      <input type="number" value={newRep.week} onChange={e => setNewRep({ ...newRep, week: e.target.value })} placeholder="e.g. 5" style={inputStyle} />
+                      <input type="number" value={newRep.week_number} onChange={e => setNewRep({ ...newRep, week_number: e.target.value })} placeholder="e.g. 5" style={inputStyle} min="1" />
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={labelStyle}>Rep Title</label>
@@ -645,39 +847,35 @@ export default function Admin() {
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={labelStyle}>Why it matters</label>
-                      <textarea value={newRep.why} onChange={e => setNewRep({ ...newRep, why: e.target.value })} placeholder="Why is this rep important?" rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
+                      <textarea value={newRep.why_it_matters} onChange={e => setNewRep({ ...newRep, why_it_matters: e.target.value })} placeholder="Why is this rep important?" rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
                     </div>
                     <div>
                       <label style={labelStyle}>Due Date</label>
-                      <input type="date" value={newRep.due} onChange={e => setNewRep({ ...newRep, due: e.target.value })} style={inputStyle} />
+                      <input type="date" value={newRep.due_date} onChange={e => setNewRep({ ...newRep, due_date: e.target.value })} style={inputStyle} />
                     </div>
                   </div>
-                  <button onClick={() => {
-                    if (newRep.title.trim()) {
-                      setReps([...reps, { id: String(reps.length + 1), cohort: newRep.cohort, week: parseInt(newRep.week), title: newRep.title, due: newRep.due, submissions: 0, total: 18 }])
-                      setNewRep({ cohort: 'Impact Makers — Spring 2025', week: '', title: '', instructions: '', why: '', due: '' })
-                      setShowRepForm(false)
-                    }
-                  }} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Create Rep</button>
+                  <button onClick={handleCreateRep} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
+                    {actionLoading ? 'Creating...' : 'Create Rep'}
+                  </button>
+                </div>
+              )}
+              {reps.length === 0 && !showRepForm && (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No weekly reps yet.</p>
+                  <button onClick={() => setShowRepForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Create Rep</button>
                 </div>
               )}
               {reps.map(rep => (
                 <div key={rep.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {rep.week}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{rep.cohort}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>Due {rep.due}</span>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {rep.week_number}</span>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{(rep.cohorts as any)?.name}</span>
+                      {rep.due_date && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>Due {rep.due_date}</span>}
                     </div>
                     <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{rep.title}</h3>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{rep.submissions}/{rep.total}</div>
-                    <div style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)', textTransform: 'uppercase' }}>Submitted</div>
-                    <div style={{ height: '4px', background: 'var(--mist)', borderRadius: '2px', marginTop: '0.35rem', overflow: 'hidden', width: '80px' }}>
-                      <div style={{ height: '100%', width: `${(rep.submissions / rep.total) * 100}%`, background: 'var(--gold)', borderRadius: '2px' }} />
-                    </div>
-                  </div>
+                  <button onClick={async () => { await supabase.from('weekly_reps').delete().eq('id', rep.id); fetchAll() }} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
                 </div>
               ))}
             </div>
@@ -701,9 +899,9 @@ export default function Admin() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
                       <label style={labelStyle}>Send to</label>
-                      <select value={newAnnouncement.cohort} onChange={e => setNewAnnouncement({ ...newAnnouncement, cohort: e.target.value })} style={inputStyle}>
-                        <option value="all">All Participants</option>
-                        {cohorts.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      <select value={newAnnouncement.cohort_id} onChange={e => setNewAnnouncement({ ...newAnnouncement, cohort_id: e.target.value })} style={inputStyle}>
+                        <option value="">All Participants</option>
+                        {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
@@ -714,14 +912,15 @@ export default function Admin() {
                       <label style={labelStyle}>Message</label>
                       <textarea value={newAnnouncement.body} onChange={e => setNewAnnouncement({ ...newAnnouncement, body: e.target.value })} placeholder="Write your announcement here..." rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
                     </div>
-                    <button onClick={() => {
-                      if (newAnnouncement.title.trim()) {
-                        setAnnouncements([{ id: String(announcements.length + 1), cohort: newAnnouncement.cohort === 'all' ? 'All' : newAnnouncement.cohort, title: newAnnouncement.title, date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), body: newAnnouncement.body }, ...announcements])
-                        setNewAnnouncement({ cohort: 'all', title: '', body: '' })
-                        setShowAnnouncementForm(false)
-                      }
-                    }} className="btn btn-primary" style={{ fontSize: '0.85rem', alignSelf: 'flex-start' }}>Post Announcement</button>
+                    <button onClick={handleCreateAnnouncement} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', alignSelf: 'flex-start' }}>
+                      {actionLoading ? 'Posting...' : 'Post Announcement'}
+                    </button>
                   </div>
+                </div>
+              )}
+              {announcements.length === 0 && !showAnnouncementForm && (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>No announcements yet.</p>
                 </div>
               )}
               {announcements.map(ann => (
@@ -729,12 +928,12 @@ export default function Admin() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem' }}>
                     <div>
                       <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{ann.title}</h3>
-                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
-                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{ann.date}</span>
-                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{ann.cohort}</span>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{new Date(ann.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{(ann.cohorts as any)?.name || 'All Participants'}</span>
                       </div>
                     </div>
-                    <button onClick={() => setAnnouncements(announcements.filter(a => a.id !== ann.id))} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Delete</button>
+                    <button onClick={() => handleDeleteAnnouncement(ann.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Delete</button>
                   </div>
                   <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7 }}>{ann.body}</p>
                 </div>
@@ -778,8 +977,9 @@ export default function Admin() {
                     </div>
                     <div>
                       <label style={labelStyle}>Program</label>
-                      <select value={newResource.program} onChange={e => setNewResource({ ...newResource, program: e.target.value })} style={inputStyle}>
-                        {programs.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                      <select value={newResource.program_id} onChange={e => setNewResource({ ...newResource, program_id: e.target.value })} style={inputStyle}>
+                        <option value="">All programs</option>
+                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
                     <div>
@@ -787,40 +987,44 @@ export default function Admin() {
                       <input value={newResource.topic} onChange={e => setNewResource({ ...newResource, topic: e.target.value })} placeholder="e.g. Session recordings" style={inputStyle} />
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={labelStyle}>Description</label>
+                      <input value={newResource.description} onChange={e => setNewResource({ ...newResource, description: e.target.value })} placeholder="Brief description" style={inputStyle} />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
                       <label style={labelStyle}>URL or File Path</label>
                       <input value={newResource.url} onChange={e => setNewResource({ ...newResource, url: e.target.value })} placeholder="https://..." style={inputStyle} />
                     </div>
                   </div>
-                  <button onClick={() => {
-                    if (newResource.title.trim()) {
-                      setResources([...resources, { id: String(resources.length + 1), ...newResource }])
-                      setNewResource({ title: '', type: 'pdf', url: '', program: 'Impact Makers', topic: '', portal_type: 'impact' })
-                      setShowResourceForm(false)
-                    }
-                  }} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Add Resource</button>
+                  <button onClick={handleCreateResource} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
+                    {actionLoading ? 'Adding...' : 'Add Resource'}
+                  </button>
+                </div>
+              )}
+              {resources.length === 0 && !showResourceForm && (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No resources yet.</p>
+                  <button onClick={() => setShowResourceForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Add Resource</button>
                 </div>
               )}
               <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Title', 'Type', 'Program', 'Portal', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {resources.map(r => (
-                        <tr key={r.id}>
-                          <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{r.title}</span></td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{r.type}</span></td>
-                          <td style={tdStyle}>{r.program}</td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{r.portal_type}</span></td>
-                          <td style={tdStyle}>
-                            <button onClick={() => setResources(resources.filter(res => res.id !== r.id))} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.6)', fontSize: '0.75rem', cursor: 'pointer' }}>Remove</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {resources.length > 0 && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>{['Title', 'Type', 'Program', 'Portal', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {resources.map(r => (
+                          <tr key={r.id}>
+                            <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{r.title}</span>{r.description && <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.75rem' }}>{r.description}</span>}</td>
+                            <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{r.type}</span></td>
+                            <td style={tdStyle}>{(r.programs as any)?.name || 'All'}</td>
+                            <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{r.portal_type}</span></td>
+                            <td style={tdStyle}><button onClick={() => handleDeleteResource(r.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.6)', fontSize: '0.75rem', cursor: 'pointer' }}>Remove</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -829,89 +1033,47 @@ export default function Admin() {
           {page === 'attendance' && (
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Attendance</span>
-              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '0.5rem' }}>Session Attendance</h1>
-              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Impact Makers — Spring 2025</p>
-              {attendance.map(session => (
-                <div key={session.session} style={cardStyle}>
-                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Session {session.session} — {session.date}</h3>
-                  {session.attendees.map((a, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)' }}>
-                      <span style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>{a.name}</span>
-                      <button onClick={() => {
-                        setAttendance(attendance.map(s => s.session === session.session ? { ...s, attendees: s.attendees.map((att, idx) => idx === i ? { ...att, attended: !att.attended } : att) } : s))
-                      }} style={{ padding: '0.25rem 0.75rem', borderRadius: '2px', border: 'none', background: a.attended ? 'rgba(200,136,32,0.1)' : 'var(--mist)', color: a.attended ? 'var(--gold)' : 'var(--slate)', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                        {a.attended ? 'Present' : 'Absent'}
-                      </button>
-                    </div>
-                  ))}
-                  <div style={{ marginTop: '0.75rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>
-                    {session.attendees.filter(a => a.attended).length} of {session.attendees.length} attended
+              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Session Attendance</h1>
+              {activeCohorts.length === 0 ? (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>No active cohorts. Create and activate a cohort first.</p>
+                </div>
+              ) : activeCohorts.map(cohort => {
+                const cohortEnrollments = enrollments.filter(e => e.cohort_id === cohort.id && e.status === 'active')
+                return (
+                  <div key={cohort.id} style={cardStyle}>
+                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>{cohort.name}</h3>
+                    <p style={{ color: 'var(--slate)', fontSize: '0.82rem', marginBottom: '1.25rem' }}>{cohortEnrollments.length} participants enrolled</p>
+                    {cohortEnrollments.length === 0 ? (
+                      <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No participants enrolled in this cohort yet.</p>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              <th style={thStyle}>Participant</th>
+                              <th style={thStyle}>Status</th>
+                              <th style={thStyle}>Enrolled</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cohortEnrollments.map(e => (
+                              <tr key={e.id}>
+                                <td style={tdStyle}>
+                                  <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{(e.profiles as any)?.full_name || 'Unknown'}</span>
+                                  <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.75rem' }}>{(e.profiles as any)?.email}</span>
+                                </td>
+                                <td style={tdStyle}>{statusBadge(e.status)}</td>
+                                <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{new Date(e.enrolled_at).toLocaleDateString()}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ASSESSMENTS */}
-          {page === 'assessments' && (
-            <div>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Assessments</span>
-              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Assessments</h1>
-              <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Participant', 'Assessment', 'Type', 'Date', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { user: 'Jordan Williams', assessment: 'Pre-Program Self-Assessment', type: 'pre', date: 'March 28, 2025', status: 'completed' },
-                        { user: 'Jordan Williams', assessment: 'Mid-Program Assessment', type: 'mid', date: 'Due July 8, 2025', status: 'pending' },
-                        { user: 'Alicia Martinez', assessment: 'Pre-Program Self-Assessment', type: 'pre', date: 'March 28, 2025', status: 'completed' },
-                        { user: 'Marcus Johnson', assessment: 'DiSC Assessment', type: 'disc', date: 'May 6, 2025', status: 'completed' },
-                        { user: 'Marcus Johnson', assessment: 'Leadership Presence Assessment', type: 'self', date: 'May 20, 2025', status: 'completed' },
-                      ].map((a, i) => (
-                        <tr key={i}>
-                          <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{a.user}</span></td>
-                          <td style={tdStyle}>{a.assessment}</td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{a.type}</span></td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{a.date}</span></td>
-                          <td style={tdStyle}>{statusBadge(a.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* EVALUATIONS */}
-          {page === 'evaluations' && (
-            <div>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Evaluations</span>
-              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Evaluations</h1>
-              <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Participant', 'Cohort', 'Session', 'Type', 'Submitted', 'Rating'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {sampleEvaluations.map(e => (
-                        <tr key={e.id}>
-                          <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{e.user}</span></td>
-                          <td style={tdStyle}><span style={{ color: 'var(--slate)', fontSize: '0.82rem' }}>{e.cohort}</span></td>
-                          <td style={tdStyle}>{e.session}</td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{e.type}</span></td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{e.submitted}</span></td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{e.rating}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                )
+              })}
             </div>
           )}
 
@@ -925,64 +1087,46 @@ export default function Admin() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={labelStyle}>Participant</label>
-                    <select style={inputStyle}>
-                      {users.filter(u => u.role === 'impact_participant').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    <select id="cert-user" style={inputStyle}>
+                      <option value="">Select participant...</option>
+                      {users.filter(u => u.role === 'impact_participant').map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
                     </select>
                   </div>
                   <div>
                     <label style={labelStyle}>Program</label>
-                    <select style={inputStyle}>
+                    <select id="cert-program" style={inputStyle}>
+                      <option value="">Select program...</option>
                       {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                 </div>
-                <button className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Issue Certificate</button>
+                <button onClick={() => {
+                  const userId = (document.getElementById('cert-user') as HTMLSelectElement)?.value
+                  const programId = (document.getElementById('cert-program') as HTMLSelectElement)?.value
+                  if (userId && programId) handleIssueCertificate(userId, programId)
+                }} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
+                  {actionLoading ? 'Issuing...' : 'Issue Certificate'}
+                </button>
               </div>
-              <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>{['Participant', 'Program', 'Issued', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { name: 'Alex Rivera', program: 'Impact Finders', issued: 'May 31, 2025' },
-                        { name: 'Sam Chen', program: 'Impact Finders', issued: 'May 31, 2025' },
-                        { name: 'Maya Johnson', program: 'Impact Makers', issued: 'November 15, 2024' },
-                      ].map((c, i) => (
-                        <tr key={i}>
-                          <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{c.name}</span></td>
-                          <td style={tdStyle}>{c.program}</td>
-                          <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{c.issued}</span></td>
-                          <td style={tdStyle}><button style={{ background: 'none', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: '2px', padding: '0.25rem 0.65rem', fontSize: '0.72rem', cursor: 'pointer' }}>Download</button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* MESSAGES */}
-          {page === 'messages' && (
-            <div>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Messages</span>
-              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Message Threads</h1>
-              {[
-                { client: 'Marcus Johnson', coach: 'Tramaine L. Crawford', last: 'Keep a note of specific moments you notice a shift.', time: 'June 20, 4:02 PM', unread: 0 },
-              ].map((thread, i) => (
-                <div key={i} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.9rem' }}>{thread.client}</span>
-                      <span style={{ color: 'rgba(0,23,55,0.3)', fontSize: '0.75rem' }}>with {thread.coach}</span>
-                    </div>
-                    <p style={{ color: 'var(--slate)', fontSize: '0.85rem', lineHeight: 1.5 }}>{thread.last}</p>
+              {certificates.length > 0 && (
+                <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>{['Participant', 'Program', 'Issued'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {certificates.map(c => (
+                          <tr key={c.id}>
+                            <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{(c.profiles as any)?.full_name || (c.profiles as any)?.email || 'Unknown'}</span></td>
+                            <td style={tdStyle}>{(c.programs as any)?.name || 'Unknown'}</td>
+                            <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{new Date(c.issued_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', color: 'var(--slate)' }}>{thread.time}</span>
                 </div>
-              ))}
+              )}
+              {certificates.length === 0 && <div style={{ ...cardStyle, textAlign: 'center', padding: '2rem' }}><p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>No certificates issued yet.</p></div>}
             </div>
           )}
 
@@ -993,9 +1137,9 @@ export default function Admin() {
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Program Reports</h1>
               <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
-                  { label: 'Avg Attendance Rate', value: '87%', sub: 'Impact Makers Spring 2025' },
-                  { label: 'Rep Completion Rate', value: '73%', sub: 'All cohorts' },
-                  { label: 'Participant Satisfaction', value: '94%', sub: 'Based on evaluations' },
+                  { label: 'Total Users', value: String(users.length), sub: 'All accounts' },
+                  { label: 'Active Cohorts', value: String(activeCohorts.length), sub: 'Currently running' },
+                  { label: 'Certificates Issued', value: String(certificates.length), sub: 'All time' },
                 ].map(({ label, value, sub }) => (
                   <div key={label} style={{ ...cardStyle, marginBottom: 0 }}>
                     <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.5rem' }}>{label}</span>
@@ -1005,36 +1149,48 @@ export default function Admin() {
                 ))}
               </div>
               <div style={cardStyle}>
-                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Cohort Completion Rates</h3>
-                {[
-                  { name: 'Impact Makers — Spring 2025', completion: 60, participants: 18 },
-                  { name: 'Impact Finders — Spring 2025', completion: 100, participants: 22 },
-                  { name: 'Impact Makers — Fall 2024', completion: 100, participants: 16 },
-                ].map(({ name, completion, participants }) => (
-                  <div key={name} style={{ marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <span style={{ color: 'var(--navy)', fontWeight: 600, fontSize: '0.88rem' }}>{name}</span>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{participants} participants</span>
-                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)' }}>{completion}%</span>
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Enrollment by Cohort</h3>
+                {cohorts.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No cohorts yet.</p>}
+                {cohorts.map(c => {
+                  const count = enrollments.filter(e => e.cohort_id === c.id && e.status === 'active').length
+                  const max = 25
+                  return (
+                    <div key={c.id} style={{ marginBottom: '1.25rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <span style={{ color: 'var(--navy)', fontWeight: 600, fontSize: '0.88rem' }}>{c.name}</span>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          {statusBadge(c.status)}
+                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)' }}>{count} enrolled</span>
+                        </div>
+                      </div>
+                      <div style={{ height: '8px', background: 'var(--mist)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min((count / max) * 100, 100)}%`, background: 'var(--gold)', borderRadius: '4px' }} />
                       </div>
                     </div>
-                    <div style={{ height: '8px', background: 'var(--mist)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${completion}%`, background: 'var(--gold)', borderRadius: '4px' }} />
-                    </div>
+                  )
+                })}
+              </div>
+              <div style={cardStyle}>
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Users by Role</h3>
+                {[
+                  { label: 'Impact Lab Participants', count: impactUsers.length, color: 'var(--navy)' },
+                  { label: 'Coaching Clients', count: coachingUsers.length, color: 'var(--gold)' },
+                  { label: 'Admins', count: users.filter(u => u.role === 'admin').length, color: 'var(--slate)' },
+                ].map(({ label, count, color }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid var(--mist)' }}>
+                    <span style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>{label}</span>
+                    <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color, letterSpacing: '0.04em' }}>{count}</span>
                   </div>
                 ))}
               </div>
               <div style={cardStyle}>
-                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Weekly Rep Submissions</h3>
-                {reps.map(rep => (
-                  <div key={rep.id} style={{ marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <span style={{ color: 'var(--navy)', fontWeight: 500, fontSize: '0.85rem' }}>Week {rep.week} — {rep.title}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)' }}>{rep.submissions}/{rep.total}</span>
-                    </div>
-                    <div style={{ height: '6px', background: 'var(--mist)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${(rep.submissions / rep.total) * 100}%`, background: 'var(--gold)', borderRadius: '3px' }} />
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Weekly Reps</h3>
+                {reps.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No weekly reps yet.</p>}
+                {reps.map(r => (
+                  <div key={r.id} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--mist)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <span style={{ color: 'var(--navy)', fontWeight: 500, fontSize: '0.85rem' }}>Week {r.week_number} — {r.title}</span>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{(r.cohorts as any)?.name}</span>
                     </div>
                   </div>
                 ))}
