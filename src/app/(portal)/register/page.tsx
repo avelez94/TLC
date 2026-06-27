@@ -246,6 +246,11 @@ export default function Register() {
                           {formatDate(cohort.start_date)} to {formatDate(cohort.end_date)}
                         </p>
                       )}
+                      {(cohort as any).session_day && (cohort as any).session_time && (
+                        <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '0.25rem' }}>
+                          {(cohort as any).session_day}s at {(cohort as any).session_time}
+                        </p>
+                      )}
                     </div>
                     <span style={{ background: cohort.status === 'active' ? 'rgba(200,136,32,0.1)' : 'rgba(0,23,55,0.06)', color: cohort.status === 'active' ? 'var(--gold)' : 'var(--navy)', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.25rem 0.75rem', borderRadius: '2px' }}>
                       {cohort.status === 'active' ? 'Enrolling Now' : 'Coming Soon'}

@@ -169,6 +169,8 @@ export default function Admin() {
       end_date: newCohort.end_date || null,
       zoom_link: newCohort.zoom_link || null,
       status: newCohort.status,
+      session_day: (newCohort as any).session_day || null,
+      session_time: (newCohort as any).session_time || null,
     })
     if (!error) {
       showSuccess('Cohort created.')
@@ -734,6 +736,19 @@ export default function Admin() {
                       <label style={labelStyle}>Zoom Link</label>
                       <input value={newCohort.zoom_link} onChange={e => setNewCohort({ ...newCohort, zoom_link: e.target.value })} placeholder="https://zoom.us/j/..." style={inputStyle} />
                     </div>
+                    <div>
+                      <label style={labelStyle}>Session Day</label>
+                      <select value={(newCohort as any).session_day || ''} onChange={e => setNewCohort({ ...newCohort, ...(newCohort as any), session_day: e.target.value } as any)} style={inputStyle}>
+                        <option value="">Select a day...</option>
+                        {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Session Time</label>
+                      <input type="time" value={(newCohort as any).session_time || ''} onChange={e => setNewCohort({ ...newCohort, ...(newCohort as any), session_time: e.target.value } as any)} style={inputStyle} />
+                    </div>
                   </div>
                   <button onClick={handleCreateCohort} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
                     {actionLoading ? 'Creating...' : 'Create Cohort'}
@@ -771,6 +786,36 @@ export default function Admin() {
                             <a href={c.zoom_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.85rem', wordBreak: 'break-all' }}>{c.zoom_link}</a>
                           </div>
                         )}
+                        <div>
+                          <span style={labelStyle}>Session Day</span>
+                          <select
+                            defaultValue={(c as any).session_day || ''}
+                            id={`cohort-day-${c.id}`}
+                            style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                            onChange={async e => {
+                              await supabase.from('cohorts').update({ session_day: e.target.value || null }).eq('id', c.id)
+                              fetchAll()
+                            }}
+                          >
+                            <option value="">Select a day...</option>
+                            {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span style={labelStyle}>Session Time</span>
+                          <input
+                            type="time"
+                            defaultValue={(c as any).session_time || ''}
+                            id={`cohort-time-${c.id}`}
+                            style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                            onBlur={async e => {
+                              await supabase.from('cohorts').update({ session_time: e.target.value || null }).eq('id', c.id)
+                              fetchAll()
+                            }}
+                          />
+                        </div>
                         <div>
                           <span style={labelStyle}>Change Status</span>
                           <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
