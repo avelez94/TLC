@@ -24,7 +24,6 @@ const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'reports', label: 'Reports', icon: '📈' },
 ]
 
-// Sample data
 const sampleUsers = [
   { id: '1', name: 'Jordan Williams', email: 'impact@impact.com', role: 'impact_participant', program: 'Impact Makers', status: 'active', joined: 'April 1, 2025' },
   { id: '2', name: 'Marcus Johnson', email: 'coach@coach.com', role: 'coaching_client', program: 'Coaching', status: 'active', joined: 'May 6, 2025' },
@@ -69,7 +68,7 @@ export default function Admin() {
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [inviteError, setInviteError] = useState('')
   const [userFilter, setUserFilter] = useState('all')
-  const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant' })
+  const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
   const [newProgram, setNewProgram] = useState({ name: '', type: 'cohort' })
   const [newCohort, setNewCohort] = useState({ name: '', program: 'Impact Makers', start: '', end: '', zoom_link: '' })
   const [newRep, setNewRep] = useState({ cohort: 'Impact Makers — Spring 2025', week: '', title: '', instructions: '', why: '', due: '' })
@@ -138,8 +137,8 @@ export default function Admin() {
       if (data.error) {
         setInviteError(data.error)
       } else {
-        setInviteSuccess(`Invitation sent to ${invite.email}. They will receive an email to set their password.`)
-        setInvite({ email: '', full_name: '', role: 'impact_participant' })
+        setInviteSuccess(`Invitation sent to ${invite.email}. They will receive an email to set their password and will be automatically enrolled.`)
+        setInvite({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
         setShowInviteForm(false)
       }
     } catch {
@@ -167,6 +166,7 @@ export default function Admin() {
       active: { bg: 'rgba(200,136,32,0.1)', color: 'var(--gold)' },
       completed: { bg: 'var(--mist)', color: 'var(--slate)' },
       upcoming: { bg: 'rgba(0,23,55,0.06)', color: 'var(--navy)' },
+      pending: { bg: 'rgba(0,23,55,0.06)', color: 'var(--slate)' },
     }
     const style = colors[status] || colors.active
     return (
@@ -203,7 +203,6 @@ export default function Admin() {
   return (
     <div style={{ minHeight: '100vh', fontFamily: 'var(--font-montserrat), sans-serif', background: 'var(--paper)' }}>
 
-      {/* TOP BAR */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--navy3)', borderBottom: '1px solid rgba(200,136,32,0.15)', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--gold)', letterSpacing: '0.08em' }}>TLC</span>
@@ -220,7 +219,6 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* MOBILE NAV */}
       {mobileNavOpen && (
         <div style={{ position: 'fixed', top: '64px', left: 0, right: 0, bottom: 0, background: 'var(--navy3)', zIndex: 199, overflowY: 'auto', borderTop: '2px solid var(--gold)' }}>
           <div style={{ padding: '1rem 0' }}>
@@ -294,9 +292,7 @@ export default function Admin() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr>
-                        {['Program', 'Type', 'Cohorts', 'Participants', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}
-                      </tr>
+                      <tr>{['Program', 'Type', 'Cohorts', 'Participants', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {programs.map(p => (
@@ -329,7 +325,7 @@ export default function Admin() {
               </div>
 
               {inviteSuccess && (
-                <div style={{ background: 'rgba(200,136,32,0.1)', border: '1px solid rgba(200,136,32,0.3)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: 'var(--gold)', fontSize: '0.85rem' }}>
+                <div style={{ background: 'rgba(200,136,32,0.1)', border: '1px solid rgba(200,136,32,0.3)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: 'var(--gold)', fontSize: '0.85rem', lineHeight: 1.5 }}>
                   {inviteSuccess}
                 </div>
               )}
@@ -337,7 +333,7 @@ export default function Admin() {
               {showInviteForm && (
                 <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)', marginBottom: '1.5rem' }}>
                   <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>Invite a New User</h3>
-                  <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>They will receive an email with a link to set their own password.</p>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>They will receive an email with a link to set their own password and will be automatically enrolled in the selected program.</p>
                   {inviteError && (
                     <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '4px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{inviteError}</div>
                   )}
@@ -352,13 +348,50 @@ export default function Admin() {
                     </div>
                     <div>
                       <label style={labelStyle}>Role</label>
-                      <select value={invite.role} onChange={e => setInvite({ ...invite, role: e.target.value })} style={inputStyle}>
+                      <select value={invite.role} onChange={e => setInvite({ ...invite, role: e.target.value, program_id: '', cohort_id: '' })} style={inputStyle}>
                         <option value="impact_participant">Impact Lab Participant</option>
                         <option value="coaching_client">Coaching Client</option>
                         <option value="admin">Admin</option>
                       </select>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+
+                    {invite.role === 'impact_participant' && (
+                      <div>
+                        <label style={labelStyle}>Program</label>
+                        <select value={invite.program_id} onChange={e => setInvite({ ...invite, program_id: e.target.value, cohort_id: '' })} style={inputStyle} required>
+                          <option value="">Select a program...</option>
+                          {programs.filter(p => p.type === 'cohort').map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {invite.role === 'coaching_client' && (
+                      <div>
+                        <label style={labelStyle}>Program</label>
+                        <select value={invite.program_id} onChange={e => setInvite({ ...invite, program_id: e.target.value })} style={inputStyle} required>
+                          <option value="">Select a program...</option>
+                          {programs.filter(p => p.type !== 'cohort').map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {invite.role === 'impact_participant' && invite.program_id && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={labelStyle}>Cohort</label>
+                        <select value={invite.cohort_id} onChange={e => setInvite({ ...invite, cohort_id: e.target.value })} style={inputStyle} required>
+                          <option value="">Select a cohort...</option>
+                          {cohorts.filter(c => c.status === 'active' || c.status === 'upcoming').map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div style={{ gridColumn: '1 / -1' }}>
                       <button type="submit" disabled={inviteLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', width: '100%' }}>
                         {inviteLoading ? 'Sending...' : 'Send Invitation'}
                       </button>
@@ -384,13 +417,11 @@ export default function Admin() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr>
-                        {['Name', 'Email', 'Role', 'Program', 'Joined', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}
-                      </tr>
+                      <tr>{['Name', 'Email', 'Role', 'Program', 'Joined', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {filteredUsers.map(user => (
-                        <tr key={user.id} style={{ transition: 'background 0.1s' }}>
+                        <tr key={user.id}>
                           <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{user.name}</span></td>
                           <td style={tdStyle}><span style={{ color: 'var(--slate)', fontSize: '0.82rem' }}>{user.email}</span></td>
                           <td style={tdStyle}>{roleBadge(user.role)}</td>
@@ -432,6 +463,7 @@ export default function Admin() {
                       <label style={labelStyle}>Type</label>
                       <select value={newProgram.type} onChange={e => setNewProgram({ ...newProgram, type: e.target.value })} style={inputStyle}>
                         <option value="cohort">Cohort</option>
+                        <option value="coaching">Coaching</option>
                         <option value="self_paced">Self-Paced</option>
                       </select>
                     </div>
@@ -829,7 +861,7 @@ export default function Admin() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr>{['Participant', 'Assessment', 'Type', 'Completed', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                      <tr>{['Participant', 'Assessment', 'Type', 'Date', 'Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {[
