@@ -614,19 +614,27 @@ export default function Admin() {
                     <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Description</label>
+                          <label style={labelStyle}>Motto <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown in italics under the program name on the Impact Lab page</span></label>
+                          <input id={`motto-${p.id}`} defaultValue={(p as any).motto || ''} placeholder={`"Before you build anything, you have to see clearly."`} style={inputStyle} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Keywords <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as tags on the Impact Lab page, separated by commas</span></label>
+                          <input id={`keywords-${p.id}`} defaultValue={(p as any).keywords || ''} placeholder="Clarity, Direction, Purpose" style={inputStyle} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Program Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as the main paragraph on the Impact Lab page and the Register page</span></label>
                           <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Leadership Development Goal</label>
+                          <label style={labelStyle}>Leadership Development Goal <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Impact Lab page next to the program description</span></label>
                           <textarea id={`goal-${p.id}`} defaultValue={(p as any).leadership_goal || ''} rows={2} placeholder="e.g. Get clear on where you want your impact and what is standing between you and it." style={{ ...inputStyle, resize: 'vertical' }} />
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Focus Areas (one per line)</label>
+                          <label style={labelStyle}>Focus Areas <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as bullet points on the Impact Lab page, one item per line</span></label>
                           <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder="Clarity on your impact&#10;Identifying what matters most&#10;Removing what is in the way&#10;Direction and next steps" style={{ ...inputStyle, resize: 'vertical' }} />
                         </div>
                         <div>
-                          <label style={labelStyle}>Session Day</label>
+                          <label style={labelStyle}>Session Day <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
                           <select id={`day-${p.id}`} defaultValue={(p as any).session_day || ''} style={inputStyle}>
                             <option value="">Select a day...</option>
                             {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
@@ -635,11 +643,11 @@ export default function Admin() {
                           </select>
                         </div>
                         <div>
-                          <label style={labelStyle}>Session Time</label>
+                          <label style={labelStyle}>Session Time <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
                           <input type="time" id={`time-${p.id}`} defaultValue={(p as any).session_time || ''} style={inputStyle} />
                         </div>
                         <div>
-                          <label style={labelStyle}>Duration (weeks)</label>
+                          <label style={labelStyle}>Duration (weeks) <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
                           <input type="number" id={`duration-${p.id}`} defaultValue={(p as any).duration_weeks || ''} placeholder="e.g. 4" min="1" style={inputStyle} />
                         </div>
                       </div>
@@ -652,8 +660,12 @@ export default function Admin() {
                           const day = (document.getElementById(`day-${p.id}`) as HTMLSelectElement)?.value
                           const time = (document.getElementById(`time-${p.id}`) as HTMLInputElement)?.value
                           const duration = (document.getElementById(`duration-${p.id}`) as HTMLInputElement)?.value
+                          const motto = (document.getElementById(`motto-${p.id}`) as HTMLInputElement)?.value
+                          const keywords = (document.getElementById(`keywords-${p.id}`) as HTMLInputElement)?.value
                           await supabase.from('programs').update({
                             description: desc || null,
+                            motto: motto || null,
+                            keywords: keywords || null,
                             leadership_goal: goal || null,
                             focus_areas: focus || null,
                             session_day: day || null,

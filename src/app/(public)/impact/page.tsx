@@ -134,6 +134,10 @@ export default function Impact() {
           const focusList = parseList(dbProgram?.focus_areas || null)
           const priceLabel = dbProgram?.price_label
           const isLeaders = name === 'Impact Leaders'
+          const dbMotto = (dbProgram as any)?.motto
+          const dbKeywords = (dbProgram as any)?.keywords
+          const dbDesc = dbProgram?.description
+          const keywordList = dbKeywords ? dbKeywords.split(',').map((k: string) => k.trim()).filter(Boolean) : keywords
 
           return (
             <div key={id} id={id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', borderBottom: '1px solid rgba(0,23,55,0.08)', background: dark ? 'var(--navy)' : 'white', scrollMarginTop: '180px' }} className="reveal pathway-step">
@@ -145,11 +149,11 @@ export default function Impact() {
                 <div>
                   <div style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.5rem' }}>{tag}</div>
                   <h2 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 4vw, 3.25rem)', color: dark ? 'white' : 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.6rem' }}>{name}</h2>
-                  <p style={{ fontSize: 'clamp(1rem, 2vw, 1.15rem)', fontStyle: 'italic', color: dark ? 'rgba(255,255,255,0.55)' : 'var(--slate)', fontWeight: 400, marginBottom: '1rem', lineHeight: 1.4 }}>{motto}</p>
+                  {(dbMotto || motto) && <p style={{ fontSize: 'clamp(1rem, 2vw, 1.15rem)', fontStyle: 'italic', color: dark ? 'rgba(255,255,255,0.55)' : 'var(--slate)', fontWeight: 400, marginBottom: '1rem', lineHeight: 1.4 }}>{dbMotto || motto}</p>}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
-                    {keywords.map(k => <span key={k} style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: dark ? 'rgba(255,255,255,0.7)' : 'var(--navy)', background: dark ? 'rgba(255,255,255,0.07)' : 'var(--mist)', padding: '0.3rem 0.65rem', borderRadius: '2px' }}>{k}</span>)}
+                    {keywordList.map((k: string) => <span key={k} style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: dark ? 'rgba(255,255,255,0.7)' : 'var(--navy)', background: dark ? 'rgba(255,255,255,0.07)' : 'var(--mist)', padding: '0.3rem 0.65rem', borderRadius: '2px' }}>{k}</span>)}
                   </div>
-                  <p style={{ color: dark ? 'rgba(255,255,255,0.6)' : 'var(--slate)', fontSize: '0.93rem', lineHeight: 1.78, marginBottom: '1.5rem' }}>{desc}</p>
+                  <p style={{ color: dark ? 'rgba(255,255,255,0.6)' : 'var(--slate)', fontSize: '0.93rem', lineHeight: 1.78, marginBottom: '1.5rem' }}>{dbDesc || desc}</p>
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                     {isLeaders ? (
                       <Link href="/contact" className="btn btn-primary">Request Organizational Support</Link>
