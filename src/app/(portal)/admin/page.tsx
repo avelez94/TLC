@@ -40,7 +40,6 @@ export default function Admin() {
   // UI state
   const [userFilter, setUserFilter] = useState('all')
   const [showInviteForm, setShowInviteForm] = useState(false)
-  const [showProgramForm, setShowProgramForm] = useState(false)
   const [showCohortForm, setShowCohortForm] = useState(false)
   const [showRepForm, setShowRepForm] = useState(false)
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false)
@@ -56,7 +55,6 @@ export default function Admin() {
 
   // Form state
   const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
-  const [newProgram, setNewProgram] = useState({ name: '', description: '', type: 'cohort' })
   const [newCohort, setNewCohort] = useState({ name: '', program_id: '', start_date: '', end_date: '', zoom_link: '', status: 'upcoming' })
   const [newRep, setNewRep] = useState({ cohort_id: '', week_number: '', title: '', instructions: '', why_it_matters: '', due_date: '' })
   const [newAnnouncement, setNewAnnouncement] = useState({ cohort_id: '', title: '', body: '' })
@@ -142,23 +140,6 @@ export default function Admin() {
     setInviteLoading(false)
   }
 
-  const handleCreateProgram = async () => {
-    if (!newProgram.name.trim()) return
-    setActionLoading(true)
-    const { error } = await supabase.from('programs').insert({
-      name: newProgram.name,
-      description: newProgram.description || null,
-      type: newProgram.type,
-    })
-    if (!error) {
-      showSuccess('Program created.')
-      setNewProgram({ name: '', description: '', type: 'cohort' })
-      setShowProgramForm(false)
-      fetchAll()
-    }
-    setActionLoading(false)
-  }
-
   const handleCreateCohort = async () => {
     if (!newCohort.name.trim() || !newCohort.program_id) return
     setActionLoading(true)
@@ -169,8 +150,6 @@ export default function Admin() {
       end_date: newCohort.end_date || null,
       zoom_link: newCohort.zoom_link || null,
       status: newCohort.status,
-      session_day: (newCohort as any).session_day || null,
-      session_time: (newCohort as any).session_time || null,
     })
     if (!error) {
       showSuccess('Cohort created.')
@@ -618,7 +597,6 @@ export default function Admin() {
                 <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginTop: '0.35rem' }}>Click any program to edit its details and manage its cohorts.</p>
               </div>
 
-
               {programs.map(p => (
                 <div key={p.id} style={cardStyle}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }} onClick={() => setExpandedProgram(expandedProgram === p.id ? null : p.id)}>
@@ -634,7 +612,68 @@ export default function Admin() {
                   </div>
                   {expandedProgram === p.id && (
                     <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
-                      {p.description && <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.65, marginBottom: '1.25rem' }}>{p.description}</p>}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Description</label>
+                          <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Leadership Development Goal</label>
+                          <textarea id={`goal-${p.id}`} defaultValue={(p as any).leadership_goal || ''} rows={2} placeholder="e.g. Get clear on where you want your impact and what is standing between you and it." style={{ ...inputStyle, resize: 'vertical' }} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Focus Areas (one per line)</label>
+                          <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder={"Clarity on your impact
+Identifying what matters most
+Removing what is in the way
+Direction and next steps"} style={{ ...inputStyle, resize: 'vertical' }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Session Day</label>
+                          <select id={`day-${p.id}`} defaultValue={(p as any).session_day || ''} style={inputStyle}>
+                            <option value="">Select a day...</option>
+                            {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Session Time</label>
+                          <input type="time" id={`time-${p.id}`} defaultValue={(p as any).session_time || ''} style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Duration (weeks)</label>
+                          <input type="number" id={`duration-${p.id}`} defaultValue={(p as any).duration_weeks || ''} placeholder="e.g. 4" min="1" style={inputStyle} />
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setActionLoading(true)
+                          const desc = (document.getElementById(`desc-${p.id}`) as HTMLTextAreaElement)?.value
+                          const goal = (document.getElementById(`goal-${p.id}`) as HTMLTextAreaElement)?.value
+                          const focus = (document.getElementById(`focus-${p.id}`) as HTMLTextAreaElement)?.value
+                          const day = (document.getElementById(`day-${p.id}`) as HTMLSelectElement)?.value
+                          const time = (document.getElementById(`time-${p.id}`) as HTMLInputElement)?.value
+                          const duration = (document.getElementById(`duration-${p.id}`) as HTMLInputElement)?.value
+                          await supabase.from('programs').update({
+                            description: desc || null,
+                            leadership_goal: goal || null,
+                            focus_areas: focus || null,
+                            session_day: day || null,
+                            session_time: time || null,
+                            duration_weeks: duration ? parseInt(duration) : null,
+                          }).eq('id', p.id)
+                          showSuccess(`${p.name} updated.`)
+                          setExpandedProgram(null)
+                          fetchAll()
+                          setActionLoading(false)
+                        }}
+                        disabled={actionLoading}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}
+                      >
+                        {actionLoading ? 'Saving...' : 'Save Changes'}
+                      </button>
                       <span style={labelStyle}>Cohorts in this program</span>
                       {cohorts.filter(c => c.program_id === p.id).length === 0 ? (
                         <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1rem' }}>No cohorts yet. Create one in the Cohorts section.</p>
@@ -702,19 +741,6 @@ export default function Admin() {
                       <label style={labelStyle}>Zoom Link</label>
                       <input value={newCohort.zoom_link} onChange={e => setNewCohort({ ...newCohort, zoom_link: e.target.value })} placeholder="https://zoom.us/j/..." style={inputStyle} />
                     </div>
-                    <div>
-                      <label style={labelStyle}>Session Day</label>
-                      <select value={(newCohort as any).session_day || ''} onChange={e => setNewCohort({ ...newCohort, ...(newCohort as any), session_day: e.target.value } as any)} style={inputStyle}>
-                        <option value="">Select a day...</option>
-                        {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Session Time</label>
-                      <input type="time" value={(newCohort as any).session_time || ''} onChange={e => setNewCohort({ ...newCohort, ...(newCohort as any), session_time: e.target.value } as any)} style={inputStyle} />
-                    </div>
                   </div>
                   <button onClick={handleCreateCohort} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
                     {actionLoading ? 'Creating...' : 'Create Cohort'}
@@ -752,36 +778,6 @@ export default function Admin() {
                             <a href={c.zoom_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.85rem', wordBreak: 'break-all' }}>{c.zoom_link}</a>
                           </div>
                         )}
-                        <div>
-                          <span style={labelStyle}>Session Day</span>
-                          <select
-                            defaultValue={(c as any).session_day || ''}
-                            id={`cohort-day-${c.id}`}
-                            style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-                            onChange={async e => {
-                              await supabase.from('cohorts').update({ session_day: e.target.value || null }).eq('id', c.id)
-                              fetchAll()
-                            }}
-                          >
-                            <option value="">Select a day...</option>
-                            {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <span style={labelStyle}>Session Time</span>
-                          <input
-                            type="time"
-                            defaultValue={(c as any).session_time || ''}
-                            id={`cohort-time-${c.id}`}
-                            style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-                            onBlur={async e => {
-                              await supabase.from('cohorts').update({ session_time: e.target.value || null }).eq('id', c.id)
-                              fetchAll()
-                            }}
-                          />
-                        </div>
                         <div>
                           <span style={labelStyle}>Change Status</span>
                           <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
