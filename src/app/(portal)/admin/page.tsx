@@ -623,10 +623,7 @@ export default function Admin() {
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
                           <label style={labelStyle}>Focus Areas (one per line)</label>
-                          <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder={"Clarity on your impact
-Identifying what matters most
-Removing what is in the way
-Direction and next steps"} style={{ ...inputStyle, resize: 'vertical' }} />
+                          <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder="Clarity on your impact&#10;Identifying what matters most&#10;Removing what is in the way&#10;Direction and next steps" style={{ ...inputStyle, resize: 'vertical' }} />
                         </div>
                         <div>
                           <label style={labelStyle}>Session Day</label>
