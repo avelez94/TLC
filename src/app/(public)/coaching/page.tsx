@@ -1,9 +1,21 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 export default function Coaching() {
+  const [focusAreas, setFocusAreas] = useState<{ title: string; desc: string }[]>([])
+
+  const defaultPillars = [
+    { title: 'Leadership', desc: 'How you show up for and develop the people around you.' },
+    { title: 'Performance', desc: 'Habits and behaviors that drive consistent results.' },
+    { title: 'Communication', desc: 'Clarity, confidence, and presence when it matters.' },
+    { title: 'Career Growth', desc: 'Direction, strategy, and momentum toward where you want to go.' },
+    { title: 'Confidence', desc: 'The self-belief that shows up when you need it most.' },
+    { title: 'Personal Development', desc: 'The whole person. Not just the professional.' },
+  ]
+
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target) } })
@@ -12,14 +24,34 @@ export default function Coaching() {
     return () => observer.disconnect()
   }, [])
 
-  const pillars = [
-    { title: 'Leadership', desc: 'How you show up for and develop the people around you.' },
-    { title: 'Performance', desc: 'Habits and behaviors that drive consistent results.' },
-    { title: 'Communication', desc: 'Clarity, confidence, and presence when it matters.' },
-    { title: 'Career Growth', desc: 'Direction, strategy, and momentum toward where you want to go.' },
-    { title: 'Confidence', desc: 'The self-belief that shows up when you need it most.' },
-    { title: 'Personal Development', desc: 'The whole person. Not just the professional.' },
-  ]
+  useEffect(() => {
+    const fetchFocusAreas = async () => {
+      const { data } = await supabase
+        .from('programs')
+        .select('focus_areas')
+        .eq('name', 'Executive Coaching')
+        .single()
+
+      if (data?.focus_areas) {
+        const lines = data.focus_areas
+          .split('\n')
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+
+        // Each line is a title — map to pillar with desc from defaults if available
+        const mapped = lines.map((title: string) => {
+          const match = defaultPillars.find(p => p.title.toLowerCase() === title.toLowerCase())
+          return { title, desc: match?.desc || '' }
+        })
+        setFocusAreas(mapped)
+      } else {
+        setFocusAreas(defaultPillars)
+      }
+    }
+    fetchFocusAreas()
+  }, [])
+
+  const pillars = focusAreas.length > 0 ? focusAreas : defaultPillars
 
   const steps = [
     { n: '01', title: 'Discovery Call', desc: 'A conversation to understand where you are, where you want to go, and whether coaching is the right fit.' },
@@ -58,8 +90,8 @@ export default function Coaching() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.25rem' }}>
                 {pillars.map(({ title, desc }) => (
                   <div key={title} style={{ background: 'var(--paper)', borderRadius: '2px', padding: '1.35rem', borderLeft: '3px solid var(--gold)' }}>
-                    <h4 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1rem', letterSpacing: '0.04em', color: 'var(--navy)', marginBottom: '0.35rem' }}>{title}</h4>
-                    <p style={{ color: 'var(--slate)', fontSize: '0.84rem', lineHeight: 1.6, margin: 0 }}>{desc}</p>
+                    <h4 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1rem', letterSpacing: '0.04em', color: 'var(--navy)', marginBottom: desc ? '0.35rem' : 0 }}>{title}</h4>
+                    {desc && <p style={{ color: 'var(--slate)', fontSize: '0.84rem', lineHeight: 1.6, margin: 0 }}>{desc}</p>}
                   </div>
                 ))}
               </div>
@@ -68,9 +100,9 @@ export default function Coaching() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid rgba(0,23,55,0.1)', borderRadius: '2px', overflow: 'hidden', marginBottom: '1.5rem' }}>
                 {steps.map(({ n, title, desc }) => (
                   <div key={n} style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start', padding: '1.5rem 1.75rem', borderBottom: '1px solid rgba(0,23,55,0.07)', background: 'white' }}>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold)', minWidth: '2rem', paddingTop: '0.1rem' }}>{n}</span>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold)', minWidth: '2rem', paddingTop: '0.1rem' }}>{n}</span>
                     <div>
-                      <h4 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.1rem', letterSpacing: '0.04em', color: 'var(--navy)', marginBottom: '0.3rem' }}>{title}</h4>
+                      <h4 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', letterSpacing: '0.04em', color: 'var(--navy)', marginBottom: '0.3rem' }}>{title}</h4>
                       <p style={{ color: 'var(--slate)', fontSize: '0.87rem', lineHeight: 1.65, margin: 0 }}>{desc}</p>
                     </div>
                   </div>

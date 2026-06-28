@@ -613,43 +613,61 @@ export default function Admin() {
                   {expandedProgram === p.id && (
                     <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Motto <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown in italics under the program name on the Impact Lab page</span></label>
-                          <input id={`motto-${p.id}`} defaultValue={(p as any).motto || ''} placeholder={`"Before you build anything, you have to see clearly."`} style={inputStyle} />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Keywords <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as tags on the Impact Lab page, separated by commas</span></label>
-                          <input id={`keywords-${p.id}`} defaultValue={(p as any).keywords || ''} placeholder="Clarity, Direction, Purpose" style={inputStyle} />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Program Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as the main paragraph on the Impact Lab page and the Register page</span></label>
-                          <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Leadership Development Goal <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Impact Lab page next to the program description</span></label>
-                          <textarea id={`goal-${p.id}`} defaultValue={(p as any).leadership_goal || ''} rows={2} placeholder="e.g. Get clear on where you want your impact and what is standing between you and it." style={{ ...inputStyle, resize: 'vertical' }} />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Focus Areas <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as bullet points on the Impact Lab page, one item per line</span></label>
-                          <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder="Clarity on your impact&#10;Identifying what matters most&#10;Removing what is in the way&#10;Direction and next steps" style={{ ...inputStyle, resize: 'vertical' }} />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Session Day <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
-                          <select id={`day-${p.id}`} defaultValue={(p as any).session_day || ''} style={inputStyle}>
-                            <option value="">Select a day...</option>
-                            {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Session Time <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
-                          <input type="time" id={`time-${p.id}`} defaultValue={(p as any).session_time || ''} style={inputStyle} />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Duration (weeks) <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
-                          <input type="number" id={`duration-${p.id}`} defaultValue={(p as any).duration_weeks || ''} placeholder="e.g. 4" min="1" style={inputStyle} />
-                        </div>
+                        {/* COACHING PROGRAM — only description and focus areas */}
+                        {p.type === 'coaching' && (
+                          <>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Program Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Coaching page</span></label>
+                              <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Focus Areas <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as cards on the Coaching page, one item per line</span></label>
+                              <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder="Leadership&#10;Performance&#10;Communication&#10;Career Growth&#10;Confidence&#10;Personal Development" style={{ ...inputStyle, resize: 'vertical' }} />
+                            </div>
+                          </>
+                        )}
+                        {/* COHORT PROGRAMS — full set of fields */}
+                        {p.type === 'cohort' && (
+                          <>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Motto <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown in italics under the program name on the Impact Lab page</span></label>
+                              <input id={`motto-${p.id}`} defaultValue={(p as any).motto || ''} placeholder='"Before you build anything, you have to see clearly."' style={inputStyle} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Keywords <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as tags on the Impact Lab page, separated by commas</span></label>
+                              <input id={`keywords-${p.id}`} defaultValue={(p as any).keywords || ''} placeholder="Clarity, Direction, Purpose" style={inputStyle} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Program Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Impact Lab page and the Register page</span></label>
+                              <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Leadership Development Goal <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Impact Lab page next to the description</span></label>
+                              <textarea id={`goal-${p.id}`} defaultValue={(p as any).leadership_goal || ''} rows={2} placeholder="e.g. Get clear on where you want your impact and what is standing between you and it." style={{ ...inputStyle, resize: 'vertical' }} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Focus Areas <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as bullet points on the Impact Lab page, one item per line</span></label>
+                              <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder="Clarity on your impact&#10;Identifying what matters most&#10;Removing what is in the way&#10;Direction and next steps" style={{ ...inputStyle, resize: 'vertical' }} />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Session Day <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
+                              <select id={`day-${p.id}`} defaultValue={(p as any).session_day || ''} style={inputStyle}>
+                                <option value="">Select a day...</option>
+                                {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
+                                  <option key={d} value={d}>{d}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Session Time <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
+                              <input type="time" id={`time-${p.id}`} defaultValue={(p as any).session_time || ''} style={inputStyle} />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Duration (weeks) <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page</span></label>
+                              <input type="number" id={`duration-${p.id}`} defaultValue={(p as any).duration_weeks || ''} placeholder="e.g. 4" min="1" style={inputStyle} />
+                            </div>
+                          </>
+                        )}
                       </div>
                       <button
                         onClick={async () => {
