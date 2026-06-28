@@ -613,16 +613,13 @@ export default function Admin() {
                   {expandedProgram === p.id && (
                     <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                        {/* COACHING PROGRAM — only description and focus areas */}
+                        {/* COACHING PROGRAM — focus areas only */}
                         {p.type === 'coaching' && (
                           <>
                             <div style={{ gridColumn: '1 / -1' }}>
-                              <label style={labelStyle}>Program Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Coaching page</span></label>
-                              <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
-                            </div>
-                            <div style={{ gridColumn: '1 / -1' }}>
-                              <label style={labelStyle}>Focus Areas <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as cards on the Coaching page, one item per line</span></label>
-                              <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={6} placeholder="Leadership&#10;Performance&#10;Communication&#10;Career Growth&#10;Confidence&#10;Personal Development" style={{ ...inputStyle, resize: 'vertical' }} />
+                              <label style={labelStyle}>Focus Areas <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown as cards on the Coaching page. Format each line as: Title | Description</span></label>
+                              <textarea id={`focus-${p.id}`} defaultValue={(p as any).focus_areas || ''} rows={8} placeholder="Leadership | How you show up for and develop the people around you.&#10;Performance | Habits and behaviors that drive consistent results.&#10;Communication | Clarity, confidence, and presence when it matters." style={{ ...inputStyle, resize: 'vertical' }} />
+                              <p style={{ color: 'var(--slate)', fontSize: '0.75rem', marginTop: '0.5rem', lineHeight: 1.5 }}>Each line becomes one card. Use a pipe character ( | ) to separate the title from the description.</p>
                             </div>
                           </>
                         )}

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 export default function Coaching() {
-  const [focusAreas, setFocusAreas] = useState<{ title: string; desc: string }[]>([])
+  const [pillars, setPillars] = useState<{ title: string; desc: string }[]>([])
 
   const defaultPillars = [
     { title: 'Leadership', desc: 'How you show up for and develop the people around you.' },
@@ -33,25 +33,26 @@ export default function Coaching() {
         .single()
 
       if (data?.focus_areas) {
-        const lines = data.focus_areas
+        const parsed = data.focus_areas
           .split('\n')
-          .map((s: string) => s.trim())
+          .map((line: string) => line.trim())
           .filter(Boolean)
-
-        // Each line is a title — map to pillar with desc from defaults if available
-        const mapped = lines.map((title: string) => {
-          const match = defaultPillars.find(p => p.title.toLowerCase() === title.toLowerCase())
-          return { title, desc: match?.desc || '' }
-        })
-        setFocusAreas(mapped)
+          .map((line: string) => {
+            const parts = line.split('|')
+            return {
+              title: parts[0]?.trim() || line,
+              desc: parts[1]?.trim() || '',
+            }
+          })
+        setPillars(parsed)
       } else {
-        setFocusAreas(defaultPillars)
+        setPillars(defaultPillars)
       }
     }
     fetchFocusAreas()
   }, [])
 
-  const pillars = focusAreas.length > 0 ? focusAreas : defaultPillars
+  const displayPillars = pillars.length > 0 ? pillars : defaultPillars
 
   const steps = [
     { n: '01', title: 'Discovery Call', desc: 'A conversation to understand where you are, where you want to go, and whether coaching is the right fit.' },
@@ -88,7 +89,7 @@ export default function Coaching() {
               </ul>
               <h3>Focus areas</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.25rem' }}>
-                {pillars.map(({ title, desc }) => (
+                {displayPillars.map(({ title, desc }) => (
                   <div key={title} style={{ background: 'var(--paper)', borderRadius: '2px', padding: '1.35rem', borderLeft: '3px solid var(--gold)' }}>
                     <h4 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1rem', letterSpacing: '0.04em', color: 'var(--navy)', marginBottom: desc ? '0.35rem' : 0 }}>{title}</h4>
                     {desc && <p style={{ color: 'var(--slate)', fontSize: '0.84rem', lineHeight: 1.6, margin: 0 }}>{desc}</p>}
