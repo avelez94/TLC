@@ -78,7 +78,7 @@ export default function Contact() {
               <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.7rem', letterSpacing: '0.04em', color: 'var(--navy)', margin: '0.75rem 0' }}>Reach out directly.</h3>
               <p style={{ color: 'var(--slate)', fontSize: '0.92rem', lineHeight: 1.75, marginBottom: '1.5rem' }}>For time-sensitive inquiries or if you prefer a direct conversation, here is how to reach Tramaine.</p>
               {[
-                { icon: '✉', label: 'Email', value: 'tramaine@tramainecrawford.com', href: 'mailto:tramaine@tramainecrawford.com' },
+                { icon: '✉', label: 'Email', value: 'contact@tramainecrawford.com', href: 'mailto:contact@tramainecrawford.com' },
                 { icon: '✆', label: 'Phone', value: '(202) 599-1381', href: 'tel:+12025991381' },
                 { icon: '🔗', label: 'LinkedIn', value: 'Connect on LinkedIn', href: 'https://www.linkedin.com/in/mrcrawfordceo/' },
                 { icon: '📍', label: 'Address', value: '2001 L St NW, Suite 500, Washington, DC 20036', href: 'https://maps.google.com/?q=2001+L+St+NW+Suite+500+Washington+DC+20036' },
