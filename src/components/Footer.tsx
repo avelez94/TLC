@@ -13,7 +13,8 @@ export default function Footer() {
             </p>
             <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <a href="mailto:tramaine@tramainecrawford.com" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>tramaine@tramainecrawford.com</a>
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem' }}>(301) 793-3680</span>
+              <a href="tel:+12025991381" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem' }}>(202) 599-1381</a>
+              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.78rem', lineHeight: 1.6 }}>2001 L St NW, Suite 500{'\n'}Washington, DC 20036</span>
             </div>
           </div>
           <div>

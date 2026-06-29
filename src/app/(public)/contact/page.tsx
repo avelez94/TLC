@@ -79,8 +79,9 @@ export default function Contact() {
               <p style={{ color: 'var(--slate)', fontSize: '0.92rem', lineHeight: 1.75, marginBottom: '1.5rem' }}>For time-sensitive inquiries or if you prefer a direct conversation, here is how to reach Tramaine.</p>
               {[
                 { icon: '✉', label: 'Email', value: 'tramaine@tramainecrawford.com', href: 'mailto:tramaine@tramainecrawford.com' },
-                { icon: '✆', label: 'Phone', value: '(301) 793-3680', href: 'tel:+13017933680' },
+                { icon: '✆', label: 'Phone', value: '(202) 599-1381', href: 'tel:+12025991381' },
                 { icon: '🔗', label: 'LinkedIn', value: 'Connect on LinkedIn', href: 'https://www.linkedin.com/in/mrcrawfordceo/' },
+                { icon: '📍', label: 'Address', value: '2001 L St NW, Suite 500, Washington, DC 20036', href: 'https://maps.google.com/?q=2001+L+St+NW+Suite+500+Washington+DC+20036' },
               ].map(({ icon, label, value, href }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', padding: '1rem 0', borderTop: '1px solid var(--mist)' }}>
                   <span style={{ fontSize: '1.1rem', minWidth: '1.5rem' }} aria-hidden="true">{icon}</span>
