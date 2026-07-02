@@ -99,6 +99,14 @@ export default function Register() {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
+  const formatTime = (timeStr: string | null) => {
+    if (!timeStr) return ''
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const h = hours % 12 || 12
+    return `${h}:${String(minutes).padStart(2, '0')} ${ampm} ET`
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedCohort || !selectedProgram) return
@@ -265,7 +273,7 @@ export default function Register() {
                       )}
                       {(cohort as any).session_day && (cohort as any).session_time && (
                         <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '0.25rem' }}>
-                          {(cohort as any).session_day}s at {(cohort as any).session_time}
+                          {(cohort as any).session_day}s at {formatTime((cohort as any).session_time)}
                         </p>
                       )}
                     </div>
@@ -289,7 +297,7 @@ export default function Register() {
                   )}
 
                   {programIncludes.length > 0 && (
-                    <div>
+                    <div style={{ marginBottom: '1.25rem' }}>
                       <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>What is included</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         {programIncludes.map(inc => (
@@ -301,6 +309,23 @@ export default function Register() {
                       </div>
                     </div>
                   )}
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Expectations</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {[
+                        'Read assigned chapters each week',
+                        'Attend live sessions',
+                        'Participate in discussion',
+                        'Complete weekly reflection',
+                        'Apply one idea between sessions',
+                      ].map(item => (
+                        <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                          <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>&#10022;</span>
+                          <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--gold)', letterSpacing: '0.04em' }}>
