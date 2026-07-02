@@ -1,15 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 
-export default function RegisterSuccess() {
-  const searchParams = useSearchParams()
+function SuccessContent() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Give the webhook a moment to process
     const timer = setTimeout(() => setLoading(false), 1500)
     return () => clearTimeout(timer)
   }, [])
@@ -32,5 +29,17 @@ export default function RegisterSuccess() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function RegisterSuccess() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.08em' }}>Loading...</div>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   )
 }
