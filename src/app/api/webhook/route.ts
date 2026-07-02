@@ -8,17 +8,17 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder')
+  const resend = new Resend(process.env.RESEND_API_KEY)
+
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')!
 
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder')
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
@@ -33,7 +33,6 @@ export async function POST(request: Request) {
     const email = session.metadata?.email
 
     if (registrationId) {
-      // Update registration to paid
       await supabaseAdmin
         .from('registrations')
         .update({
@@ -42,19 +41,18 @@ export async function POST(request: Request) {
         })
         .eq('id', registrationId)
 
-      // Notify Tramaine that payment came through
       try {
         await resend.emails.send({
           from: 'TLC Platform <onboarding@resend.dev>',
           to: 'tramaine@tramainecrawford.com',
-          subject: `Payment received — ${fullName} for ${programName}`,
+          subject: `Payment received for ${programName}`,
           html: `
             <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; color: #1C2430;">
               <div style="background: #001737; padding: 2rem; margin-bottom: 2rem;">
                 <h1 style="color: #C88820; font-size: 1.25rem; letter-spacing: 0.08em; margin: 0;">Payment Received</h1>
               </div>
               <div style="padding: 0 1rem;">
-                <p style="font-size: 1rem; line-height: 1.75;">Good news Tramaine — payment just came through.</p>
+                <p style="font-size: 1rem; line-height: 1.75;">Good news Tramaine, payment just came through.</p>
                 <div style="background: #F7F5F0; border-left: 3px solid #C88820; padding: 1.25rem 1.5rem; margin: 1.5rem 0;">
                   <table style="width: 100%; font-size: 0.9rem; line-height: 1.75;">
                     <tr><td style="color: #4A5260; width: 120px;">Name</td><td style="font-weight: 600;">${fullName}</td></tr>
