@@ -90,7 +90,7 @@ export default function Nav() {
           <li><Link href="/resources" onClick={closeAll}>Resources</Link></li>
           <li><Link href="/contact" onClick={closeAll} style={{ color: 'var(--gold)' }}>Contact</Link></li>
           <li className="mobile-login-item">
-            <Link href="/login" onClick={closeAll} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.2rem 2rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
+            <Link href="/login" onClick={closeAll} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.2rem 2rem', color: 'rgba(255,255,255,0.5)', fontSize: '1rem' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }} aria-hidden="true">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
@@ -108,27 +108,24 @@ export default function Nav() {
               <circle cx="12" cy="7" r="4" />
             </svg>
           </Link>
-          <Link href="/contact" className="btn-nav">Let&apos;s Talk</Link>
         </div>
       </div>
 
       <style>{`
         .nav-hamburger { display: none; }
         .nav-links { display: flex; align-items: center; gap: 0.15rem; list-style: none; }
-        .nav-links a { font-family: 'Montserrat', sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.7); text-decoration: none; padding: 0.4rem 0.7rem; border-radius: 3px; transition: color 0.15s, background 0.15s; white-space: nowrap; cursor: pointer; }
+        .nav-links a { font-family: 'Montserrat', sans-serif; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.7); text-decoration: none; padding: 0.4rem 0.85rem; border-radius: 3px; transition: color 0.15s, background 0.15s; white-space: nowrap; cursor: pointer; }
         .nav-links a:hover { color: white; background: rgba(255,255,255,0.07); }
-        .nav-dropdown-toggle { font-family: 'Montserrat', sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.7); background: none; border: none; cursor: pointer; padding: 0.4rem 0.7rem; border-radius: 3px; display: flex; align-items: center; gap: 0.35rem; transition: color 0.15s, background 0.15s; white-space: nowrap; }
+        .nav-dropdown-toggle { font-family: 'Montserrat', sans-serif; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.7); background: none; border: none; cursor: pointer; padding: 0.4rem 0.85rem; border-radius: 3px; display: flex; align-items: center; gap: 0.35rem; transition: color 0.15s, background 0.15s; white-space: nowrap; }
         .nav-dropdown-toggle:hover { color: white; background: rgba(255,255,255,0.07); }
         .nav-dropdown-arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid rgba(255,255,255,0.5); transition: transform 0.2s; flex-shrink: 0; }
         .nav-dropdown-menu { position: fixed; top: 115px; background: var(--navy2); border: 1px solid rgba(200,136,32,0.2); border-radius: 4px; min-width: 240px; padding: 0.5rem 0; box-shadow: 0 12px 32px rgba(0,0,0,0.35); z-index: 9999; }
-        .nav-dropdown-menu a { display: block; padding: 0.65rem 1.25rem; font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.15s, background 0.15s; }
+        .nav-dropdown-menu a { display: block; padding: 0.65rem 1.25rem; font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.15s, background 0.15s; }
         .nav-dropdown-menu a:hover { color: white; background: rgba(255,255,255,0.07); }
         .nav-dropdown-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 0.35rem 0; }
         .nav-login { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.7); text-decoration: none; transition: border-color 0.15s, color 0.15s; flex-shrink: 0; cursor: pointer; }
         .nav-login:hover { border-color: var(--gold); color: var(--gold); }
         .nav-cta-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 0.75rem; }
-        .btn-nav { font-family: 'Montserrat', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; color: var(--gold); border: 2px solid var(--gold); border-radius: 2px; padding: 0.6rem 1.25rem; cursor: pointer; text-decoration: none; transition: background 0.15s, color 0.15s; white-space: nowrap; display: inline-block; }
-        .btn-nav:hover { background: var(--gold); color: var(--navy); }
         .mobile-login-item { display: none; border-top: 2px solid rgba(200,136,32,0.4); margin-top: 0.5rem; }
         @media (max-width: 900px) {
           .nav-hamburger { display: flex !important; }
