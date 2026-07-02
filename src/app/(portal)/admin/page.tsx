@@ -40,6 +40,8 @@ export default function Admin() {
   const [registrations, setRegistrations] = useState<any[]>([])
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null)
   const [registrationFilter, setRegistrationFilter] = useState('all')
+  const [cohortSessions, setCohortSessions] = useState<any[]>([])
+  const [newSession, setNewSession] = useState({ cohort_id: '', session_number: '', title: '', session_date: '' })
 
   // UI state
   const [userFilter, setUserFilter] = useState('all')
@@ -104,6 +106,10 @@ export default function Admin() {
       .from('registrations')
       .select('*, programs(name, price_label), cohorts(name)')
       .order('created_at', { ascending: false })
+    const { data: cohortSessionsData } = await supabase
+      .from('cohort_sessions')
+      .select('*')
+      .order('session_number')
     if (usersData) setUsers(usersData)
     if (programsData) setPrograms(programsData)
     if (cohortsData) setCohorts(cohortsData)
@@ -113,6 +119,7 @@ export default function Admin() {
     if (certsData) setCertificates(certsData)
     if (enrollmentsData) setEnrollments(enrollmentsData)
     if (registrationsData) setRegistrations(registrationsData)
+    if (cohortSessionsData) setCohortSessions(cohortSessionsData)
     setLoading(false)
   }, [])
 
@@ -266,6 +273,75 @@ export default function Admin() {
   const handleUpdateRegistrationStatus = async (id: string, status: string) => {
     await supabase.from('registrations').update({ status }).eq('id', id)
     showSuccess('Registration updated.')
+    fetchAll()
+  }
+
+  const handleGenerateSchedule = async (cohortId: string) => {
+    const cohort = cohorts.find(c => c.id === cohortId)
+    if (!cohort || !cohort.start_date || !cohort.end_date) {
+      showSuccess('Please set a start date and end date on the cohort first.')
+      return
+    }
+    const sessionDay = (cohort as any).session_day
+    if (!sessionDay) {
+      showSuccess('Please set a session day on the cohort first.')
+      return
+    }
+    const dayMap: Record<string, number> = {
+      Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+      Thursday: 4, Friday: 5, Saturday: 6
+    }
+    const targetDay = dayMap[sessionDay]
+    const start = new Date(cohort.start_date)
+    const end = new Date(cohort.end_date)
+    const dates: Date[] = []
+    const current = new Date(start)
+    while (current.getDay() !== targetDay) {
+      current.setDate(current.getDate() + 1)
+    }
+    while (current <= end) {
+      dates.push(new Date(current))
+      current.setDate(current.getDate() + 7)
+    }
+    if (dates.length === 0) {
+      showSuccess('No ' + sessionDay + 's found between those dates.')
+      return
+    }
+    setActionLoading(true)
+    // Delete existing sessions first
+    await supabase.from('cohort_sessions').delete().eq('cohort_id', cohortId)
+    // Insert generated sessions
+    const sessions = dates.map((date, i) => ({
+      cohort_id: cohortId,
+      session_number: i + 1,
+      title: 'Session ' + (i + 1),
+      session_date: date.toISOString().split('T')[0],
+    }))
+    await supabase.from('cohort_sessions').insert(sessions)
+    showSuccess('Generated ' + sessions.length + ' sessions.')
+    fetchAll()
+    setActionLoading(false)
+  }
+
+  const handleAddSession = async () => {
+    if (!newSession.title.trim() || !newSession.cohort_id) return
+    setActionLoading(true)
+    const { error } = await supabase.from('cohort_sessions').insert({
+      cohort_id: newSession.cohort_id,
+      session_number: parseInt(newSession.session_number) || 1,
+      title: newSession.title,
+      session_date: newSession.session_date || null,
+    })
+    if (!error) {
+      showSuccess('Session added.')
+      setNewSession({ cohort_id: '', session_number: '', title: '', session_date: '' })
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleDeleteSession = async (id: string) => {
+    await supabase.from('cohort_sessions').delete().eq('id', id)
     fetchAll()
   }
 
@@ -977,7 +1053,61 @@ export default function Admin() {
                           {statusBadge(e.status)}
                         </div>
                       ))}
-                      <div style={{ marginTop: '1rem' }}>
+                      <div style={{ marginTop: '1.5rem' }}>
+                        <span style={labelStyle}>Session Schedule <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>shown on the Register page</span></span>
+                        {cohortSessions.filter(s => s.cohort_id === c.id).length === 0 ? (
+                          <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1rem' }}>No sessions added yet.</p>
+                        ) : cohortSessions.filter(s => s.cohort_id === c.id).map(s => (
+                          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', display: 'block', marginBottom: '0.25rem' }}>
+                                Session {s.session_number}{s.session_date ? ' · ' + new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}
+                              </span>
+                              <input
+                                defaultValue={s.title}
+                                style={{ ...inputStyle, padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: '100%' }}
+                                onBlur={async e => {
+                                  if (e.target.value !== s.title) {
+                                    await supabase.from('cohort_sessions').update({ title: e.target.value }).eq('id', s.id)
+                                    fetchAll()
+                                  }
+                                }}
+                              />
+                            </div>
+                            <button onClick={() => handleDeleteSession(s.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>Remove</button>
+                          </div>
+                        ))}
+                        <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(200,136,32,0.05)', borderRadius: '4px', border: '1px solid rgba(200,136,32,0.2)', marginBottom: '0.75rem' }}>
+                          <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.4rem' }}>Schedule Generator</p>
+                          <p style={{ color: 'var(--slate)', fontSize: '0.8rem', lineHeight: 1.5, marginBottom: '0.75rem' }}>Automatically generates one session per {(c as any).session_day || 'session day'} between the cohort start and end dates. Set the session day, start date, and end date on the cohort above first.</p>
+                          <button onClick={() => handleGenerateSchedule(c.id)} disabled={actionLoading} style={{ background: 'var(--gold)', border: 'none', color: 'var(--navy)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+                            {actionLoading ? 'Generating...' : 'Generate Schedule'}
+                          </button>
+                          <p style={{ color: 'var(--slate)', fontSize: '0.72rem', marginTop: '0.5rem' }}>Note: this will replace any existing sessions for this cohort.</p>
+                        </div>
+                        <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--paper)', borderRadius: '4px', border: '1px solid var(--mist)' }}>
+                          <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem' }}>Add a Session</p>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                            <div>
+                              <label style={labelStyle}>Session Number</label>
+                              <input type="number" value={newSession.cohort_id === c.id ? newSession.session_number : ''} onChange={e => setNewSession({ cohort_id: c.id, session_number: e.target.value, title: newSession.cohort_id === c.id ? newSession.title : '', session_date: newSession.cohort_id === c.id ? newSession.session_date : '' })} placeholder={String(cohortSessions.filter(s => s.cohort_id === c.id).length + 1)} min="1" style={inputStyle} />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Date (optional)</label>
+                              <input type="date" value={newSession.cohort_id === c.id ? newSession.session_date : ''} onChange={e => setNewSession({ cohort_id: c.id, session_number: newSession.cohort_id === c.id ? newSession.session_number : '', title: newSession.cohort_id === c.id ? newSession.title : '', session_date: e.target.value })} style={inputStyle} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={labelStyle}>Session Title</label>
+                              <input value={newSession.cohort_id === c.id ? newSession.title : ''} onChange={e => setNewSession({ cohort_id: c.id, session_number: newSession.cohort_id === c.id ? newSession.session_number : '', title: e.target.value, session_date: newSession.cohort_id === c.id ? newSession.session_date : '' })} placeholder="e.g. Where do you want your impact?" style={inputStyle} />
+                            </div>
+                          </div>
+                          <button onClick={() => { setNewSession(prev => ({ ...prev, cohort_id: c.id })); handleAddSession() }} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}>
+                            {actionLoading ? 'Adding...' : '+ Add Session'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '1.5rem' }}>
                         <span style={labelStyle}>Weekly Reps in this cohort</span>
                         {reps.filter(r => r.cohort_id === c.id).length === 0 ? (
                           <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No reps yet.</p>
