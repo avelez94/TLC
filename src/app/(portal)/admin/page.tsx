@@ -159,6 +159,7 @@ export default function Admin() {
   const handleCreateCohort = async () => {
     if (!newCohort.name.trim() || !newCohort.program_id) return
     setActionLoading(true)
+    const selectedProg = programs.find(p => p.id === newCohort.program_id)
     const { error } = await supabase.from('cohorts').insert({
       name: newCohort.name,
       program_id: newCohort.program_id,
@@ -166,6 +167,8 @@ export default function Admin() {
       end_date: newCohort.end_date || null,
       zoom_link: newCohort.zoom_link || null,
       status: newCohort.status,
+      session_day: (selectedProg as any)?.session_day || null,
+      session_time: (selectedProg as any)?.session_time || null,
     })
     if (!error) {
       showSuccess('Cohort created.')
@@ -282,9 +285,10 @@ export default function Admin() {
       showSuccess('Please set a start date and end date on the cohort first.')
       return
     }
-    const sessionDay = (cohort as any).session_day
+    const program = programs.find(p => p.id === cohort.program_id)
+    const sessionDay = (cohort as any).session_day || (program as any)?.session_day
     if (!sessionDay) {
-      showSuccess('Please set a session day on the cohort first.')
+      showSuccess('Please set a session day on the program first then try again.')
       return
     }
     const dayMap: Record<string, number> = {
@@ -1025,20 +1029,43 @@ export default function Admin() {
                   </div>
                   {expandedCohort === c.id && (
                     <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
-                        {c.zoom_link && (
-                          <div>
-                            <span style={labelStyle}>Zoom Link</span>
-                            <a href={c.zoom_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.85rem', wordBreak: 'break-all' }}>{c.zoom_link}</a>
-                          </div>
-                        )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                         <div>
-                          <span style={labelStyle}>Change Status</span>
-                          <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={{ ...inputStyle, width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
+                          <label style={labelStyle}>Cohort Name</label>
+                          <input defaultValue={c.name} style={inputStyle} onBlur={async e => { if (e.target.value !== c.name) { await supabase.from('cohorts').update({ name: e.target.value }).eq('id', c.id); fetchAll() } }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Status</label>
+                          <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={inputStyle}>
                             <option value="upcoming">Upcoming</option>
                             <option value="active">Active</option>
                             <option value="completed">Completed</option>
                           </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Start Date</label>
+                          <input type="date" defaultValue={c.start_date || ''} style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ start_date: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>End Date</label>
+                          <input type="date" defaultValue={c.end_date || ''} style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ end_date: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Session Day</label>
+                          <select defaultValue={(c as any).session_day || ''} style={inputStyle} onChange={async e => { await supabase.from('cohorts').update({ session_day: e.target.value || null }).eq('id', c.id); fetchAll() }}>
+                            <option value="">Select a day...</option>
+                            {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Session Time</label>
+                          <input type="time" defaultValue={(c as any).session_time || ''} style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ session_time: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Zoom Link</label>
+                          <input defaultValue={c.zoom_link || ''} placeholder="https://zoom.us/j/..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ zoom_link: e.target.value || null }).eq('id', c.id); fetchAll() }} />
                         </div>
                       </div>
                       <span style={labelStyle}>Enrolled Participants</span>
@@ -1079,7 +1106,9 @@ export default function Admin() {
                         ))}
                         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(200,136,32,0.05)', borderRadius: '4px', border: '1px solid rgba(200,136,32,0.2)', marginBottom: '0.75rem' }}>
                           <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.4rem' }}>Schedule Generator</p>
-                          <p style={{ color: 'var(--slate)', fontSize: '0.8rem', lineHeight: 1.5, marginBottom: '0.75rem' }}>Automatically generates one session per {(c as any).session_day || 'session day'} between the cohort start and end dates. Set the session day, start date, and end date on the cohort above first.</p>
+                          <p style={{ color: 'var(--slate)', fontSize: '0.8rem', lineHeight: 1.5, marginBottom: '0.75rem' }}>
+                          Automatically generates one session per {(c as any).session_day || programs.find(p => p.id === c.program_id) && (programs.find(p => p.id === c.program_id) as any)?.session_day || 'session day'} between the start and end dates. Make sure the program has a session day set under Programs.
+                        </p>
                           <button onClick={() => handleGenerateSchedule(c.id)} disabled={actionLoading} style={{ background: 'var(--gold)', border: 'none', color: 'var(--navy)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
                             {actionLoading ? 'Generating...' : 'Generate Schedule'}
                           </button>
