@@ -104,56 +104,30 @@ export default function Register() {
     if (!selectedCohort || !selectedProgram) return
     setSubmitting(true)
 
-    const isQuote = selectedProgram.price_label === 'Request a Quote'
-
     try {
-      if (isQuote) {
-        // Impact Leaders — inquiry only, no payment
-        const res = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: form.full_name,
-            email: form.email,
-            phone: form.phone,
-            organization: form.organization,
-            why: form.why,
-            program_id: selectedProgram.id,
-            cohort_id: selectedCohort.id,
-            program_name: selectedProgram.name,
-            cohort_name: selectedCohort.name,
-            price_label: selectedProgram.price_label,
-          }),
-        })
-        const data = await res.json()
-        if (data.error) console.error('Registration error:', data.error)
-        setStep('success')
-        setSubmitting(false)
+      // All programs now go through Stripe Checkout
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: form.full_name,
+          email: form.email,
+          phone: form.phone,
+          organization: form.organization,
+          why: form.why,
+          program_id: selectedProgram.id,
+          cohort_id: selectedCohort.id,
+          program_name: selectedProgram.name,
+          cohort_name: selectedCohort.name,
+          price: selectedProgram.price,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
       } else {
-        // Finders or Makers — go straight to Stripe Checkout
-        const res = await fetch('/api/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: form.full_name,
-            email: form.email,
-            phone: form.phone,
-            organization: form.organization,
-            why: form.why,
-            program_id: selectedProgram.id,
-            cohort_id: selectedCohort.id,
-            program_name: selectedProgram.name,
-            cohort_name: selectedCohort.name,
-            price: selectedProgram.price,
-          }),
-        })
-        const data = await res.json()
-        if (data.url) {
-          window.location.href = data.url
-        } else {
-          console.error('Checkout error:', data.error)
-          setSubmitting(false)
-        }
+        console.error('Checkout error:', data.error)
+        setSubmitting(false)
       }
     } catch (err) {
       console.error('Registration failed:', err)
@@ -409,12 +383,10 @@ export default function Register() {
                 disabled={submitting}
                 style={{ width: '100%', padding: '1rem', background: submitting ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: submitting ? 'not-allowed' : 'pointer' }}
               >
-                {submitting ? (selectedProgram.price_label === 'Request a Quote' ? 'Submitting...' : 'Redirecting to payment...') : selectedProgram.price_label === 'Request a Quote' ? 'Submit Request' : `Continue to Payment — ${selectedProgram.price_label}`}
+                {submitting ? 'Redirecting to payment...' : `Continue to Payment — ${selectedProgram.price_label}`}
               </button>
               <p style={{ color: 'var(--slate)', fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.6 }}>
-                {selectedProgram.price_label === 'Request a Quote'
-                  ? 'We will follow up within 24 hours to discuss your team.'
-                  : 'After registering you will receive an email with next steps and payment instructions.'}
+                After payment you will receive a confirmation email. Tramaine will review your registration and send your portal access shortly.
               </p>
             </form>
           </div>
