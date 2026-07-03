@@ -1419,17 +1419,25 @@ export default function Admin() {
                     </div>
                     <div>
                       <label style={labelStyle}>Portal</label>
-                      <select value={newResource.portal_type} onChange={e => setNewResource({ ...newResource, portal_type: e.target.value })} style={inputStyle}>
+                      <select value={newResource.portal_type} onChange={e => setNewResource({ ...newResource, portal_type: e.target.value, program_id: '' })} style={inputStyle}>
                         <option value="impact">Impact Lab</option>
-                        <option value="coaching">Coaching</option>
-                        <option value="both">Both</option>
+                        <option value="coaching">Coaching Portal</option>
+                        <option value="both">Both Portals</option>
                       </select>
                     </div>
-                    <div>
-                      <label style={labelStyle}>Program</label>
-                      <select value={newResource.program_id} onChange={e => setNewResource({ ...newResource, program_id: e.target.value })} style={inputStyle}>
-                        <option value="">All programs</option>
-                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <div style={{ opacity: newResource.portal_type === 'coaching' ? 0.4 : 1, pointerEvents: newResource.portal_type === 'coaching' ? 'none' : 'auto' }}>
+                      <label style={labelStyle}>
+                        Program
+                        {newResource.portal_type === 'coaching' && <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400, marginLeft: '0.5rem' }}>not applicable for coaching</span>}
+                      </label>
+                      <select
+                        value={newResource.program_id}
+                        onChange={e => setNewResource({ ...newResource, program_id: e.target.value })}
+                        disabled={newResource.portal_type === 'coaching'}
+                        style={inputStyle}
+                      >
+                        <option value="">All Impact Lab programs</option>
+                        {programs.filter(p => p.type === 'cohort').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
                     <div>
