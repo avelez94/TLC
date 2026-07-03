@@ -80,13 +80,28 @@ export default function Schedule() {
       const bookedSet = new Set((bookings || []).map(b => `${b.booking_date}|${b.booking_time}`))
       const blockedSet = new Set((blocks || []).map(b => `${b.block_date}|${b.block_time}`))
 
+      // Get current ET time for filtering past slots today
+      const nowET = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })
+      const nowETDate = new Date(nowET)
+      const todayStr = dateStr(nowETDate)
+      const currentHour = nowETDate.getHours()
+      const currentMinute = nowETDate.getMinutes()
+
       const result: DaySlots[] = weekdays.map(date => {
         const ds = dateStr(date)
         return {
           date,
           dateStr: ds,
           label: formatDate(date),
-          slots: TIME_SLOTS.map(time => ({
+          slots: TIME_SLOTS.filter(time => {
+            // For today, filter out slots that have already passed
+            if (ds === todayStr) {
+              const [slotHour, slotMinute] = time.split(':').map(Number)
+              if (slotHour < currentHour) return false
+              if (slotHour === currentHour && slotMinute <= currentMinute) return false
+            }
+            return true
+          }).map(time => ({
             time,
             label: formatTime(time),
             available: !bookedSet.has(`${ds}|${time}`) && !blockedSet.has(`${ds}|${time}`),
