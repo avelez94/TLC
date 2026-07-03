@@ -6,11 +6,12 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment } from '@/types'
 
-type Page = 'dashboard' | 'registrations' | 'users' | 'programs' | 'cohorts' | 'reps' | 'announcements' | 'resources' | 'attendance' | 'certificates' | 'reports'
+type Page = 'dashboard' | 'registrations' | 'calendar' | 'users' | 'programs' | 'cohorts' | 'reps' | 'announcements' | 'resources' | 'attendance' | 'certificates' | 'reports'
 
 const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
   { id: 'registrations', label: 'Registrations', icon: '📥' },
+  { id: 'calendar', label: 'Calendar', icon: '📆' },
   { id: 'users', label: 'Users', icon: '👥' },
   { id: 'programs', label: 'Programs', icon: '🎯' },
   { id: 'cohorts', label: 'Cohorts', icon: '📅' },
@@ -41,6 +42,8 @@ export default function Admin() {
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null)
   const [registrationFilter, setRegistrationFilter] = useState('all')
   const [cohortSessions, setCohortSessions] = useState<any[]>([])
+  const [bookings, setBookings] = useState<any[]>([])
+  const [availabilityBlocks, setAvailabilityBlocks] = useState<any[]>([])
   const [newSession, setNewSession] = useState({ cohort_id: '', session_number: '', title: '', session_date: '' })
 
   // UI state
@@ -110,6 +113,20 @@ export default function Admin() {
       .from('cohort_sessions')
       .select('*')
       .order('session_number')
+    const today = new Date().toISOString().split('T')[0]
+    const twoWeeksOut = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const { data: bookingsData } = await supabase
+      .from('bookings')
+      .select('*')
+      .gte('booking_date', today)
+      .lte('booking_date', twoWeeksOut)
+      .order('booking_date')
+      .order('booking_time')
+    const { data: blocksData } = await supabase
+      .from('availability_blocks')
+      .select('*')
+      .gte('block_date', today)
+      .lte('block_date', twoWeeksOut)
     if (usersData) setUsers(usersData)
     if (programsData) setPrograms(programsData)
     if (cohortsData) setCohorts(cohortsData)
@@ -120,6 +137,8 @@ export default function Admin() {
     if (enrollmentsData) setEnrollments(enrollmentsData)
     if (registrationsData) setRegistrations(registrationsData)
     if (cohortSessionsData) setCohortSessions(cohortSessionsData)
+    if (bookingsData) setBookings(bookingsData)
+    if (blocksData) setAvailabilityBlocks(blocksData)
     setLoading(false)
   }, [])
 
@@ -551,6 +570,93 @@ export default function Admin() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* CALENDAR */}
+          {page === 'calendar' && (
+            <div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Calendar</span>
+                <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>Upcoming Appointments</h1>
+                <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginTop: '0.35rem' }}>Next 14 days. Click a time slot to block it from public booking.</p>
+              </div>
+
+              {/* UPCOMING BOOKINGS */}
+              <div style={cardStyle}>
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Booked Appointments</h3>
+                {bookings.length === 0 ? (
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>No appointments booked yet.</p>
+                ) : bookings.map(b => (
+                  <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '1rem 0', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <p style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.88rem', marginBottom: '0.15rem' }}>{b.full_name}</p>
+                      <p style={{ color: 'var(--slate)', fontSize: '0.78rem', marginBottom: '0.15rem' }}>{b.email} · {b.phone}</p>
+                      {b.reason && <p style={{ color: 'var(--slate)', fontSize: '0.78rem', fontStyle: 'italic' }}>{b.reason}</p>}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {new Date(b.booking_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                      <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--navy)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {(() => { const [h, m] = b.booking_time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm} ET` })()}
+                      </p>
+                      <button onClick={async () => { await supabase.from('bookings').delete().eq('id', b.id); fetchAll() }} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.72rem', cursor: 'pointer', marginTop: '0.25rem' }}>Cancel</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* BLOCK TIME */}
+              <div style={cardStyle}>
+                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>Block Time Off</h3>
+                <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>Mark dates and times as unavailable so clients cannot book them.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={labelStyle}>Date</label>
+                    <input type="date" id="block-date" min={new Date().toISOString().split('T')[0]} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Time</label>
+                    <select id="block-time" style={inputStyle}>
+                      {['08:00','08:15','08:30','08:45','09:00','09:15','09:30','09:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','12:30','12:45','13:00','13:15','13:30','13:45','14:00','14:15','14:30','14:45','15:00','15:15','15:30','15:45','16:00','16:15','16:30','16:45'].map(t => {
+                        const [h, m] = t.split(':').map(Number)
+                        const ampm = h >= 12 ? 'PM' : 'AM'
+                        const label = `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`
+                        return <option key={t} value={t}>{label}</option>
+                      })}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    const date = (document.getElementById('block-date') as HTMLInputElement)?.value
+                    const time = (document.getElementById('block-time') as HTMLSelectElement)?.value
+                    if (!date || !time) return
+                    await supabase.from('availability_blocks').insert({ block_date: date, block_time: time })
+                    showSuccess('Time blocked.')
+                    fetchAll()
+                  }}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  Block This Time
+                </button>
+
+                {availabilityBlocks.length > 0 && (
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <span style={labelStyle}>Currently Blocked</span>
+                    {availabilityBlocks.map(b => (
+                      <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--mist)' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'uppercase' }}>
+                          {new Date(b.block_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {(() => { const [h, m] = b.block_time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}` })()}
+                        </span>
+                        <button onClick={async () => { await supabase.from('availability_blocks').delete().eq('id', b.id); fetchAll() }} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.72rem', cursor: 'pointer' }}>Unblock</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

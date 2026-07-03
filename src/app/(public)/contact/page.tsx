@@ -152,7 +152,7 @@ export default function Contact() {
               <div style={{ marginTop: '2rem', background: 'var(--navy)', borderRadius: '2px', padding: '1.5rem' }}>
                 <span className="eyebrow" style={{ display: 'block', marginBottom: '0.75rem' }}>Prefer to schedule directly?</span>
                 <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1rem' }}>Pick a time that works and Tramaine will be there.</p>
-                <Link href="/contact" className="btn btn-primary">Schedule a Conversation</Link>
+                <Link href="/schedule" className="btn btn-primary">Schedule a Conversation</Link>
               </div>
             </div>
           </div>
