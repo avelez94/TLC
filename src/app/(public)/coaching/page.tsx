@@ -112,7 +112,7 @@ export default function Coaching() {
               <div style={{ background: 'var(--paper)', borderRadius: '2px', padding: '1.75rem', borderTop: '3px solid var(--gold)' }}>
                 <span className="eyebrow" style={{ marginBottom: '0.75rem', display: 'block' }}>Getting started</span>
                 <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.72, marginBottom: '1.25rem' }}>Coaching engagements are scoped after an initial discovery conversation. The discovery call is free and carries no obligation.</p>
-                <Link href="/contact" className="btn btn-primary">Schedule a Discovery Call</Link>
+                <Link href="/schedule" className="btn btn-primary">Schedule a Discovery Call</Link>
               </div>
             </div>
           </div>

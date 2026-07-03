@@ -67,7 +67,7 @@ export default function Consulting() {
               <div style={{ background: 'var(--paper)', borderRadius: '2px', padding: '1.75rem', borderTop: '3px solid var(--gold)' }}>
                 <span className="eyebrow" style={{ marginBottom: '0.75rem', display: 'block' }}>Engagement type</span>
                 <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.72, marginBottom: '1.25rem' }}>Every consulting engagement is custom-scoped. There is no standard package because the work begins with understanding your specific context.</p>
-                <Link href="/contact" className="btn btn-primary">Schedule a Consultation</Link>
+                <Link href="/schedule" className="btn btn-primary">Schedule a Consultation</Link>
               </div>
             </div>
           </div>
