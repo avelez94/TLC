@@ -1449,9 +1449,40 @@ export default function Admin() {
                       <input value={newResource.description} onChange={e => setNewResource({ ...newResource, description: e.target.value })} placeholder="Brief description" style={inputStyle} />
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={labelStyle}>URL or File Path</label>
+                      <label style={labelStyle}>File Upload <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>upload a file from your computer</span></label>
+                      <input
+                        type="file"
+                        id="resource-file"
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.mp4,.mov,.mp3,.png,.jpg,.jpeg"
+                        style={{ ...inputStyle, padding: '0.5rem 1rem', cursor: 'pointer' }}
+                        onChange={async e => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          setActionLoading(true)
+                          const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`
+                          const { data, error } = await supabase.storage.from('resources').upload(fileName, file)
+                          if (!error && data) {
+                            const { data: urlData } = supabase.storage.from('resources').getPublicUrl(fileName)
+                            setNewResource({ ...newResource, url: urlData.publicUrl })
+                            showSuccess(`File uploaded: ${file.name}`)
+                          } else {
+                            showSuccess('Upload failed. Try again.')
+                          }
+                          setActionLoading(false)
+                        }}
+                      />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={labelStyle}>Or paste a URL <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>link to an external resource</span></label>
                       <input value={newResource.url} onChange={e => setNewResource({ ...newResource, url: e.target.value })} placeholder="https://..." style={inputStyle} />
                     </div>
+                    {newResource.url && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <div style={{ background: 'rgba(200,136,32,0.06)', border: '1px solid rgba(200,136,32,0.2)', borderRadius: '4px', padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--slate)' }}>
+                          Ready to save: <a href={newResource.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', wordBreak: 'break-all' }}>{newResource.url}</a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <button onClick={handleCreateResource} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
                     {actionLoading ? 'Adding...' : 'Add Resource'}
