@@ -1,14 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
-export default function Reset() {
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+function ResetContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [step, setStep] = useState<'request' | 'sent' | 'set' | 'done'>('request')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // If user arrives via reset link from email, go straight to set password step
+  useEffect(() => {
+    const type = searchParams.get('type')
+    if (type === 'recovery') {
+      setStep('set')
+    }
+  }, [searchParams])
 
   const inputStyle = {
     width: '100%', padding: '0.9rem 1rem',
@@ -25,6 +39,43 @@ export default function Reset() {
     color: 'rgba(255,255,255,0.45)', marginBottom: '0.4rem', display: 'block'
   }
 
+  const handleRequestReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset?type=recovery`,
+    })
+    if (error) {
+      setError(error.message)
+    } else {
+      setStep('sent')
+    }
+    setLoading(false)
+  }
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (password !== confirm) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) {
+      setError(error.message)
+    } else {
+      setStep('done')
+      setTimeout(() => router.push('/login'), 2500)
+    }
+    setLoading(false)
+  }
+
   return (
     <div style={{ minHeight: '100svh', background: 'var(--navy3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(2rem, 5vw, 4rem)' }}>
       <Link href="/" style={{ marginBottom: '3rem' }}>
@@ -33,18 +84,20 @@ export default function Reset() {
 
       <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(200,136,32,0.15)', borderRadius: '6px', padding: 'clamp(2rem, 5vw, 3rem)' }}>
 
-        {step === 1 && (
+        {/* STEP 1 — REQUEST RESET */}
+        {step === 'request' && (
           <>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Password Reset</span>
             <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Forgot your password?</h1>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>Enter your email address and we will send you a reset link.</p>
-            <form onSubmit={e => { e.preventDefault(); setStep(2) }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {error && <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '3px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{error}</div>}
+            <form onSubmit={handleRequestReset} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
                 <label style={labelStyle}>Email address</label>
                 <input type="email" placeholder="you@email.com" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
               </div>
-              <button type="submit" style={{ width: '100%', padding: '0.95rem', background: 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                Send Reset Link
+              <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', background: loading ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer' }}>
+                {loading ? 'Sending...' : 'Send Reset Link'}
               </button>
             </form>
             <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
@@ -53,29 +106,31 @@ export default function Reset() {
           </>
         )}
 
-        {step === 2 && (
+        {/* STEP 2 — EMAIL SENT */}
+        {step === 'sent' && (
           <>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,136,32,0.15)', border: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>✉</div>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Check your email</span>
               <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Reset link sent.</h2>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>We sent a password reset link to <strong style={{ color: 'white' }}>{email}</strong>. Check your inbox and click the link to continue.</p>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>We sent a password reset link to <strong style={{ color: 'white' }}>{email}</strong>. Check your inbox and click the link to set your new password.</p>
             </div>
-            <button onClick={() => setStep(3)} style={{ width: '100%', padding: '0.95rem', background: 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', marginBottom: '1rem' }}>
-              I clicked the link
-            </button>
             <div style={{ textAlign: 'center' }}>
-              <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer' }}>Resend email</button>
+              <button onClick={handleRequestReset} disabled={loading} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer' }}>
+                {loading ? 'Sending...' : 'Resend email'}
+              </button>
             </div>
           </>
         )}
 
-        {step === 3 && (
+        {/* STEP 3 — SET NEW PASSWORD */}
+        {step === 'set' && (
           <>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Set new password</span>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Choose a new password.</h2>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>Make it strong and something you will remember.</p>
-            <form onSubmit={e => { e.preventDefault(); window.location.href = '/login' }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {error && <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '3px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{error}</div>}
+            <form onSubmit={handleSetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
                 <label style={labelStyle}>New password</label>
                 <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} style={inputStyle} />
@@ -84,11 +139,21 @@ export default function Reset() {
                 <label style={labelStyle}>Confirm password</label>
                 <input type="password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} required style={inputStyle} />
               </div>
-              <button type="submit" style={{ width: '100%', padding: '0.95rem', background: 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                Update Password
+              <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', background: loading ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer' }}>
+                {loading ? 'Updating...' : 'Update Password'}
               </button>
             </form>
           </>
+        )}
+
+        {/* STEP 4 — DONE */}
+        {step === 'done' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,136,32,0.15)', border: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>✓</div>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>All set</span>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Password updated.</h2>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>Redirecting you to login...</p>
+          </div>
         )}
       </div>
 
@@ -97,5 +162,17 @@ export default function Reset() {
         input:focus { border-color: var(--gold) !important; }
       `}</style>
     </div>
+  )
+}
+
+export default function Reset() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100svh', background: 'var(--navy3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem', color: 'white', letterSpacing: '0.08em' }}>Loading...</div>
+      </div>
+    }>
+      <ResetContent />
+    </Suspense>
   )
 }
