@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     // Send confirmation email to registrant
     await resend.emails.send({
-      from: 'TLC Leadership <onboarding@resend.dev>',
+      from: 'TLC Leadership <noreply@contact.tramainecrawford.com>',
       to: email,
       subject: `You are registered for ${program_name}`,
       html: `
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
     // Send notification email to Tramaine
     await resend.emails.send({
-      from: 'TLC Platform <onboarding@resend.dev>',
+      from: 'TLC Platform <noreply@contact.tramainecrawford.com>',
       to: 'tramaine@tramainecrawford.com',
       subject: `New registration — ${full_name} for ${program_name}`,
       html: `

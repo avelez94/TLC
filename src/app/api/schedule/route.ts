@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     // Email to Tramaine
     await resend.emails.send({
-      from: 'TLC Platform <onboarding@resend.dev>',
+      from: 'TLC Platform <noreply@contact.tramainecrawford.com>',
       to: 'tramaine@tramainecrawford.com',
       replyTo: email,
       subject: `New appointment: ${full_name} on ${date_label} at ${time_label}`,
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
     // Confirmation email to client
     await resend.emails.send({
-      from: 'TLC Leadership <onboarding@resend.dev>',
+      from: 'TLC Leadership <noreply@contact.tramainecrawford.com>',
       to: email,
       subject: `Your appointment is confirmed`,
       html: `

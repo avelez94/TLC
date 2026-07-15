@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     await resend.emails.send({
-      from: 'TLC Website <onboarding@resend.dev>',
+      from: 'TLC Website <noreply@contact.tramainecrawford.com>',
       to: 'tramaine@tramainecrawford.com',
       replyTo: email,
       subject: `New message from ${name}`,
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     })
 
     await resend.emails.send({
-      from: 'TLC Leadership <onboarding@resend.dev>',
+      from: 'TLC Leadership <noreply@contact.tramainecrawford.com>',
       to: email,
       subject: 'We received your message',
       html: `

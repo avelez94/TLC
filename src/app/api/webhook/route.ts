@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
       try {
         await resend.emails.send({
-          from: 'TLC Platform <onboarding@resend.dev>',
+          from: 'TLC Platform <noreply@contact.tramainecrawford.com>',
           to: 'tramaine@tramainecrawford.com',
           subject: `Payment received for ${programName}`,
           html: `
