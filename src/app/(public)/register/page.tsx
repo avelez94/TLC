@@ -68,7 +68,7 @@ export default function Register() {
         { data: sessionsData },
         { data: includesData },
       ] = await Promise.all([
-        supabase.from('programs').select('*').eq('type', 'cohort').order('name'),
+        supabase.from('programs').select('*').eq('type', 'cohort').order('sort_order'),
         supabase.from('cohorts').select('*, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
         supabase.from('cohort_sessions').select('*').order('session_number'),
         supabase.from('program_includes').select('*').order('sort_order'),
