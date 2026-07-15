@@ -409,7 +409,7 @@ export default function Register() {
                 {submitting ? 'Redirecting to payment...' : `Continue to Payment — ${selectedProgram.price_label}`}
               </button>
               <p style={{ color: 'var(--slate)', fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.6 }}>
-                After payment you will receive a confirmation email. Tramaine will review your registration and send your portal access shortly.
+                After payment you will receive a confirmation email with your registration details. Your Learning Hub invitation and program information will follow shortly.
               </p>
             </form>
           </div>
