@@ -75,11 +75,14 @@ export default function ImpactPortal() {
     if (profileData) setProfile(profileData)
 
     const { data: enrollmentData } = await supabase
-      .from('cohort_enrollments')
-      .select('*, cohorts(*, programs(*))')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single()
+    .from('cohort_enrollments')
+    .select('*, cohorts(*, programs(*))')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .in('cohorts.status', ['active', 'upcoming'])
+    .order('enrolled_at', { ascending: false })
+    .limit(1)
+    .single()
 
     if (enrollmentData) {
       setEnrollment(enrollmentData)
