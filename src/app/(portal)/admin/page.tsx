@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment } from '@/types'
+import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment, JournalPrompt } from '@/types'
 
-type Page = 'dashboard' | 'registrations' | 'calendar' | 'users' | 'programs' | 'cohorts' | 'reps' | 'announcements' | 'resources' | 'attendance' | 'certificates' | 'reports'
+type Page = 'dashboard' | 'registrations' | 'calendar' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'announcements' | 'resources' | 'attendance' | 'certificates' | 'reports'
 
 const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
@@ -16,6 +16,7 @@ const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'programs', label: 'Programs', icon: '🎯' },
   { id: 'cohorts', label: 'Cohorts', icon: '📅' },
   { id: 'reps', label: 'Weekly Reps', icon: '⚡' },
+  { id: 'prompts', label: 'Journal Prompts', icon: '📝' },
   { id: 'announcements', label: 'Announcements', icon: '📢' },
   { id: 'resources', label: 'Resources', icon: '📚' },
   { id: 'attendance', label: 'Attendance', icon: '✅' },
@@ -34,6 +35,7 @@ export default function Admin() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [reps, setReps] = useState<WeeklyRep[]>([])
+  const [journalPrompts, setJournalPrompts] = useState<JournalPrompt[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [certificates, setCertificates] = useState<Certificate[]>([])
@@ -51,6 +53,7 @@ export default function Admin() {
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [showCohortForm, setShowCohortForm] = useState(false)
   const [showRepForm, setShowRepForm] = useState(false)
+  const [showPromptForm, setShowPromptForm] = useState(false)
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false)
   const [showResourceForm, setShowResourceForm] = useState(false)
   const [expandedUser, setExpandedUser] = useState<string | null>(null)
@@ -66,6 +69,7 @@ export default function Admin() {
   const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
   const [newCohort, setNewCohort] = useState({ name: '', program_id: '', start_date: '', end_date: '', zoom_link: '', status: 'upcoming' })
   const [newRep, setNewRep] = useState({ cohort_id: '', week_number: '', title: '', instructions: '', why_it_matters: '', due_date: '' })
+  const [newPrompt, setNewPrompt] = useState({ prompt: '', program_id: '', week_number: '' })
   const [newAnnouncement, setNewAnnouncement] = useState({ cohort_id: '', title: '', body: '' })
   const [newResource, setNewResource] = useState({ title: '', description: '', type: 'pdf', url: '', program_id: '', topic: '', portal_type: 'impact' })
 
@@ -91,6 +95,7 @@ export default function Admin() {
       { data: programsData },
       { data: cohortsData },
       { data: repsData },
+      { data: journalPromptsData },
       { data: announcementsData },
       { data: resourcesData },
       { data: certsData },
@@ -100,6 +105,7 @@ export default function Admin() {
       supabase.from('programs').select('*').order('name'),
       supabase.from('cohorts').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('weekly_reps').select('*, cohorts(name)').order('week_number'),
+      supabase.from('journal_prompts').select('*, programs(name)').order('sort_order'),
       supabase.from('announcements').select('*, cohorts(name)').order('created_at', { ascending: false }),
       supabase.from('resources').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('certificates').select('*, profiles(full_name, email), programs(name)').order('issued_at', { ascending: false }),
@@ -131,6 +137,7 @@ export default function Admin() {
     if (programsData) setPrograms(programsData)
     if (cohortsData) setCohorts(cohortsData)
     if (repsData) setReps(repsData)
+    if (journalPromptsData) setJournalPrompts(journalPromptsData)
     if (announcementsData) setAnnouncements(announcementsData)
     if (resourcesData) setResources(resourcesData)
     if (certsData) setCertificates(certsData)
@@ -216,6 +223,30 @@ export default function Admin() {
       fetchAll()
     }
     setActionLoading(false)
+  }
+
+  const handleCreatePrompt = async () => {
+    if (!newPrompt.prompt.trim()) return
+    setActionLoading(true)
+    const nextSortOrder = journalPrompts.reduce((max, p) => Math.max(max, p.sort_order), 0) + 1
+    const { error } = await supabase.from('journal_prompts').insert({
+      prompt: newPrompt.prompt,
+      program_id: newPrompt.program_id || null,
+      week_number: newPrompt.week_number ? parseInt(newPrompt.week_number) : null,
+      sort_order: nextSortOrder,
+    })
+    if (!error) {
+      showSuccess('Journal prompt added.')
+      setNewPrompt({ prompt: '', program_id: '', week_number: '' })
+      setShowPromptForm(false)
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleDeletePrompt = async (id: string) => {
+    await supabase.from('journal_prompts').delete().eq('id', id)
+    fetchAll()
   }
 
   const handleCreateAnnouncement = async () => {
@@ -1326,6 +1357,66 @@ export default function Admin() {
                     <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{rep.title}</h3>
                   </div>
                   <button onClick={async () => { await supabase.from('weekly_reps').delete().eq('id', rep.id); fetchAll() }} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* JOURNAL PROMPTS */}
+          {page === 'prompts' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Journal Prompts</span>
+                  <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>Journal Prompts</h1>
+                </div>
+                <button onClick={() => setShowPromptForm(!showPromptForm)} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>
+                  {showPromptForm ? 'Cancel' : '+ New Prompt'}
+                </button>
+              </div>
+              {showPromptForm && (
+                <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1.25rem' }}>Add a Journal Prompt</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <label style={labelStyle}>Prompt</label>
+                      <textarea value={newPrompt.prompt} onChange={e => setNewPrompt({ ...newPrompt, prompt: e.target.value })} placeholder="What question should participants reflect on?" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={labelStyle}>Program</label>
+                        <select value={newPrompt.program_id} onChange={e => setNewPrompt({ ...newPrompt, program_id: e.target.value })} style={inputStyle}>
+                          <option value="">All Programs</option>
+                          {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Week Number</label>
+                        <input type="number" value={newPrompt.week_number} onChange={e => setNewPrompt({ ...newPrompt, week_number: e.target.value })} placeholder="Leave blank to rotate" style={inputStyle} min="1" />
+                      </div>
+                    </div>
+                    <button onClick={handleCreatePrompt} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', alignSelf: 'flex-start' }}>
+                      {actionLoading ? 'Adding...' : 'Add Prompt'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {journalPrompts.length === 0 && !showPromptForm && (
+                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No journal prompts yet.</p>
+                  <button onClick={() => setShowPromptForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Add Prompt</button>
+                </div>
+              )}
+              {journalPrompts.map(jp => (
+                <div key={jp.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{jp.programs?.name || 'All Programs'}</span>
+                      {jp.week_number != null && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {jp.week_number}</span>}
+                    </div>
+                    <p style={{ color: 'var(--ink)', fontSize: '0.9rem', lineHeight: 1.6 }}>{jp.prompt}</p>
+                  </div>
+                  <button onClick={() => handleDeletePrompt(jp.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
                 </div>
               ))}
             </div>

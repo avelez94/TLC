@@ -59,6 +59,15 @@ export interface WeeklyRep {
   weekly_rep_submissions?: { count: number }[]
 }
 
+export interface JournalPrompt {
+  id: string
+  prompt: string
+  program_id: string | null
+  week_number: number | null
+  sort_order: number
+  programs?: { name: string }
+}
+
 export interface Announcement {
   id: string
   cohort_id: string | null
