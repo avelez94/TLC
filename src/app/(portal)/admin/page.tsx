@@ -54,6 +54,7 @@ export default function Admin() {
   const [userFilter, setUserFilter] = useState('all')
   const [communityCohortFilter, setCommunityCohortFilter] = useState('all')
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [showCohortForm, setShowCohortForm] = useState(false)
   const [showRepForm, setShowRepForm] = useState(false)
@@ -291,6 +292,21 @@ export default function Admin() {
   const handleDeleteComment = async (id: string) => {
     await supabase.from('community_comments').delete().eq('id', id)
     fetchAll()
+  }
+
+  const handleAddComment = async (postId: string) => {
+    const body = commentDrafts[postId]
+    if (!body?.trim()) return
+    setActionLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('community_comments').insert({
+      post_id: postId,
+      user_id: user?.id,
+      body,
+    })
+    setCommentDrafts(prev => ({ ...prev, [postId]: '' }))
+    fetchAll()
+    setActionLoading(false)
   }
 
   const handleCreateAnnouncement = async () => {
@@ -1678,6 +1694,16 @@ export default function Admin() {
                               <button onClick={() => handleDeleteComment(c.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.7rem', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
                             </div>
                           ))}
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <textarea
+                              value={commentDrafts[post.id] || ''}
+                              onChange={e => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              placeholder="Add a comment..."
+                              rows={2}
+                              style={{ ...inputStyle, flex: 1, resize: 'vertical' }}
+                            />
+                            <button onClick={() => handleAddComment(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}>Send</button>
+                          </div>
                         </div>
                       )}
                     </div>
