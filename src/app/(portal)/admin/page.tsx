@@ -66,6 +66,7 @@ export default function Admin() {
   const [successMsg, setSuccessMsg] = useState('')
   const [billingRate, setBillingRate] = useState('')
   const [billingHours, setBillingHours] = useState('')
+  const [billingClientType, setBillingClientType] = useState<'new' | 'existing'>('existing')
   const [paymentLinkUrl, setPaymentLinkUrl] = useState('')
   const [paymentRequestLoading, setPaymentRequestLoading] = useState(false)
 
@@ -342,7 +343,8 @@ export default function Admin() {
         body: JSON.stringify({
           user_id: user.id,
           amount: Math.round(rate * hours * 100) / 100,
-          description: `Coaching services — ${hours} hour${hours === 1 ? '' : 's'} at $${rate}/hr`,
+          hours,
+          client_type: billingClientType,
         }),
       })
       const data = await res.json()
@@ -944,6 +946,7 @@ export default function Admin() {
                           setExpandedUser(next)
                           setBillingRate(next && user.hourly_rate != null ? String(user.hourly_rate) : '')
                           setBillingHours('')
+                          setBillingClientType('existing')
                           setPaymentLinkUrl('')
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -989,6 +992,24 @@ export default function Admin() {
                             {user.role === 'coaching_client' && (
                               <div style={{ ...cardStyle, background: 'var(--paper)' }}>
                                 <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Coaching Billing</h3>
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <label style={labelStyle}>Invoice Type</label>
+                                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {[
+                                      { value: 'new' as const, label: 'New Client — First Invoice' },
+                                      { value: 'existing' as const, label: 'Existing Client — Follow-up Invoice' },
+                                    ].map(({ value, label }) => (
+                                      <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setBillingClientType(value)}
+                                        style={{ padding: '0.45rem 1rem', borderRadius: '2px', border: `1.5px solid ${billingClientType === value ? 'var(--gold)' : 'rgba(0,23,55,0.15)'}`, background: billingClientType === value ? 'rgba(200,136,32,0.08)' : 'white', color: billingClientType === value ? 'var(--gold)' : 'var(--slate)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}
+                                      >
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                                   <div>
                                     <label style={labelStyle}>Hourly Rate ($)</label>
