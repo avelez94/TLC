@@ -113,7 +113,7 @@ export default function ImpactPortal() {
         supabase.from('certificates').select('*, programs(name)').eq('user_id', user.id),
         supabase.from('cohort_sessions').select('*').eq('cohort_id', c.id).order('session_number'),
         supabase.from('journal_entries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('community_posts').select('*, profiles(full_name), community_likes(user_id), community_comments(*, profiles(full_name))').eq('cohort_id', c.id).order('created_at', { ascending: false }),
+        supabase.from('community_posts').select('*, profiles(full_name), community_likes(user_id), community_comments(*, profiles(full_name, role))').eq('cohort_id', c.id).order('created_at', { ascending: false }),
         supabase.from('journal_prompts').select('*').or(`program_id.eq.${c.programs.id},program_id.is.null`).order('sort_order'),
       ])
 
@@ -540,10 +540,10 @@ export default function ImpactPortal() {
                     {commentsOpen && (
                       <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--mist)' }}>
                         {comments.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>No comments yet.</p>}
-                        {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null } }) => (
+                        {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null; role?: string } }) => (
                           <div key={c.id} style={{ marginBottom: '0.6rem' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
-                              <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || 'Participant'}</span>
+                              <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || (c.profiles?.role === 'admin' ? 'Tramaine' : 'Participant')}</span>
                               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>{new Date(c.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
                             </div>
                             <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>{c.body}</p>

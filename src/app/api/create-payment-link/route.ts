@@ -10,15 +10,10 @@ const supabaseAdmin = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-function describeSessions(hours: number): string {
-  const numberWords: Record<number, string> = { 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six' }
-  if (hours === 1.5) return 'One 90-minute coaching session'
-  if (hours === 0.5) return 'One 30-minute coaching session'
-  if (Number.isInteger(hours) && hours >= 1) {
-    const word = numberWords[hours] || String(hours)
-    return `${word} 60-minute coaching session${hours === 1 ? '' : 's'}`
-  }
-  return `${hours} hours of coaching`
+function describeSessions(sessions: number, minutesPerSession: number): string {
+  const numberWords: Record<number, string> = { 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven', 8: 'Eight', 9: 'Nine', 10: 'Ten' }
+  const word = numberWords[sessions] || String(sessions)
+  return `${word} ${minutesPerSession}-minute coaching session${sessions === 1 ? '' : 's'}`
 }
 
 function emailShell(bodyHtml: string) {
@@ -77,9 +72,15 @@ export async function POST(request: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder')
 
   try {
-    const { user_id, amount, hours, client_type } = await request.json()
+    const { user_id, amount, hours, sessions, minutes_per_session, client_type } = await request.json()
 
-    if (!user_id || !amount || !hours || (client_type !== 'new' && client_type !== 'existing')) {
+    if (!user_id || !amount || (client_type !== 'new' && client_type !== 'existing')) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (client_type === 'new' && (!sessions || !minutes_per_session)) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (client_type === 'existing' && !hours) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -93,8 +94,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
+    const sessionDescription = client_type === 'new' ? describeSessions(sessions, minutes_per_session) : ''
     const productName = client_type === 'new'
-      ? `Coaching Engagement — ${describeSessions(hours)}`
+      ? `Coaching Engagement — ${sessionDescription}`
       : `Coaching Session — ${hours} hour${hours === 1 ? '' : 's'}`
 
     const paymentLink = await stripe.paymentLinks.create({
@@ -117,7 +119,7 @@ export async function POST(request: Request) {
       ? 'Your Coaching Engagement — Payment Request'
       : 'Payment Request – Leadership Coaching'
     const html = client_type === 'new'
-      ? newClientEmail(name, describeSessions(hours), amount, paymentLink.url)
+      ? newClientEmail(name, sessionDescription, amount, paymentLink.url)
       : existingClientEmail(name, hours, amount, paymentLink.url)
 
     await resend.emails.send({

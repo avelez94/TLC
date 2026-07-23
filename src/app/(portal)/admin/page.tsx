@@ -71,6 +71,8 @@ export default function Admin() {
   const [successMsg, setSuccessMsg] = useState('')
   const [billingRate, setBillingRate] = useState('')
   const [billingHours, setBillingHours] = useState('')
+  const [billingSessions, setBillingSessions] = useState('')
+  const [billingMinutesPerSession, setBillingMinutesPerSession] = useState('')
   const [billingClientType, setBillingClientType] = useState<'new' | 'existing'>('existing')
   const [paymentLinkUrl, setPaymentLinkUrl] = useState('')
   const [paymentRequestLoading, setPaymentRequestLoading] = useState(false)
@@ -118,7 +120,7 @@ export default function Admin() {
       supabase.from('cohorts').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('weekly_reps').select('*, cohorts(name)').order('week_number'),
       supabase.from('journal_prompts').select('*, programs(name)').order('sort_order'),
-      supabase.from('community_posts').select('*, profiles(full_name, email, role), cohorts(name), community_likes(user_id), community_comments(*, profiles(full_name, email))').order('created_at', { ascending: false }),
+      supabase.from('community_posts').select('*, profiles(full_name, email, role), cohorts(name), community_likes(user_id), community_comments(*, profiles(full_name, role))').order('created_at', { ascending: false }),
       supabase.from('announcements').select('*, cohorts(name)').order('created_at', { ascending: false }),
       supabase.from('resources').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('certificates').select('*, profiles(full_name, email), programs(name)').order('issued_at', { ascending: false }),
@@ -387,8 +389,14 @@ export default function Admin() {
 
   const handleSendPaymentRequest = async (user: Profile) => {
     const rate = parseFloat(billingRate)
+    const isNew = billingClientType === 'new'
+    const sessions = parseInt(billingSessions)
+    const minutesPerSession = parseInt(billingMinutesPerSession)
     const hours = parseFloat(billingHours)
-    if (!rate || !hours || !user.email) return
+    const totalHours = isNew ? (sessions * minutesPerSession) / 60 : hours
+    if (!rate || !totalHours || !user.email) return
+    if (isNew && (!sessions || !minutesPerSession)) return
+    if (!isNew && !hours) return
     setPaymentRequestLoading(true)
     setPaymentLinkUrl('')
     try {
@@ -397,9 +405,9 @@ export default function Admin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: user.id,
-          amount: Math.round(rate * hours * 100) / 100,
-          hours,
+          amount: Math.round(rate * totalHours * 100) / 100,
           client_type: billingClientType,
+          ...(isNew ? { sessions, minutes_per_session: minutesPerSession } : { hours }),
         }),
       })
       const data = await res.json()
@@ -1001,6 +1009,8 @@ export default function Admin() {
                           setExpandedUser(next)
                           setBillingRate(next && user.hourly_rate != null ? String(user.hourly_rate) : '')
                           setBillingHours('')
+                          setBillingSessions('')
+                          setBillingMinutesPerSession('')
                           setBillingClientType('existing')
                           setPaymentLinkUrl('')
                         }}>
@@ -1044,7 +1054,17 @@ export default function Admin() {
                               )}
                             </div>
 
-                            {user.role === 'coaching_client' && (
+                            {user.role === 'coaching_client' && (() => {
+                              const isNew = billingClientType === 'new'
+                              const rate = parseFloat(billingRate) || 0
+                              const totalHours = isNew
+                                ? ((parseFloat(billingSessions) || 0) * (parseFloat(billingMinutesPerSession) || 0)) / 60
+                                : (parseFloat(billingHours) || 0)
+                              const total = rate * totalHours
+                              const canSend = isNew
+                                ? !!billingRate && !!billingSessions && !!billingMinutesPerSession
+                                : !!billingRate && !!billingHours
+                              return (
                               <div style={{ ...cardStyle, background: 'var(--paper)' }}>
                                 <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Coaching Billing</h3>
                                 <div style={{ marginBottom: '1rem' }}>
@@ -1065,7 +1085,7 @@ export default function Admin() {
                                     ))}
                                   </div>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: isNew ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                                   <div>
                                     <label style={labelStyle}>Hourly Rate ($)</label>
                                     <input
@@ -1079,29 +1099,58 @@ export default function Admin() {
                                       step="0.01"
                                     />
                                   </div>
-                                  <div>
-                                    <label style={labelStyle}>Hours to Bill</label>
-                                    <input
-                                      type="number"
-                                      value={billingHours}
-                                      onChange={e => setBillingHours(e.target.value)}
-                                      placeholder="e.g. 2"
-                                      style={inputStyle}
-                                      min="0"
-                                      step="0.25"
-                                    />
-                                  </div>
+                                  {isNew ? (
+                                    <>
+                                      <div>
+                                        <label style={labelStyle}>Number of Sessions</label>
+                                        <input
+                                          type="number"
+                                          value={billingSessions}
+                                          onChange={e => setBillingSessions(e.target.value)}
+                                          placeholder="e.g. 3"
+                                          style={inputStyle}
+                                          min="1"
+                                          step="1"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label style={labelStyle}>Minutes per Session</label>
+                                        <input
+                                          type="number"
+                                          value={billingMinutesPerSession}
+                                          onChange={e => setBillingMinutesPerSession(e.target.value)}
+                                          placeholder="e.g. 60"
+                                          style={inputStyle}
+                                          min="1"
+                                          step="1"
+                                        />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div>
+                                      <label style={labelStyle}>Hours to Bill</label>
+                                      <input
+                                        type="number"
+                                        value={billingHours}
+                                        onChange={e => setBillingHours(e.target.value)}
+                                        placeholder="e.g. 2"
+                                        style={inputStyle}
+                                        min="0"
+                                        step="0.25"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                                   <div>
                                     <span style={labelStyle}>Total</span>
                                     <p style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>
-                                      ${((parseFloat(billingRate) || 0) * (parseFloat(billingHours) || 0)).toFixed(2)}
+                                      ${total.toFixed(2)}
                                     </p>
                                   </div>
                                   <button
                                     onClick={() => handleSendPaymentRequest(user)}
-                                    disabled={paymentRequestLoading || !billingRate || !billingHours}
+                                    disabled={paymentRequestLoading || !canSend}
                                     className="btn btn-primary"
                                     style={{ fontSize: '0.8rem', padding: '0.6rem 1.1rem' }}
                                   >
@@ -1121,7 +1170,8 @@ export default function Admin() {
                                   </div>
                                 )}
                               </div>
-                            )}
+                              )
+                            })()}
 
                             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1660,7 +1710,7 @@ export default function Admin() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <span style={{ fontWeight: 600, color: isAdmin ? 'var(--gold)' : 'var(--navy)', fontSize: '0.88rem' }}>{isAdmin ? 'Tramaine' : (post.profiles?.full_name || 'Unknown')}</span>
+                            <span style={{ fontWeight: 600, color: isAdmin ? 'var(--gold)' : 'var(--navy)', fontSize: '0.88rem' }}>{post.profiles?.full_name || (isAdmin ? 'Tramaine' : 'Unknown')}</span>
                             {isAdmin && (
                               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--navy)', background: 'rgba(200,136,32,0.15)', padding: '0.15rem 0.5rem', borderRadius: '2px' }}>Admin</span>
                             )}
@@ -1682,11 +1732,11 @@ export default function Admin() {
                       {commentsOpen && (
                         <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--mist)' }}>
                           {comments.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>No comments yet.</p>}
-                          {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null } }) => (
+                          {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null; role?: string } }) => (
                             <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.6rem' }}>
                               <div>
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
-                                  <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || 'Unknown'}</span>
+                                  <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || (c.profiles?.role === 'admin' ? 'Tramaine' : 'Unknown')}</span>
                                   <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>{new Date(c.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                                 </div>
                                 <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>{c.body}</p>
