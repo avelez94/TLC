@@ -41,6 +41,7 @@ export default function ImpactPortal() {
   const [certificates, setCertificates] = useState<any[]>([])
   const [cohortSessions, setCohortSessions] = useState<any[]>([])
   const [journalEntries, setJournalEntries] = useState<any[]>([])
+  const [journalPrompts, setJournalPrompts] = useState<any[]>([])
   const [communityPosts, setCommunityPosts] = useState<any[]>([])
 
   // UI state
@@ -99,6 +100,7 @@ export default function ImpactPortal() {
         { data: sessionsData },
         { data: journalData },
         { data: postsData },
+        { data: journalPromptsData },
       ] = await Promise.all([
         supabase.from('weekly_reps').select('*').eq('cohort_id', c.id).order('week_number'),
         supabase.from('weekly_rep_submissions').select('*').eq('user_id', user.id),
@@ -108,6 +110,7 @@ export default function ImpactPortal() {
         supabase.from('cohort_sessions').select('*').eq('cohort_id', c.id).order('session_number'),
         supabase.from('journal_entries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('community_posts').select('*, profiles(full_name), community_likes(user_id)').eq('cohort_id', c.id).order('created_at', { ascending: false }),
+        supabase.from('journal_prompts').select('*').or(`program_id.eq.${c.programs.id},program_id.is.null`).order('sort_order'),
       ])
 
       if (repsData) setReps(repsData)
@@ -118,6 +121,7 @@ export default function ImpactPortal() {
       if (sessionsData) setCohortSessions(sessionsData)
       if (journalData) setJournalEntries(journalData)
       if (postsData) setCommunityPosts(postsData)
+      if (journalPromptsData) setJournalPrompts(journalPromptsData)
     }
 
     setLoading(false)
@@ -126,6 +130,31 @@ export default function ImpactPortal() {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   const isRepCompleted = (repId: string) => submissions.some(s => s.weekly_rep_id === repId)
+
+  const currentCohortWeek = (() => {
+    if (!cohort?.start_date) return 1
+    const start = new Date(cohort.start_date + 'T00:00:00')
+    const diffDays = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24))
+    return Math.max(1, Math.floor(diffDays / 7) + 1)
+  })()
+
+  const currentJournalPrompt = (() => {
+    const fallback = 'What impact did I create this week, and how did I show up?'
+    const inScope = (p: { program_id: string | null }) => p.program_id === (program?.id ?? null) || p.program_id === null
+    const scoped = journalPrompts.filter(inScope)
+    if (scoped.length === 0) return fallback
+
+    const weekMatches = scoped.filter(p => p.week_number === currentCohortWeek)
+    const exactMatch = weekMatches.find(p => p.program_id === program?.id) || weekMatches.find(p => p.program_id === null)
+    if (exactMatch) return exactMatch.prompt
+
+    const rotatingPool = scoped.filter(p => p.week_number == null)
+    if (rotatingPool.length > 0) {
+      return rotatingPool[(currentCohortWeek - 1) % rotatingPool.length].prompt
+    }
+
+    return fallback
+  })()
 
   const handleSubmitRep = async () => {
     if (!repReflection.trim() || !activeRep || !profile) return
@@ -150,7 +179,7 @@ export default function ImpactPortal() {
     await supabase.from('journal_entries').insert({
       user_id: profile.id,
       body: journalEntry,
-      prompt: 'What impact did I create this week, and how did I show up?',
+      prompt: currentJournalPrompt,
     })
     setJournalEntry('')
     showSuccess('Entry saved.')
@@ -389,7 +418,7 @@ export default function ImpactPortal() {
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Your Journal</h1>
               <div style={cardStyle}>
                 <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>New Entry</h3>
-                <p style={{ color: 'var(--slate)', fontSize: '0.82rem', marginBottom: '1rem' }}>This week's prompt: <em>What impact did I create this week, and how did I show up?</em></p>
+                <p style={{ color: 'var(--slate)', fontSize: '0.82rem', marginBottom: '1rem' }}>This week's prompt: <em>{currentJournalPrompt}</em></p>
                 <textarea value={journalEntry} onChange={e => setJournalEntry(e.target.value)} placeholder="Write your reflection here..." rows={5} style={{ ...inputStyle, resize: 'vertical' }} />
                 <button onClick={handleSaveJournal} disabled={actionLoading} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem', padding: '0.65rem 1.5rem' }}>{actionLoading ? 'Saving...' : 'Save Entry'}</button>
               </div>

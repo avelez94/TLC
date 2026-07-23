@@ -12,6 +12,7 @@ export interface Profile {
   role: Role
   avatar_url: string | null
   timezone: string | null
+  hourly_rate: number | null
   created_at: string
 }
 

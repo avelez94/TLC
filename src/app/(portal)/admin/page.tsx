@@ -64,6 +64,10 @@ export default function Admin() {
   const [inviteError, setInviteError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [billingRate, setBillingRate] = useState('')
+  const [billingHours, setBillingHours] = useState('')
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState('')
+  const [paymentRequestLoading, setPaymentRequestLoading] = useState(false)
 
   // Form state
   const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
@@ -316,6 +320,42 @@ export default function Admin() {
   const handleUpdateUserRole = async (userId: string, role: string) => {
     await supabase.from('profiles').update({ role }).eq('id', userId)
     fetchAll()
+  }
+
+  const handleUpdateHourlyRate = async (userId: string, value: string) => {
+    const rate = value.trim() === '' ? null : parseFloat(value)
+    await supabase.from('profiles').update({ hourly_rate: rate }).eq('id', userId)
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, hourly_rate: rate } : u))
+    showSuccess('Hourly rate updated.')
+  }
+
+  const handleSendPaymentRequest = async (user: Profile) => {
+    const rate = parseFloat(billingRate)
+    const hours = parseFloat(billingHours)
+    if (!rate || !hours || !user.email) return
+    setPaymentRequestLoading(true)
+    setPaymentLinkUrl('')
+    try {
+      const res = await fetch('/api/create-payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          amount: Math.round(rate * hours * 100) / 100,
+          description: `Coaching services — ${hours} hour${hours === 1 ? '' : 's'} at $${rate}/hr`,
+        }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        showSuccess(`Failed to send payment request: ${data.error}`)
+      } else {
+        setPaymentLinkUrl(data.url)
+        showSuccess(`Payment request sent to ${user.email}.`)
+      }
+    } catch {
+      showSuccess('Failed to send payment request. Please try again.')
+    }
+    setPaymentRequestLoading(false)
   }
 
   const handleUpdateCohortStatus = async (cohortId: string, status: string) => {
@@ -899,7 +939,13 @@ export default function Admin() {
                   <div>
                     {filteredUsers.map(user => (
                       <div key={user.id}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.75rem', cursor: 'pointer' }} onClick={() => setExpandedUser(expandedUser === user.id ? null : user.id)}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.75rem', cursor: 'pointer' }} onClick={() => {
+                          const next = expandedUser === user.id ? null : user.id
+                          setExpandedUser(next)
+                          setBillingRate(next && user.hourly_rate != null ? String(user.hourly_rate) : '')
+                          setBillingHours('')
+                          setPaymentLinkUrl('')
+                        }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
                               {(user.full_name || user.email || 'U').charAt(0).toUpperCase()}
@@ -939,6 +985,68 @@ export default function Admin() {
                                 </div>
                               )}
                             </div>
+
+                            {user.role === 'coaching_client' && (
+                              <div style={{ ...cardStyle, background: 'var(--paper)' }}>
+                                <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Coaching Billing</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                                  <div>
+                                    <label style={labelStyle}>Hourly Rate ($)</label>
+                                    <input
+                                      type="number"
+                                      value={billingRate}
+                                      onChange={e => setBillingRate(e.target.value)}
+                                      onBlur={e => handleUpdateHourlyRate(user.id, e.target.value)}
+                                      placeholder="e.g. 150"
+                                      style={inputStyle}
+                                      min="0"
+                                      step="0.01"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={labelStyle}>Hours to Bill</label>
+                                    <input
+                                      type="number"
+                                      value={billingHours}
+                                      onChange={e => setBillingHours(e.target.value)}
+                                      placeholder="e.g. 2"
+                                      style={inputStyle}
+                                      min="0"
+                                      step="0.25"
+                                    />
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                                  <div>
+                                    <span style={labelStyle}>Total</span>
+                                    <p style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>
+                                      ${((parseFloat(billingRate) || 0) * (parseFloat(billingHours) || 0)).toFixed(2)}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleSendPaymentRequest(user)}
+                                    disabled={paymentRequestLoading || !billingRate || !billingHours}
+                                    className="btn btn-primary"
+                                    style={{ fontSize: '0.8rem', padding: '0.6rem 1.1rem' }}
+                                  >
+                                    {paymentRequestLoading ? 'Sending...' : 'Send Payment Request'}
+                                  </button>
+                                </div>
+                                {paymentLinkUrl && (
+                                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--mist)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <span style={labelStyle}>Payment Link</span>
+                                    <a href={paymentLinkUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.8rem', wordBreak: 'break-all' }}>{paymentLinkUrl}</a>
+                                    <button
+                                      onClick={() => { navigator.clipboard.writeText(paymentLinkUrl); showSuccess('Link copied to clipboard.') }}
+                                      style={{ background: 'none', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '2px', padding: '0.3rem 0.7rem', color: 'var(--slate)', fontSize: '0.72rem', cursor: 'pointer' }}
+                                    >
+                                      Copy
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--slate)' }}>Change role:</span>
