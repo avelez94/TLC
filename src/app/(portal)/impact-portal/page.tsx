@@ -49,6 +49,10 @@ export default function ImpactPortal() {
   const [repReflection, setRepReflection] = useState('')
   const [journalEntry, setJournalEntry] = useState('')
   const [newPost, setNewPost] = useState('')
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editPostBody, setEditPostBody] = useState('')
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [actionLoading, setActionLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
 
@@ -109,7 +113,7 @@ export default function ImpactPortal() {
         supabase.from('certificates').select('*, programs(name)').eq('user_id', user.id),
         supabase.from('cohort_sessions').select('*').eq('cohort_id', c.id).order('session_number'),
         supabase.from('journal_entries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('community_posts').select('*, profiles(full_name), community_likes(user_id)').eq('cohort_id', c.id).order('created_at', { ascending: false }),
+        supabase.from('community_posts').select('*, profiles(full_name), community_likes(user_id), community_comments(*, profiles(full_name))').eq('cohort_id', c.id).order('created_at', { ascending: false }),
         supabase.from('journal_prompts').select('*').or(`program_id.eq.${c.programs.id},program_id.is.null`).order('sort_order'),
       ])
 
@@ -210,6 +214,44 @@ export default function ImpactPortal() {
       await supabase.from('community_likes').insert({ post_id: postId, user_id: profile.id })
     }
     fetchAll()
+  }
+
+  const handleStartEditPost = (post: { id: string; body: string }) => {
+    setEditingPostId(post.id)
+    setEditPostBody(post.body)
+  }
+
+  const handleSaveEditPost = async (postId: string) => {
+    if (!editPostBody.trim()) return
+    setActionLoading(true)
+    await supabase.from('community_posts').update({ body: editPostBody }).eq('id', postId)
+    setEditingPostId(null)
+    setEditPostBody('')
+    fetchAll()
+    setActionLoading(false)
+  }
+
+  const handleDeletePost = async (postId: string) => {
+    await supabase.from('community_posts').delete().eq('id', postId)
+    fetchAll()
+  }
+
+  const toggleComments = (postId: string) => {
+    setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }))
+  }
+
+  const handleAddComment = async (postId: string) => {
+    const body = commentDrafts[postId]
+    if (!body?.trim() || !profile) return
+    setActionLoading(true)
+    await supabase.from('community_comments').insert({
+      post_id: postId,
+      user_id: profile.id,
+      body,
+    })
+    setCommentDrafts(prev => ({ ...prev, [postId]: '' }))
+    fetchAll()
+    setActionLoading(false)
   }
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there'
@@ -448,23 +490,76 @@ export default function ImpactPortal() {
               {communityPosts.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.88rem', textAlign: 'center', padding: '2rem' }}>No posts yet. Be the first to share something.</p>}
               {communityPosts.map(post => {
                 const liked = post.community_likes?.some((l: any) => l.user_id === profile?.id)
+                const isOwnPost = post.user_id === profile?.id
+                const isEditing = editingPostId === post.id
+                const comments = (post.community_comments || []).slice().sort((a: { created_at: string }, b: { created_at: string }) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                const commentsOpen = !!expandedComments[post.id]
                 return (
                   <div key={post.id} style={cardStyle}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
-                        {post.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
+                          {post.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{post.profiles?.full_name || 'Participant'}</span>
+                          <span style={{ display: 'block', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)', letterSpacing: '0.08em' }}>
+                            {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{post.profiles?.full_name || 'Participant'}</span>
-                        <span style={{ display: 'block', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)', letterSpacing: '0.08em' }}>
-                          {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                        </span>
-                      </div>
+                      {isOwnPost && !isEditing && (
+                        <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0 }}>
+                          <button onClick={() => handleStartEditPost(post)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>✎ Edit</button>
+                          <button onClick={() => handleDeletePost(post.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Delete</button>
+                        </div>
+                      )}
                     </div>
-                    <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '0.75rem' }}>{post.body}</p>
-                    <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: liked ? 'var(--gold)' : 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
-                      {liked ? '♥' : '♡'} {post.community_likes?.length || 0}
-                    </button>
+
+                    {isEditing ? (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <textarea value={editPostBody} onChange={e => setEditPostBody(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <button onClick={() => handleSaveEditPost(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.45rem 1rem' }}>{actionLoading ? 'Saving...' : 'Save'}</button>
+                          <button onClick={() => { setEditingPostId(null); setEditPostBody('') }} style={{ background: 'none', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.45rem 1rem', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '0.75rem' }}>{post.body}</p>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                      <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: liked ? 'var(--gold)' : 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+                        {liked ? '♥' : '♡'} {post.community_likes?.length || 0}
+                      </button>
+                      <button onClick={() => toggleComments(post.id)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+                        {comments.length} comment{comments.length === 1 ? '' : 's'} {commentsOpen ? '▲' : '▼'}
+                      </button>
+                    </div>
+
+                    {commentsOpen && (
+                      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--mist)' }}>
+                        {comments.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>No comments yet.</p>}
+                        {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null } }) => (
+                          <div key={c.id} style={{ marginBottom: '0.6rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || 'Participant'}</span>
+                              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>{new Date(c.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+                            </div>
+                            <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>{c.body}</p>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <input
+                            value={commentDrafts[post.id] || ''}
+                            onChange={e => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            placeholder="Add a comment..."
+                            style={{ ...inputStyle, flex: 1 }}
+                          />
+                          <button onClick={() => handleAddComment(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}>Send</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}

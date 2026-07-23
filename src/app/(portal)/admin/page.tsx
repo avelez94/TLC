@@ -53,6 +53,7 @@ export default function Admin() {
   // UI state
   const [userFilter, setUserFilter] = useState('all')
   const [communityCohortFilter, setCommunityCohortFilter] = useState('all')
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [showCohortForm, setShowCohortForm] = useState(false)
   const [showRepForm, setShowRepForm] = useState(false)
@@ -116,7 +117,7 @@ export default function Admin() {
       supabase.from('cohorts').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('weekly_reps').select('*, cohorts(name)').order('week_number'),
       supabase.from('journal_prompts').select('*, programs(name)').order('sort_order'),
-      supabase.from('community_posts').select('*, profiles(full_name, email, role), cohorts(name), community_likes(user_id)').order('created_at', { ascending: false }),
+      supabase.from('community_posts').select('*, profiles(full_name, email, role), cohorts(name), community_likes(user_id), community_comments(*, profiles(full_name, email))').order('created_at', { ascending: false }),
       supabase.from('announcements').select('*, cohorts(name)').order('created_at', { ascending: false }),
       supabase.from('resources').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('certificates').select('*, profiles(full_name, email), programs(name)').order('issued_at', { ascending: false }),
@@ -280,6 +281,15 @@ export default function Admin() {
 
   const handleDeleteCommunityPost = async (id: string) => {
     await supabase.from('community_posts').delete().eq('id', id)
+    fetchAll()
+  }
+
+  const toggleComments = (postId: string) => {
+    setExpandedComments(prev => ({ ...prev, [postId]: !prev[postId] }))
+  }
+
+  const handleDeleteComment = async (id: string) => {
+    await supabase.from('community_comments').delete().eq('id', id)
     fetchAll()
   }
 
@@ -1627,6 +1637,8 @@ export default function Admin() {
                 }
                 return filteredPosts.map(post => {
                   const isAdmin = post.profiles?.role === 'admin'
+                  const comments = (post.community_comments || []).slice().sort((a: { created_at: string }, b: { created_at: string }) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                  const commentsOpen = !!expandedComments[post.id]
                   return (
                     <div key={post.id} style={{ ...cardStyle, borderLeft: isAdmin ? '4px solid var(--gold)' : '1px solid rgba(0,23,55,0.08)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem' }}>
@@ -1645,7 +1657,29 @@ export default function Admin() {
                         <button onClick={() => handleDeleteCommunityPost(post.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Delete</button>
                       </div>
                       <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '0.5rem' }}>{post.body}</p>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>♡ {post.community_likes?.length || 0}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>♡ {post.community_likes?.length || 0}</span>
+                        <button onClick={() => toggleComments(post.id)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.7rem', cursor: 'pointer', fontFamily: 'var(--font-jetbrains), monospace' }}>
+                          {comments.length} comment{comments.length === 1 ? '' : 's'} {commentsOpen ? '▲' : '▼'}
+                        </button>
+                      </div>
+                      {commentsOpen && (
+                        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--mist)' }}>
+                          {comments.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>No comments yet.</p>}
+                          {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null } }) => (
+                            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.6rem' }}>
+                              <div>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || 'Unknown'}</span>
+                                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>{new Date(c.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                </div>
+                                <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>{c.body}</p>
+                              </div>
+                              <button onClick={() => handleDeleteComment(c.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.7rem', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })
