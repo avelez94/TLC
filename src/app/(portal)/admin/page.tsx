@@ -20,7 +20,6 @@ const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'community', label: 'Community', icon: '💬' },
   { id: 'announcements', label: 'Announcements', icon: '📢' },
   { id: 'resources', label: 'Resources', icon: '📚' },
-  { id: 'attendance', label: 'Attendance', icon: '✅' },
   { id: 'certificates', label: 'Certificates', icon: '🏆' },
   { id: 'reports', label: 'Reports', icon: '📈' },
 ]
@@ -1947,54 +1946,6 @@ export default function Admin() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* ATTENDANCE */}
-          {page === 'attendance' && (
-            <div>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Attendance</span>
-              <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Session Attendance</h1>
-              {activeCohorts.length === 0 ? (
-                <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
-                  <p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>No active cohorts. Create and activate a cohort first.</p>
-                </div>
-              ) : activeCohorts.map(cohort => {
-                const cohortEnrollments = enrollments.filter(e => e.cohort_id === cohort.id && e.status === 'active')
-                return (
-                  <div key={cohort.id} style={cardStyle}>
-                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>{cohort.name}</h3>
-                    <p style={{ color: 'var(--slate)', fontSize: '0.82rem', marginBottom: '1.25rem' }}>{cohortEnrollments.length} participants enrolled</p>
-                    {cohortEnrollments.length === 0 ? (
-                      <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No participants enrolled in this cohort yet.</p>
-                    ) : (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr>
-                              <th style={thStyle}>Participant</th>
-                              <th style={thStyle}>Status</th>
-                              <th style={thStyle}>Enrolled</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {cohortEnrollments.map(e => (
-                              <tr key={e.id}>
-                                <td style={tdStyle}>
-                                  <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{(e.profiles as any)?.full_name || 'Unknown'}</span>
-                                  <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.75rem' }}>{(e.profiles as any)?.email}</span>
-                                </td>
-                                <td style={tdStyle}>{statusBadge(e.status)}</td>
-                                <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{new Date(e.enrolled_at).toLocaleDateString()}</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
             </div>
           )}
 
