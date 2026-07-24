@@ -27,3 +27,21 @@ export const supabaseAdmin = createClient(
   supabaseUrl,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// Verifies the request's session belongs to a user with role 'admin'.
+// Returns the authenticated user, or null if unauthenticated / not an admin.
+// Use in API routes that perform admin-only actions.
+export async function requireAdmin() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'admin') return null
+  return user
+}

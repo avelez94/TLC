@@ -73,7 +73,7 @@ export default function Schedule() {
       const endDate = dateStr(weekdays[weekdays.length - 1])
 
       const [{ data: bookings }, { data: blocks }] = await Promise.all([
-        supabase.from('bookings').select('booking_date, booking_time').gte('booking_date', startDate).lte('booking_date', endDate),
+        supabase.from('booking_availability').select('booking_date, booking_time').gte('booking_date', startDate).lte('booking_date', endDate),
         supabase.from('availability_blocks').select('block_date, block_time').gte('block_date', startDate).lte('block_date', endDate),
       ])
 
