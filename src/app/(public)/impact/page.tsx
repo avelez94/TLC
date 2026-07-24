@@ -183,7 +183,7 @@ export default function Impact() {
                 <div>
                   {goal && (
                     <div style={{ marginBottom: '1.75rem' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.5rem', display: 'block' }}>Leadership Development Goal</span>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.5rem', display: 'block' }}>Development Goal</span>
                       <p style={{ fontSize: '0.95rem', fontWeight: 600, color: dark ? 'rgba(255,255,255,0.85)' : 'var(--navy)', lineHeight: 1.5, paddingLeft: '1rem', borderLeft: '2px solid var(--gold)', margin: 0 }}>{goal}</p>
                     </div>
                   )}
