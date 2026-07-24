@@ -1244,7 +1244,7 @@ export default function Admin() {
                               <textarea id={`desc-${p.id}`} defaultValue={p.description || ''} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
-                              <label style={labelStyle}>Leadership Development Goal <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Impact Lab page next to the description</span></label>
+                              <label style={labelStyle}>Development Goal <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Impact Lab page next to the description</span></label>
                               <textarea id={`goal-${p.id}`} defaultValue={(p as any).leadership_goal || ''} rows={2} placeholder="e.g. Get clear on where you want your impact and what is standing between you and it." style={{ ...inputStyle, resize: 'vertical' }} />
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
