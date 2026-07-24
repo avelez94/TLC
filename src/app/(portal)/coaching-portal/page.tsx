@@ -307,15 +307,19 @@ export default function CoachingPortal() {
                   e.preventDefault()
                   if (!profile) return
                   setActionLoading(true)
-                  await supabase.from('weekly_checkins').insert({
-                    user_id: profile.id,
+                  const { error } = await supabase.from('weekly_checkins').insert({
+                    client_id: profile.id,
                     went_well: checkIn.went_well,
                     challenging: checkIn.challenging,
                     progress: checkIn.progress,
                     focus_today: checkIn.focus_today,
                     anything_changed: checkIn.anything_changed,
                   })
-                  setCheckInSubmitted(true)
+                  if (error) {
+                    showSuccess('Failed to submit check-in. Please try again.')
+                  } else {
+                    setCheckInSubmitted(true)
+                  }
                   setActionLoading(false)
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {[
