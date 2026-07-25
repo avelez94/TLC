@@ -122,7 +122,7 @@ export default function Home() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} className="services-grid">
             {[
               { href: '/consulting', tag: 'Leadership Consulting', title: 'Custom systems for organizations.', desc: 'When an organization needs to develop its leaders, it needs more than a workshop. TLC designs and builds programs, learning journeys, and pipelines built for how your people actually work.', delay: '0s' },
-              { href: '/coaching', tag: 'Performance & Success Coaching', title: 'One to one. The work is yours.', desc: 'Whether you invest in yourself or an organization sponsors your growth, the focus stays on you. Coaching builds the clarity, capability, and behavior change that shows up in how you lead and perform.', delay: '0.12s' },
+              { href: '/coaching', tag: 'Performance & Developmental Coaching', title: 'One to one. The work is yours.', desc: 'Whether you invest in yourself or an organization sponsors your growth, the focus stays on you. Coaching builds the clarity, capability, and behavior change that shows up in how you lead and perform.', delay: '0.12s' },
               { href: '/impact', tag: 'The Impact Lab', title: 'Step up. Solve problems. Create impact.', desc: 'Cohort programs built to move people from where they are to who they are capable of becoming. Three programs, one path. Find your direction, build your impact, raise it in others.', delay: '0.24s' },
             ].map(({ href, tag, title, desc, delay }) => (
               <Link key={href} href={href} className="reveal" style={{ background: 'white', border: '1px solid rgba(0,23,55,0.1)', borderRadius: '2px', padding: '2.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', textDecoration: 'none', color: 'inherit', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', position: 'relative', transitionDelay: delay }}>
@@ -176,7 +176,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', border: '1px solid rgba(0,23,55,0.12)', borderRadius: '2px', overflow: 'hidden', transitionDelay: '0.1s' }}>
+          <div className="reveal impact-programs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', border: '1px solid rgba(0,23,55,0.12)', borderRadius: '2px', overflow: 'hidden', transitionDelay: '0.1s' }}>
             {[
               { num: '01', name: 'Impact Finders', motion: 'Find your direction', desc: 'Before you build anything, you have to see clearly. Impact Finders helps you see where you want your impact, what matters most, and what is getting in your way.', price: 'Free or low founding-cohort price', dark: false, cta: 'Join the Cohort', href: '/register', ctaClass: 'btn-ghost-dark' },
               { num: '02', name: 'Impact Makers', motion: 'Build your impact', desc: 'Builds the behaviors that turn effort into real impact, whether you come as an individual or your organization develops a group.', price: 'Founding cohorts open. Inquire for details.', dark: true, cta: 'Join the Cohort', href: '/register', ctaClass: 'btn-primary' },
@@ -219,6 +219,10 @@ export default function Home() {
         }
         @media (max-width: 800px) {
           .services-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 900px) {
+          .impact-programs-grid { grid-template-columns: 1fr !important; }
+          .impact-programs-grid > div { border-right: none !important; border-bottom: 1px solid rgba(0,23,55,0.1); }
         }
       `}</style>
     </>
