@@ -43,7 +43,14 @@ export default function Footer() {
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' as const }}>
           <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>&copy; 2025 TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.2)' }}>Develop Leaders. Solve Problems. Create Impact.</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.2)' }}>
+        Develop Leaders. Solve Problems. Create Impact.
+  {' · '}
+  Made with <span style={{ color: 'var(--gold)' }}>♥</span> by{' '}
+  <a href="https://alantevelez.com" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'underline' }}>
+    Alante Velez
+  </a>
+</span>
         </div>
       </div>
       <style>{`
