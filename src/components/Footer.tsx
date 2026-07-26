@@ -37,7 +37,7 @@ export default function Footer() {
               <li><a href="https://www.linkedin.com/in/mrcrawfordceo/" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>LinkedIn</a></li>
             </ul>
             <div style={{ marginTop: '2rem' }}>
-              <Link href="/contact" className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.7rem 1.35rem' }}>Schedule a Conversation</Link>
+              <a href="https://calendly.com/tramainecrawford/30-minute-zoom-meeting?month=2026-07" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.7rem 1.35rem' }}>Schedule a Conversation</a>
             </div>
           </div>
         </div>

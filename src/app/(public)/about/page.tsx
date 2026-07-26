@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 
 export default function About() {
   useEffect(() => {
@@ -62,7 +61,7 @@ export default function About() {
           <blockquote style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 'clamp(1.3rem, 3vw, 1.9rem)', color: 'white', lineHeight: 1.5, margin: '1.25rem 0 2.5rem', fontStyle: 'italic', fontWeight: 400 }}>
             We communicate with respect, honesty, and belief in people&apos;s potential.
           </blockquote>
-          <Link href="/contact" className="btn btn-primary">Schedule a Conversation</Link>
+          <a href="https://calendly.com/tramainecrawford/30-minute-zoom-meeting?month=2026-07" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Schedule a Conversation</a>
         </div>
       </section>
     </>

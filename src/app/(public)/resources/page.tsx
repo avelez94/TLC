@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import Link from 'next/link'
 
 export default function Resources() {
   useEffect(() => {
@@ -49,7 +48,7 @@ export default function Resources() {
         <div className="container reveal" style={{ position: 'relative', zIndex: 1 }}>
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2.5rem, 7vw, 6rem)', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '1rem' }}>Ready to create<br /><span style={{ color: 'var(--gold)' }}>greater impact?</span></h2>
           <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '1rem', maxWidth: '480px', margin: '0 auto 2.5rem', lineHeight: 1.75 }}>One conversation is enough to figure out where to start.</p>
-          <Link href="/contact" className="btn btn-primary">Schedule a Conversation</Link>
+          <a href="https://calendly.com/tramainecrawford/30-minute-zoom-meeting?month=2026-07" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Schedule a Conversation</a>
         </div>
       </section>
 

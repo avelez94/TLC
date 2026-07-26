@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 
 export default function Contact() {
   const [submitted, setSubmitted] = useState(false)
@@ -152,7 +151,7 @@ export default function Contact() {
               <div style={{ marginTop: '2rem', background: 'var(--navy)', borderRadius: '2px', padding: '1.5rem' }}>
                 <span className="eyebrow" style={{ display: 'block', marginBottom: '0.75rem' }}>Prefer to schedule directly?</span>
                 <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1rem' }}>Pick a time that works and Tramaine will be there.</p>
-                <Link href="/schedule" className="btn btn-primary">Schedule a Conversation</Link>
+                <a href="https://calendly.com/tramainecrawford/30-minute-zoom-meeting?month=2026-07" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Schedule a Conversation</a>
               </div>
             </div>
           </div>
