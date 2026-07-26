@@ -7,7 +7,7 @@ export default function Contact() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', org: '', interest: '', message: ''
+    name: '', email: '', phone: '', org: '', interest: '', message: '', company_url: ''
   })
 
   useEffect(() => {
@@ -81,6 +81,21 @@ export default function Contact() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+                  {/* Honeypot field for spam bots: hidden from real users off-screen (not display:none,
+                      which some bots detect and skip). Left blank by humans; if filled in, the API
+                      silently no-ops the submission instead of sending it. Do not remove or expose. */}
+                  <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+                    <label htmlFor="company_url">Company URL</label>
+                    <input
+                      type="text"
+                      id="company_url"
+                      name="company_url"
+                      value={form.company_url}
+                      onChange={e => setForm({ ...form, company_url: e.target.value })}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
                   {error && (
                     <div style={{ padding: '0.85rem 1rem', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)', borderRadius: '2px', color: '#cc2200', fontSize: '0.88rem' }}>
                       {error}

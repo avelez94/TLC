@@ -5,7 +5,13 @@ export async function POST(request: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   try {
-    const { name, email, phone, org, interest, message } = await request.json()
+    const { name, email, phone, org, interest, message, company_url } = await request.json()
+
+    // Honeypot: real users never see or fill this field. If it has a value, the
+    // submission came from a bot — pretend success so it doesn't retry with new tactics.
+    if (company_url) {
+      return NextResponse.json({ success: true })
+    }
 
     if (!name || !email || !message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
