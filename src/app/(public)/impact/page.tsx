@@ -176,7 +176,7 @@ export default function Impact() {
                     </div>
                   )}
                   {description && <p style={{ color: dark ? 'rgba(255,255,255,0.6)' : 'var(--slate)', fontSize: '0.93rem', lineHeight: 1.78, marginBottom: '1.5rem' }}>{description}</p>}
-                  <Link href="/register" className="btn btn-primary">Join a Cohort</Link>
+                  <Link href={`/register?program=${id}`} className="btn btn-primary">Join a Cohort</Link>
                 </div>
 
                 {/* RIGHT COLUMN */}
