@@ -334,7 +334,7 @@ function RegisterContent() {
 
                     {cohort.description && (
                       <div
-                        style={{ order: 2, color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}
+                        style={{ order: 2, color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem', whiteSpace: 'pre-wrap' }}
                         dangerouslySetInnerHTML={{ __html: cohort.description }}
                       />
                     )}

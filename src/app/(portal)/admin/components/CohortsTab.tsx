@@ -88,12 +88,13 @@ function DescriptionEditor({ cohortId, initialValue, onSave }: { cohortId: strin
         onBlur={handleBlur}
         dangerouslySetInnerHTML={{ __html: initialValue }}
         style={{
-          ...inputStyle,
-          minHeight: '100px',
-          padding: '0.75rem 1rem',
-          lineHeight: 1.6,
-          cursor: 'text',
-        }}
+        ...inputStyle,
+        minHeight: '100px',
+        padding: '0.75rem 1rem',
+        lineHeight: 1.6,
+        cursor: 'text',
+        whiteSpace: 'pre-wrap',
+      }}
       />
       <p style={{ color: 'var(--slate)', fontSize: '0.72rem', marginTop: '0.4rem' }}>Select text to apply formatting. Changes save automatically when you click away.</p>
     </div>
