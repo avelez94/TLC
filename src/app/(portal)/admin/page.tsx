@@ -1370,6 +1370,18 @@ export default function Admin() {
                             onBlur={async e => { await supabase.from('cohorts').update({ expectations: e.target.value || null }).eq('id', c.id); fetchAll() }}
                           />
                         </div>
+                        <div>
+                          <label style={labelStyle}>Book Title</label>
+                          <input defaultValue={(c as any).book_title || ''} placeholder="e.g. Atomic Habits" style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ book_title: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Book Cover Image URL</label>
+                          <input defaultValue={(c as any).book_image_url || ''} placeholder="https://..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ book_image_url: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Purchase Link</label>
+                          <input defaultValue={(c as any).book_purchase_url || ''} placeholder="https://amazon.com/..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ book_purchase_url: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                      </div>
                       </div>
                       <span style={labelStyle}>Enrolled Participants</span>
                       {enrollments.filter(e => e.cohort_id === c.id).length === 0 ? (
