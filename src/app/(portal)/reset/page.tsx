@@ -43,13 +43,20 @@ function ResetContent() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset?type=recovery`,
-    })
-    if (error) {
-      setError(error.message)
-    } else {
-      setStep('sent')
+    try {
+      const res = await fetch('/api/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        setError(data.error)
+      } else {
+        setStep('sent')
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
     }
     setLoading(false)
   }
