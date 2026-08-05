@@ -121,7 +121,7 @@ function ReadingContent() {
                   )}
                   {cohort.book_purchase_url && (
                     <a
-                      href={cohort.book_purchase_url}
+                      href={cohort.book_purchase_url.startsWith('http') ? cohort.book_purchase_url : `https://${cohort.book_purchase_url}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-primary"
