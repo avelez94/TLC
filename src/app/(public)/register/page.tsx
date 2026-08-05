@@ -333,7 +333,10 @@ function RegisterContent() {
                     )}
 
                     {cohort.description && (
-                      <p style={{ order: 2, color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>{cohort.description}</p>
+                      <div
+                        style={{ order: 2, color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}
+                        dangerouslySetInnerHTML={{ __html: cohort.description }}
+                      />
                     )}
                     <div className="cohort-details-grid" style={{ order: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.25rem' }}>
                       {displayIncludes.length > 0 && (

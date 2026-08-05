@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AdminPanel } from '../useAdminPanel'
 import { cardStyle, inputStyle, labelStyle, statusBadge } from './shared'
@@ -24,6 +24,82 @@ function SectionHeader({ title, isOpen, onClick }: { title: string; isOpen: bool
   )
 }
 
+// Simple rich text editor toolbar using contentEditable + execCommand.
+// Stores its output as HTML (saved to cohorts.description), which the
+// register page renders with dangerouslySetInnerHTML.
+const RICH_TEXT_COLORS = ['#001737', '#C88820', '#1C2430', '#4A5260', '#B02A2A', '#1E6B3A']
+
+function DescriptionEditor({ cohortId, initialValue, onSave }: { cohortId: string; initialValue: string; onSave: (html: string) => void }) {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const [showColorPicker, setShowColorPicker] = useState(false)
+
+  const exec = (command: string, value?: string) => {
+    editorRef.current?.focus()
+    document.execCommand(command, false, value)
+  }
+
+  const handleBlur = () => {
+    if (editorRef.current) {
+      onSave(editorRef.current.innerHTML)
+    }
+    setShowColorPicker(false)
+  }
+
+  const btnStyle = {
+    background: 'white',
+    border: '1px solid rgba(0,23,55,0.15)',
+    borderRadius: '3px',
+    padding: '0.4rem 0.65rem',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    color: 'var(--navy)',
+    fontFamily: 'var(--font-montserrat), sans-serif',
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap', alignItems: 'center', position: 'relative' }}>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('bold')} style={{ ...btnStyle, fontWeight: 700 }}>B</button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('italic')} style={{ ...btnStyle, fontStyle: 'italic' }}>I</button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('underline')} style={{ ...btnStyle, textDecoration: 'underline' }}>U</button>
+        <div style={{ width: '1px', height: '1.5rem', background: 'rgba(0,23,55,0.15)', margin: '0 0.2rem' }} />
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowColorPicker(v => !v)} style={btnStyle}>
+          Color <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: 'var(--gold)', marginLeft: '0.3rem', verticalAlign: 'middle' }} />
+        </button>
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('removeFormat')} style={btnStyle}>Clear</button>
+        {showColorPicker && (
+          <div style={{ position: 'absolute', top: '110%', left: 0, background: 'white', border: '1px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.5rem', display: 'flex', gap: '0.4rem', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            {RICH_TEXT_COLORS.map(color => (
+              <button
+                key={color}
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { exec('foreColor', color); setShowColorPicker(false) }}
+                style={{ width: '22px', height: '22px', borderRadius: '50%', background: color, border: '1px solid rgba(0,23,55,0.15)', cursor: 'pointer', padding: 0 }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={handleBlur}
+        dangerouslySetInnerHTML={{ __html: initialValue }}
+        style={{
+          ...inputStyle,
+          minHeight: '100px',
+          padding: '0.75rem 1rem',
+          lineHeight: 1.6,
+          cursor: 'text',
+        }}
+      />
+      <p style={{ color: 'var(--slate)', fontSize: '0.72rem', marginTop: '0.4rem' }}>Select text to apply formatting. Changes save automatically when you click away.</p>
+    </div>
+  )
+}
+
 export default function CohortsTab({
   cohorts, programs, enrollments, cohortSessions, reps,
   showCohortForm, setShowCohortForm, newCohort, setNewCohort, handleCreateCohort, actionLoading,
@@ -44,6 +120,11 @@ export default function CohortsTab({
   // actual saved value — this only drives the preview; saving still happens onBlur.
   const [bookImagePreview, setBookImagePreview] = useState<Record<string, string>>({})
   const [bookImageError, setBookImageError] = useState<Record<string, boolean>>({})
+
+  const saveDescription = async (cohortId: string, html: string) => {
+    await supabase.from('cohorts').update({ description: html || null }).eq('id', cohortId)
+    fetchAll()
+  }
 
   return (
     <div>
@@ -175,12 +256,10 @@ export default function CohortsTab({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '1.25rem' }}>
                     <div>
                       <label style={labelStyle}>Course Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page above What's Included</span></label>
-                      <textarea
-                        defaultValue={(c as any).description || ''}
-                        placeholder="What will this cohort be about?"
-                        rows={4}
-                        style={{ ...inputStyle, resize: 'vertical' }}
-                        onBlur={async e => { await supabase.from('cohorts').update({ description: e.target.value || null }).eq('id', c.id); fetchAll() }}
+                      <DescriptionEditor
+                        cohortId={c.id}
+                        initialValue={(c as any).description || ''}
+                        onSave={html => saveDescription(c.id, html)}
                       />
                     </div>
                     <div>
