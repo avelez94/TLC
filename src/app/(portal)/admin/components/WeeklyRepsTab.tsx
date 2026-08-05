@@ -5,10 +5,12 @@ import { cardStyle, inputStyle, labelStyle } from './shared'
 type WeeklyRepsTabProps = Pick<AdminPanel,
   'reps' | 'cohorts' |
   'showRepForm' | 'setShowRepForm' | 'newRep' | 'setNewRep' | 'handleCreateRep' | 'actionLoading' |
-  'editingRepId' | 'setEditingRepId' | 'editRep' | 'setEditRep' | 'handleUpdateRep' | 'fetchAll'
+  'editingRepId' | 'setEditingRepId' | 'editRep' | 'setEditRep' | 'handleUpdateRep' | 'fetchAll' |
+  'repsCohortFilter' | 'setRepsCohortFilter'
 >
 
-export default function WeeklyRepsTab({ reps, cohorts, showRepForm, setShowRepForm, newRep, setNewRep, handleCreateRep, actionLoading, editingRepId, setEditingRepId, editRep, setEditRep, handleUpdateRep, fetchAll }: WeeklyRepsTabProps) {
+export default function WeeklyRepsTab({ reps, cohorts, showRepForm, setShowRepForm, newRep, setNewRep, handleCreateRep, actionLoading, editingRepId, setEditingRepId, editRep, setEditRep, handleUpdateRep, fetchAll, repsCohortFilter, setRepsCohortFilter }: WeeklyRepsTabProps) {
+  const filteredReps = repsCohortFilter === 'all' ? reps : reps.filter(r => r.cohort_id === repsCohortFilter)
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -57,13 +59,20 @@ export default function WeeklyRepsTab({ reps, cohorts, showRepForm, setShowRepFo
           </button>
         </div>
       )}
-      {reps.length === 0 && !showRepForm && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.5rem 0 1.25rem', flexWrap: 'wrap' }}>
+        <label style={{ ...labelStyle, marginBottom: 0 }}>Filter by Cohort</label>
+        <select value={repsCohortFilter} onChange={e => setRepsCohortFilter(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+          <option value="all">All Cohorts</option>
+          {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      {filteredReps.length === 0 && !showRepForm && (
         <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
           <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No weekly reps yet.</p>
           <button onClick={() => setShowRepForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Create Rep</button>
         </div>
       )}
-      {reps.map(rep => (
+      {filteredReps.map(rep => (
         <div key={rep.id} style={cardStyle}>
           {editingRepId === rep.id ? (
             <div>

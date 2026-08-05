@@ -25,6 +25,7 @@ export function useAdminPanel() {
   // UI state
   const [userFilter, setUserFilter] = useState('all')
   const [communityCohortFilter, setCommunityCohortFilter] = useState('all')
+  const [repsCohortFilter, setRepsCohortFilter] = useState('all')
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [showInviteForm, setShowInviteForm] = useState(false)
@@ -502,6 +503,7 @@ export function useAdminPanel() {
     newSession, setNewSession,
     userFilter, setUserFilter,
     communityCohortFilter, setCommunityCohortFilter,
+    repsCohortFilter, setRepsCohortFilter,
     expandedComments, commentDrafts, setCommentDrafts,
     showInviteForm, setShowInviteForm,
     showCohortForm, setShowCohortForm,
