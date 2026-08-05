@@ -452,8 +452,8 @@ export default function Admin() {
       Thursday: 4, Friday: 5, Saturday: 6
     }
     const targetDay = dayMap[sessionDay]
-    const start = new Date(cohort.start_date)
-    const end = new Date(cohort.end_date)
+    const start = new Date(cohort.start_date + 'T12:00:00')
+    const end = new Date(cohort.end_date + 'T12:00:00')
     const dates: Date[] = []
     const current = new Date(start)
     while (current.getDay() !== targetDay) {
@@ -475,7 +475,7 @@ export default function Admin() {
       cohort_id: cohortId,
       session_number: i + 1,
       title: 'Session ' + (i + 1),
-      session_date: date.toISOString().split('T')[0],
+      session_date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
     }))
     await supabase.from('cohort_sessions').insert(sessions)
     showSuccess('Generated ' + sessions.length + ' sessions.')
