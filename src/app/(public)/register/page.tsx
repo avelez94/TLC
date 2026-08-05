@@ -122,8 +122,8 @@ function RegisterContent() {
     : []
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return ''
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  if (!dateStr) return ''
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
   const formatTime = (timeStr: string | null) => {
