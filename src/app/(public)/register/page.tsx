@@ -26,6 +26,10 @@ interface Cohort {
   end_date: string | null
   status: string
   programs?: Program
+  includes?: string | null
+  expectations?: string | null
+  session_day?: string | null
+  session_time?: string | null
 }
 
 interface CohortSession {
@@ -42,6 +46,14 @@ interface ProgramInclude {
   item: string
   sort_order: number
 }
+
+const DEFAULT_EXPECTATIONS = [
+  'Read assigned chapters each week',
+  'Attend live sessions',
+  'Participate in discussion',
+  'Complete weekly reflection',
+  'Apply one idea between sessions',
+]
 
 function RegisterContent() {
   const searchParams = useSearchParams()
@@ -73,7 +85,7 @@ function RegisterContent() {
         { data: includesData },
       ] = await Promise.all([
         supabase.from('programs').select('*').eq('type', 'cohort').order('sort_order'),
-        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
+        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
         supabase.from('cohort_sessions').select('*').order('session_number'),
         supabase.from('program_includes').select('*').order('sort_order'),
       ])
@@ -272,6 +284,14 @@ function RegisterContent() {
               </div>
             ) : programCohorts.map(cohort => {
               const cohortSessionList = sessions.filter(s => s.cohort_id === cohort.id)
+              const cohortIncludes = cohort.includes
+                ? cohort.includes.split('\n').map(s => s.trim()).filter(Boolean)
+                : null
+              const cohortExpectations = cohort.expectations
+                ? cohort.expectations.split('\n').map(s => s.trim()).filter(Boolean)
+                : null
+              const displayIncludes = cohortIncludes || programIncludes.map(inc => inc.item)
+              const displayExpectations = cohortExpectations || DEFAULT_EXPECTATIONS
               return (
                 <button
                   key={cohort.id}
@@ -288,9 +308,9 @@ function RegisterContent() {
                           {formatDate(cohort.start_date)} to {formatDate(cohort.end_date)}
                         </p>
                       )}
-                      {(cohort as any).session_day && (cohort as any).session_time && (
+                      {cohort.session_day && cohort.session_time && (
                         <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '0.25rem' }}>
-                          {(cohort as any).session_day}s at {formatTime((cohort as any).session_time)}
+                          {cohort.session_day}s at {formatTime(cohort.session_time)}
                         </p>
                       )}
                     </div>
@@ -311,14 +331,14 @@ function RegisterContent() {
                     </div>
                   )}
 
-                  {programIncludes.length > 0 && (
+                  {displayIncludes.length > 0 && (
                     <div style={{ marginBottom: '1.25rem' }}>
                       <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>What is included</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {programIncludes.map(inc => (
-                          <div key={inc.id} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                        {displayIncludes.map((item: string) => (
+                          <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
                             <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>✓</span>
-                            <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{inc.item}</span>
+                            <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{item}</span>
                           </div>
                         ))}
                       </div>
@@ -327,13 +347,7 @@ function RegisterContent() {
                   <div>
                     <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Expectations</span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      {[
-                        'Read assigned chapters each week',
-                        'Attend live sessions',
-                        'Participate in discussion',
-                        'Complete weekly reflection',
-                        'Apply one idea between sessions',
-                      ].map(item => (
+                      {displayExpectations.map((item: string) => (
                         <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
                           <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>&#10022;</span>
                           <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{item}</span>
@@ -356,7 +370,12 @@ function RegisterContent() {
           </div>
         )}
 
-        {step === 'form' && selectedProgram && selectedCohort && (
+        {step === 'form' && selectedProgram && selectedCohort && (() => {
+          const cohortIncludes = selectedCohort.includes
+            ? selectedCohort.includes.split('\n').map(s => s.trim()).filter(Boolean)
+            : null
+          const displayIncludes = (cohortIncludes || programIncludes.map(inc => inc.item)).slice(0, 3)
+          return (
           <div>
             <button onClick={() => setStep('cohort')} style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600, padding: 0 }}>
               &#8592; Back
@@ -381,10 +400,10 @@ function RegisterContent() {
                   {selectedProgram.price_label || 'Quote'}
                 </span>
               </div>
-              {programIncludes.slice(0, 3).map(inc => (
-                <div key={inc.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.35rem' }}>
+              {displayIncludes.map((item: string) => (
+                <div key={item} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.35rem' }}>
                   <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>✓</span>
-                  <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem' }}>{inc.item}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem' }}>{item}</span>
                 </div>
               ))}
             </div>
@@ -428,7 +447,8 @@ function RegisterContent() {
               </p>
             </form>
           </div>
-        )}
+          )
+        })()}
 
         {step === 'success' && selectedProgram && selectedCohort && (
           <div style={{ textAlign: 'center', padding: '3rem 0' }}>

@@ -452,8 +452,8 @@ export default function Admin() {
       Thursday: 4, Friday: 5, Saturday: 6
     }
     const targetDay = dayMap[sessionDay]
-    const start = new Date(cohort.start_date + 'T12:00:00')
-    const end = new Date(cohort.end_date + 'T12:00:00')
+    const start = new Date(cohort.start_date)
+    const end = new Date(cohort.end_date)
     const dates: Date[] = []
     const current = new Date(start)
     while (current.getDay() !== targetDay) {
@@ -475,7 +475,7 @@ export default function Admin() {
       cohort_id: cohortId,
       session_number: i + 1,
       title: 'Session ' + (i + 1),
-      session_date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      session_date: date.toISOString().split('T')[0],
     }))
     await supabase.from('cohort_sessions').insert(sessions)
     showSuccess('Generated ' + sessions.length + ' sessions.')
@@ -1351,6 +1351,24 @@ export default function Admin() {
                         <div style={{ gridColumn: '1 / -1' }}>
                           <label style={labelStyle}>Zoom Link</label>
                           <input defaultValue={c.zoom_link || ''} placeholder="https://zoom.us/j/..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ zoom_link: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>What Is Included <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— one item per line, shown on the Register page for this specific cohort.</span></label>
+                          <textarea
+                            defaultValue={(c as any).includes || 'Six live Zoom cohort sessions\nGuided discussion and facilitation\nWeekly reflection and application guide\nPractical action commitments between sessions\nCohort discussion community\nSession recordings (optional)\nCertificate of Completion'}
+                            rows={7}
+                            style={{ ...inputStyle, resize: 'vertical' }}
+                            onBlur={async e => { await supabase.from('cohorts').update({ includes: e.target.value || null }).eq('id', c.id); fetchAll() }}
+                          />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Expectations <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— one item per line, shown on the Register page for this specific cohort.</span></label>
+                          <textarea
+                            defaultValue={(c as any).expectations || 'Read assigned chapters each week\nAttend live sessions\nParticipate in discussion\nComplete weekly reflection\nApply one idea between sessions'}
+                            rows={5}
+                            style={{ ...inputStyle, resize: 'vertical' }}
+                            onBlur={async e => { await supabase.from('cohorts').update({ expectations: e.target.value || null }).eq('id', c.id); fetchAll() }}
+                          />
                         </div>
                       </div>
                       <span style={labelStyle}>Enrolled Participants</span>
