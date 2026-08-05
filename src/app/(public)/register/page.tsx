@@ -89,7 +89,7 @@ function RegisterContent() {
           }
         }
       }
-      if (cohortsData) setCohorts(cohortsData)
+      if (cohortsData) setCohorts(cohortsData as unknown as Cohort[])
       if (sessionsData) setSessions(sessionsData)
       if (includesData) setIncludes(includesData)
       setLoading(false)
