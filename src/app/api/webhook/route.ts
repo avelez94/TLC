@@ -173,7 +173,7 @@ export async function POST(request: Request) {
                     <tr><td style="color: #4A5260;">Amount Paid</td><td><strong>$${session.amount_total ? session.amount_total / 100 : '0'}</strong></td></tr>
                   </table>
                 </div>
-                <a href="https://tlc-silk.vercel.app/admin" style="display: inline-block; background: #C88820; color: #001737; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1rem; border-radius: 2px;">Review in Admin Panel</a>
+                <a href="https://tramainecrawford.com/admin" style="display: inline-block; background: #C88820; color: #001737; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1rem; border-radius: 2px;">Review in Admin Panel</a>
               </div>
             </div>
           `,
