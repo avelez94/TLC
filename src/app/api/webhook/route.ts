@@ -41,6 +41,78 @@ export async function POST(request: Request) {
         })
         .eq('id', registrationId)
 
+      // Look up the specific cohort's full details (dates, schedule, book) via the registration's cohort_id
+      let bookHtml = ''
+      let scheduleHtml = ''
+      try {
+        const { data: registration } = await supabaseAdmin
+          .from('registrations')
+          .select('cohort_id')
+          .eq('id', registrationId)
+          .single()
+
+        if (registration?.cohort_id) {
+          const { data: cohort } = await supabaseAdmin
+            .from('cohorts')
+            .select('start_date, end_date, session_day, session_time, book_title, book_image_url, book_purchase_url')
+            .eq('id', registration.cohort_id)
+            .single()
+
+          if (cohort) {
+            const formatDate = (dateStr: string | null) => {
+              if (!dateStr) return null
+              return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            }
+            const formatTime = (timeStr: string | null) => {
+              if (!timeStr) return null
+              const [hours, minutes] = timeStr.split(':').map(Number)
+              const ampm = hours >= 12 ? 'PM' : 'AM'
+              const h = hours % 12 || 12
+              return `${h}:${String(minutes).padStart(2, '0')} ${ampm} ET`
+            }
+
+            const startFormatted = formatDate(cohort.start_date)
+            const endFormatted = formatDate(cohort.end_date)
+            const timeFormatted = formatTime(cohort.session_time)
+
+            if (startFormatted && endFormatted) {
+              scheduleHtml += `<p style="font-size: 0.85rem; color: #4A5260; margin: 0.5rem 0 0;">${startFormatted} to ${endFormatted}</p>`
+            }
+            if (cohort.session_day && timeFormatted) {
+              scheduleHtml += `<p style="font-size: 0.85rem; color: #4A5260; margin: 0.25rem 0 0;">${cohort.session_day}s at ${timeFormatted}</p>`
+            }
+
+            if (cohort.book_title) {
+              const rawUrl = cohort.book_purchase_url
+              const purchaseUrl = rawUrl
+                ? (rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`)
+                : null
+
+              bookHtml = `
+                <div style="background: #F7F5F0; border-left: 3px solid #C88820; padding: 1.5rem; margin-bottom: 1.5rem;">
+                  <p style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: #C88820; margin-bottom: 0.75rem;">What We Are Reading</p>
+                  <table style="width: 100%;">
+                    <tr>
+                      ${cohort.book_image_url ? `
+                      <td style="width: 90px; vertical-align: top; padding-right: 1rem;">
+                        <img src="${cohort.book_image_url}" alt="${cohort.book_title}" style="width: 90px; height: auto; border-radius: 3px; display: block;" />
+                      </td>
+                      ` : ''}
+                      <td style="vertical-align: top;">
+                        <p style="font-size: 1rem; font-weight: 700; color: #001737; margin: 0 0 0.5rem;">${cohort.book_title}</p>
+                        ${purchaseUrl ? `<a href="${purchaseUrl}" style="display: inline-block; background: #C88820; color: #001737; padding: 0.5rem 1rem; text-decoration: none; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 2px;">Buy the Book</a>` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+              `
+            }
+          }
+        }
+      } catch (bookErr) {
+        console.error('Cohort details lookup error:', bookErr)
+      }
+
       // Confirmation email to participant
       try {
         await resend.emails.send({
@@ -60,7 +132,9 @@ export async function POST(request: Request) {
                   <p style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: #C88820; margin-bottom: 0.75rem;">Your Registration</p>
                   <p style="font-size: 1rem; font-weight: 700; color: #001737; margin-bottom: 0.25rem;">${programName}</p>
                   <p style="font-size: 0.9rem; color: #4A5260; margin-bottom: 0;">${cohortName}</p>
+                  ${scheduleHtml}
                 </div>
+                ${bookHtml}
                 <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">You will receive your Learning Hub invitation and program details shortly.</p>
                 <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">In the meantime, if you have any questions reach out to Tramaine directly at <a href="mailto:tramaine@tramainecrawford.com" style="color: #C88820;">tramaine@tramainecrawford.com</a> or <a href="tel:+12025991381" style="color: #C88820;">(202) 599-1381</a>.</p>
                 <p style="font-size: 1rem; line-height: 1.75;">We look forward to seeing you.</p>

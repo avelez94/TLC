@@ -39,6 +39,12 @@ export default function CohortsTab({
   })
   const toggleSection = (key: SectionKey) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
 
+  // Live preview of the book cover URL as the admin types, keyed by cohort id so
+  // switching between expanded cohorts doesn't mix up previews. Separate from the
+  // actual saved value — this only drives the preview; saving still happens onBlur.
+  const [bookImagePreview, setBookImagePreview] = useState<Record<string, string>>({})
+  const [bookImageError, setBookImageError] = useState<Record<string, boolean>>({})
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -210,7 +216,35 @@ export default function CohortsTab({
                     </div>
                     <div>
                       <label style={labelStyle}>Book Cover Image URL</label>
-                      <input defaultValue={(c as any).book_image_url || ''} placeholder="https://..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ book_image_url: e.target.value || null }).eq('id', c.id); fetchAll() }} />
+                      <input
+                        defaultValue={(c as any).book_image_url || ''}
+                        placeholder="https://..."
+                        style={inputStyle}
+                        onChange={e => {
+                          setBookImagePreview(prev => ({ ...prev, [c.id]: e.target.value }))
+                          setBookImageError(prev => ({ ...prev, [c.id]: false }))
+                        }}
+                        onBlur={async e => { await supabase.from('cohorts').update({ book_image_url: e.target.value || null }).eq('id', c.id); fetchAll() }}
+                      />
+                      {(() => {
+                        const previewUrl = bookImagePreview[c.id] !== undefined ? bookImagePreview[c.id] : ((c as any).book_image_url || '')
+                        if (!previewUrl.trim()) return null
+                        if (bookImageError[c.id]) {
+                          return (
+                            <p style={{ color: '#ff6b6b', fontSize: '0.75rem', marginTop: '0.5rem' }}>Image failed to load. Check the URL.</p>
+                          )
+                        }
+                        return (
+                          <div style={{ marginTop: '0.5rem', width: '90px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)', border: '1px solid rgba(0,23,55,0.1)' }}>
+                            <img
+                              src={previewUrl}
+                              alt="Book cover preview"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={() => setBookImageError(prev => ({ ...prev, [c.id]: true }))}
+                            />
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={labelStyle}>Purchase Link</label>
