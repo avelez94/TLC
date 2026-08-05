@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
@@ -11,13 +12,23 @@ interface Cohort {
   start_date: string | null
   end_date: string | null
   status: string
+  program_id: string
   book_title: string | null
   book_image_url: string | null
   book_purchase_url: string | null
   programs?: { name: string } | null
 }
 
-export default function Reading() {
+const PROGRAM_LABELS: Record<string, string> = {
+  finders: 'Impact Finders',
+  makers: 'Impact Makers',
+  leaders: 'Impact Leaders',
+}
+
+function ReadingContent() {
+  const searchParams = useSearchParams()
+  const programSlug = searchParams.get('program') // e.g. "finders", "makers", "leaders"
+
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -25,7 +36,7 @@ export default function Reading() {
     const fetchData = async () => {
       const { data } = await supabase
         .from('cohorts')
-        .select('id, name, start_date, end_date, status, book_title, book_image_url, book_purchase_url, programs(name)')
+        .select('id, name, start_date, end_date, status, program_id, book_title, book_image_url, book_purchase_url, programs(name)')
         .in('status', ['active', 'upcoming'])
         .not('book_title', 'is', null)
         .order('start_date')
@@ -34,6 +45,12 @@ export default function Reading() {
     }
     fetchData()
   }, [])
+
+  const programLabel = programSlug ? PROGRAM_LABELS[programSlug] : null
+
+  const filteredCohorts = programLabel
+    ? cohorts.filter(c => c.programs?.name === programLabel)
+    : cohorts
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return ''
@@ -62,17 +79,27 @@ export default function Reading() {
       </div>
 
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: 'clamp(2.5rem, 6vw, 5rem) clamp(1.25rem, 5vw, 2.75rem)' }}>
-        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>The Impact Lab</span>
+        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>
+          {programLabel || 'The Impact Lab'}
+        </span>
         <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 5vw, 3.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>What We Are Reading</h1>
-        <p style={{ color: 'var(--slate)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '2.5rem', maxWidth: '640px' }}>Each cohort centers around a book. Here is what current and upcoming cohorts are reading together.</p>
+        <p style={{ color: 'var(--slate)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '2.5rem', maxWidth: '640px' }}>
+          {programLabel
+            ? `Here is what current and upcoming ${programLabel} cohorts are reading together.`
+            : 'Each cohort centers around a book. Here is what current and upcoming cohorts are reading together.'}
+        </p>
 
-        {cohorts.length === 0 ? (
+        {filteredCohorts.length === 0 ? (
           <div style={{ background: 'white', border: '1px solid rgba(0,23,55,0.08)', borderRadius: '6px', padding: '3rem', textAlign: 'center' }}>
-            <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7 }}>No reading selections have been posted yet. Check back soon.</p>
+            <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7 }}>
+              {programLabel
+                ? `No reading selections have been posted yet for ${programLabel}. Check back soon.`
+                : 'No reading selections have been posted yet. Check back soon.'}
+            </p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
-            {cohorts.map(cohort => (
+            {filteredCohorts.map(cohort => (
               <div key={cohort.id} style={{ background: 'white', border: '1px solid rgba(0,23,55,0.1)', borderRadius: '6px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {cohort.book_image_url ? (
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', background: 'var(--mist)' }}>
@@ -110,5 +137,17 @@ export default function Reading() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function Reading() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.08em' }}>Loading...</div>
+      </div>
+    }>
+      <ReadingContent />
+    </Suspense>
   )
 }

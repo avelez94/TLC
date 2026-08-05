@@ -140,10 +140,9 @@ export default function Impact() {
         <div className="container reveal">
           <span className="eyebrow">Individual Programs</span>
           <h2 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 5vw, 3.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginTop: '0.5rem', marginBottom: '1.25rem' }}>Three levels. One journey.</h2>
-          <p style={{ color: 'var(--slate)', fontSize: '1.05rem', lineHeight: 1.8, maxWidth: '720px', marginBottom: '1.5rem' }}>
+          <p style={{ color: 'var(--slate)', fontSize: '1.05rem', lineHeight: 1.8, maxWidth: '720px' }}>
             The Impact Lab offers three distinct cohort learning experiences for individuals. Each level is designed around a different stage of growth. Start where you are and move forward from there.
           </p>
-          <Link href="/reading" className="btn btn-ghost-dark" style={{ fontSize: '0.8rem' }}>See What We Are Reading</Link>
         </div>
       </div>
 
