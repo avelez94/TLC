@@ -370,7 +370,7 @@ function RegisterContent() {
 
                   {/* BOOK COLUMN — narrower, fixed 200px, comes second in DOM */}
                   {hasBook && (
-                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {cohort.book_image_url ? (
                         <div style={{ position: 'relative', width: '100%', maxWidth: '160px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
                           <Image src={cohort.book_image_url} alt={cohort.book_title || 'Book cover'} fill style={{ objectFit: 'cover' }} />
@@ -495,6 +495,9 @@ function RegisterContent() {
       <style>{`
         input:focus, textarea:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(200,136,32,0.1); }
         input::placeholder, textarea::placeholder { color: rgba(0,23,55,0.3); }
+        @media (min-width: 621px) {
+          .cohort-book-col { margin-top: 1.25rem; }
+        }
         @media (max-width: 620px) {
           .cohort-card { grid-template-columns: 1fr !important; gap: 0 !important; }
           .cohort-book-col { order: 2 !important; flex-direction: row !important; align-items: center !important; margin-bottom: 1.25rem; }
