@@ -370,7 +370,7 @@ function RegisterContent() {
 
                   {/* BOOK COLUMN — narrower, fixed 200px, comes second in DOM */}
                   {hasBook && (
-                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
                       {cohort.book_image_url ? (
                         <div style={{ position: 'relative', width: '100%', maxWidth: '160px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
                           <Image src={cohort.book_image_url} alt={cohort.book_title || 'Book cover'} fill style={{ objectFit: 'cover' }} />
