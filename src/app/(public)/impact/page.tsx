@@ -176,7 +176,10 @@ export default function Impact() {
                     </div>
                   )}
                   {description && <p style={{ color: dark ? 'rgba(255,255,255,0.6)' : 'var(--slate)', fontSize: '0.93rem', lineHeight: 1.78, marginBottom: '1.5rem' }}>{description}</p>}
-                  <Link href={`/register?program=${id}`} className="btn btn-primary">Join a Cohort</Link>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <Link href={`/register?program=${id}`} className="btn btn-primary">Join a Cohort</Link>
+                    <Link href={`/reading?program=${id}`} className={dark ? 'btn btn-ghost-light' : 'btn btn-ghost-dark'}>See What We Are Reading</Link>
+                  </div>
                 </div>
 
                 {/* RIGHT COLUMN */}
