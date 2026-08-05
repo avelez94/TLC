@@ -1,11 +1,11 @@
+import { useRouter } from 'next/navigation'
 import type { AdminPanel } from '../useAdminPanel'
-import { cardStyle, thStyle, tdStyle, statusBadge, type Page } from './shared'
+import { cardStyle, thStyle, tdStyle, statusBadge } from './shared'
 
-interface DashboardTabProps extends AdminPanel {
-  setPage: (page: Page) => void
-}
+type DashboardTabProps = AdminPanel
 
-export default function DashboardTab({ users, programs, cohorts, enrollments, setPage, setShowInviteForm, setShowCohortForm, setShowAnnouncementForm, setShowRepForm, setShowResourceForm }: DashboardTabProps) {
+export default function DashboardTab({ users, programs, cohorts, enrollments, setShowInviteForm, setShowCohortForm, setShowAnnouncementForm, setShowRepForm, setShowResourceForm }: DashboardTabProps) {
+  const router = useRouter()
   const activeCohorts = cohorts.filter(c => c.status === 'active')
   const impactUsers = users.filter(u => u.role === 'impact_participant')
   const coachingUsers = users.filter(u => u.role === 'coaching_client')
@@ -45,13 +45,13 @@ export default function DashboardTab({ users, programs, cohorts, enrollments, se
         <div style={cardStyle}>
           <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Quick Actions</h3>
           {[
-            { label: 'Review registrations', action: () => setPage('registrations') },
-            { label: 'Invite a user', action: () => { setPage('users'); setShowInviteForm(true) } },
-            { label: 'Create a cohort', action: () => { setPage('cohorts'); setShowCohortForm(true) } },
-            { label: 'Post an announcement', action: () => { setPage('announcements'); setShowAnnouncementForm(true) } },
-            { label: 'Add a weekly rep', action: () => { setPage('reps'); setShowRepForm(true) } },
-            { label: 'Add a resource', action: () => { setPage('resources'); setShowResourceForm(true) } },
-            { label: 'Issue a certificate', action: () => setPage('certificates') },
+            { label: 'Review registrations', action: () => router.push('/admin/registrations') },
+            { label: 'Invite a user', action: () => { router.push('/admin/users'); setShowInviteForm(true) } },
+            { label: 'Create a cohort', action: () => { router.push('/admin/cohorts'); setShowCohortForm(true) } },
+            { label: 'Post an announcement', action: () => { router.push('/admin/announcements'); setShowAnnouncementForm(true) } },
+            { label: 'Add a weekly rep', action: () => { router.push('/admin/reps'); setShowRepForm(true) } },
+            { label: 'Add a resource', action: () => { router.push('/admin/resources'); setShowResourceForm(true) } },
+            { label: 'Issue a certificate', action: () => router.push('/admin/certificates') },
           ].map(({ label, action }) => (
             <button key={label} onClick={action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.6rem 0', background: 'none', border: 'none', borderBottom: '1px solid var(--mist)', color: 'var(--navy)', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 500 }}>
               {label} <span style={{ color: 'var(--gold)' }}>&#8594;</span>

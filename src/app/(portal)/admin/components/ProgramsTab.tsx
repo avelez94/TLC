@@ -1,15 +1,15 @@
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { AdminPanel } from '../useAdminPanel'
-import { cardStyle, inputStyle, labelStyle, statusBadge, type Page } from './shared'
+import { cardStyle, inputStyle, labelStyle, statusBadge } from './shared'
 
 type ProgramsTabProps = Pick<AdminPanel,
   'programs' | 'cohorts' | 'enrollments' | 'expandedProgram' | 'setExpandedProgram' |
   'actionLoading' | 'setActionLoading' | 'fetchAll' | 'showSuccess' | 'newCohort' | 'setNewCohort' | 'setShowCohortForm'
-> & {
-  setPage: (page: Page) => void
-}
+>
 
-export default function ProgramsTab({ programs, cohorts, enrollments, expandedProgram, setExpandedProgram, actionLoading, setActionLoading, fetchAll, showSuccess, newCohort, setNewCohort, setShowCohortForm, setPage }: ProgramsTabProps) {
+export default function ProgramsTab({ programs, cohorts, enrollments, expandedProgram, setExpandedProgram, actionLoading, setActionLoading, fetchAll, showSuccess, newCohort, setNewCohort, setShowCohortForm }: ProgramsTabProps) {
+  const router = useRouter()
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -131,7 +131,7 @@ export default function ProgramsTab({ programs, cohorts, enrollments, expandedPr
                   </div>
                 </div>
               ))}
-              <button onClick={() => { setPage('cohorts'); setNewCohort({ ...newCohort, program_id: p.id }); setShowCohortForm(true) }} className="btn btn-ghost-dark" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem', marginTop: '1rem' }}>+ Add Cohort</button>
+              <button onClick={() => { router.push('/admin/cohorts'); setNewCohort({ ...newCohort, program_id: p.id }); setShowCohortForm(true) }} className="btn btn-ghost-dark" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem', marginTop: '1rem' }}>+ Add Cohort</button>
             </div>
           )}
         </div>

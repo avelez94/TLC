@@ -1,4 +1,4 @@
-export type Page = 'dashboard' | 'registrations' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'attendance' | 'certificates' | 'reports'
+export type Page = 'dashboard' | 'registrations' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'certificates' | 'reports'
 
 export const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
