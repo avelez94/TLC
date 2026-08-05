@@ -1353,6 +1353,16 @@ export default function Admin() {
                           <input defaultValue={c.zoom_link || ''} placeholder="https://zoom.us/j/..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ zoom_link: e.target.value || null }).eq('id', c.id); fetchAll() }} />
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Course Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page above What's Included</span></label>
+                          <textarea
+                            defaultValue={(c as any).description || ''}
+                            placeholder="What will this cohort be about?"
+                            rows={4}
+                            style={{ ...inputStyle, resize: 'vertical' }}
+                            onBlur={async e => { await supabase.from('cohorts').update({ description: e.target.value || null }).eq('id', c.id); fetchAll() }}
+                          />
+                        </div>        
+                        <div style={{ gridColumn: '1 / -1' }}>
                           <label style={labelStyle}>What Is Included <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— one item per line, shown on the Register page for this specific cohort.</span></label>
                           <textarea
                             defaultValue={(c as any).includes || 'Six live Zoom cohort sessions\nGuided discussion and facilitation\nWeekly reflection and application guide\nPractical action commitments between sessions\nCohort discussion community\nSession recordings (optional)\nCertificate of Completion'}

@@ -33,6 +33,7 @@ interface Cohort {
   book_title?: string | null
   book_image_url?: string | null
   book_purchase_url?: string | null
+  description?: string | null
 }
 
 interface CohortSession {
@@ -88,7 +89,7 @@ function RegisterContent() {
         { data: includesData },
       ] = await Promise.all([
         supabase.from('programs').select('*').eq('type', 'cohort').order('sort_order'),
-        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, book_title, book_image_url, book_purchase_url, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
+        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, book_title, book_image_url, book_purchase_url, description, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
         supabase.from('cohort_sessions').select('*').order('session_number'),
         supabase.from('program_includes').select('*').order('sort_order'),
       ])
@@ -331,6 +332,9 @@ function RegisterContent() {
                       </div>
                     )}
 
+                    {cohort.description && (
+                      <p style={{ order: 3.5, color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>{cohort.description}</p>
+                    )}
                     <div className="cohort-details-grid" style={{ order: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.25rem' }}>
                       {displayIncludes.length > 0 && (
                         <div className="cohort-includes" style={{ order: 4 }}>
