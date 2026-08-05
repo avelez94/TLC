@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
@@ -42,7 +43,10 @@ interface ProgramInclude {
   sort_order: number
 }
 
-export default function Register() {
+function RegisterContent() {
+  const searchParams = useSearchParams()
+  const programSlug = searchParams.get('program') // e.g. "finders", "makers", "leaders"
+
   const [programs, setPrograms] = useState<Program[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [sessions, setSessions] = useState<CohortSession[]>([])
@@ -73,14 +77,25 @@ export default function Register() {
         supabase.from('cohort_sessions').select('*').order('session_number'),
         supabase.from('program_includes').select('*').order('sort_order'),
       ])
-      if (programsData) setPrograms(programsData)
+      if (programsData) {
+        setPrograms(programsData)
+        if (programSlug) {
+          const matched = programsData.find((p: Program) =>
+            p.name.toLowerCase().includes(programSlug.toLowerCase())
+          )
+          if (matched) {
+            setSelectedProgram(matched)
+            setStep('cohort')
+          }
+        }
+      }
       if (cohortsData) setCohorts(cohortsData)
       if (sessionsData) setSessions(sessionsData)
       if (includesData) setIncludes(includesData)
       setLoading(false)
     }
     fetchData()
-  }, [])
+  }, [programSlug])
 
   const programCohorts = selectedProgram
     ? cohorts.filter(c => c.program_id === selectedProgram.id)
@@ -113,7 +128,6 @@ export default function Register() {
     setSubmitting(true)
 
     try {
-      // All programs now go through Stripe Checkout
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -166,7 +180,6 @@ export default function Register() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', fontFamily: 'var(--font-montserrat), sans-serif' }}>
 
-      {/* HEADER */}
       <div style={{ background: 'var(--navy)', padding: 'clamp(1.25rem, 3vw, 1.75rem) clamp(1.25rem, 5vw, 2.75rem)', borderBottom: '1px solid rgba(200,136,32,0.15)' }}>
         <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Link href="/">
@@ -180,7 +193,6 @@ export default function Register() {
 
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: 'clamp(2rem, 5vw, 4rem) clamp(1.25rem, 5vw, 2.75rem)' }}>
 
-        {/* STEP 1 — SELECT PROGRAM */}
         {step === 'program' && (
           <div>
             <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>The Impact Lab</span>
@@ -239,10 +251,15 @@ export default function Register() {
           </div>
         )}
 
-        {/* STEP 2 — SELECT COHORT */}
         {step === 'cohort' && selectedProgram && (
           <div>
-            <button onClick={() => setStep('program')} style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600, padding: 0 }}>
+            <button
+              onClick={() => {
+                if (!programSlug) setStep('program')
+                else window.history.back()
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600, padding: 0 }}
+            >
               &#8592; Back
             </button>
 
@@ -339,7 +356,6 @@ export default function Register() {
           </div>
         )}
 
-        {/* STEP 3 — REGISTRATION FORM */}
         {step === 'form' && selectedProgram && selectedCohort && (
           <div>
             <button onClick={() => setStep('cohort')} style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600, padding: 0 }}>
@@ -355,7 +371,6 @@ export default function Register() {
               </p>
             )}
 
-            {/* Order summary */}
             <div style={{ background: 'var(--navy)', borderRadius: '6px', padding: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <div>
@@ -415,7 +430,6 @@ export default function Register() {
           </div>
         )}
 
-        {/* STEP 4 — SUCCESS */}
         {step === 'success' && selectedProgram && selectedCohort && (
           <div style={{ textAlign: 'center', padding: '3rem 0' }}>
             <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '1.5rem' }}>✓</div>
@@ -441,5 +455,17 @@ export default function Register() {
         input::placeholder, textarea::placeholder { color: rgba(0,23,55,0.3); }
       `}</style>
     </div>
+  )
+}
+
+export default function Register() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.08em' }}>Loading...</div>
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
   )
 }

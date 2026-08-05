@@ -60,6 +60,8 @@ export default function Admin() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null)
   const [expandedProgram, setExpandedProgram] = useState<string | null>(null)
   const [expandedCohort, setExpandedCohort] = useState<string | null>(null)
+  const [editingRepId, setEditingRepId] = useState<string | null>(null)
+  const [editRep, setEditRep] = useState({ cohort_id: '', week_number: '', title: '', instructions: '', why_it_matters: '', due_date: '' })
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [inviteError, setInviteError] = useState('')
@@ -216,6 +218,25 @@ export default function Admin() {
       showSuccess('Weekly rep created.')
       setNewRep({ cohort_id: '', week_number: '', title: '', instructions: '', why_it_matters: '', due_date: '' })
       setShowRepForm(false)
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleUpdateRep = async (id: string) => {
+    if (!editRep.title.trim() || !editRep.cohort_id) return
+    setActionLoading(true)
+    const { error } = await supabase.from('weekly_reps').update({
+      cohort_id: editRep.cohort_id,
+      week_number: parseInt(editRep.week_number) || 1,
+      title: editRep.title,
+      instructions: editRep.instructions || null,
+      why_it_matters: editRep.why_it_matters || null,
+      due_date: editRep.due_date || null,
+    }).eq('id', id)
+    if (!error) {
+      showSuccess('Rep updated.')
+      setEditingRepId(null)
       fetchAll()
     }
     setActionLoading(false)
@@ -1474,16 +1495,71 @@ export default function Admin() {
                 </div>
               )}
               {reps.map(rep => (
-                <div key={rep.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {rep.week_number}</span>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{(rep.cohorts as any)?.name}</span>
-                      {rep.due_date && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>Due {rep.due_date}</span>}
+                <div key={rep.id} style={cardStyle}>
+                  {editingRepId === rep.id ? (
+                    <div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>
+                          <label style={labelStyle}>Cohort</label>
+                          <select value={editRep.cohort_id} onChange={e => setEditRep({ ...editRep, cohort_id: e.target.value })} style={inputStyle}>
+                            <option value="">Select a cohort...</option>
+                            {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Week Number</label>
+                          <input type="number" value={editRep.week_number} onChange={e => setEditRep({ ...editRep, week_number: e.target.value })} style={inputStyle} min="1" />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Rep Title</label>
+                          <input value={editRep.title} onChange={e => setEditRep({ ...editRep, title: e.target.value })} style={inputStyle} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Instructions</label>
+                          <textarea value={editRep.instructions} onChange={e => setEditRep({ ...editRep, instructions: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={labelStyle}>Why it matters</label>
+                          <textarea value={editRep.why_it_matters} onChange={e => setEditRep({ ...editRep, why_it_matters: e.target.value })} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Due Date</label>
+                          <input type="date" value={editRep.due_date} onChange={e => setEditRep({ ...editRep, due_date: e.target.value })} style={inputStyle} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                        <button onClick={() => handleUpdateRep(rep.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.55rem 1.1rem' }}>
+                          {actionLoading ? 'Saving...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditingRepId(null)} style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', cursor: 'pointer' }}>Cancel</button>
+                      </div>
                     </div>
-                    <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{rep.title}</h3>
-                  </div>
-                  <button onClick={async () => { await supabase.from('weekly_reps').delete().eq('id', rep.id); fetchAll() }} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>Delete</button>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {rep.week_number}</span>
+                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>{(rep.cohorts as any)?.name}</span>
+                          {rep.due_date && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>Due {rep.due_date}</span>}
+                        </div>
+                        <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em' }}>{rep.title}</h3>
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', flexShrink: 0 }}>
+                        <button onClick={() => {
+                          setEditingRepId(rep.id)
+                          setEditRep({
+                            cohort_id: rep.cohort_id || '',
+                            week_number: String(rep.week_number || ''),
+                            title: rep.title || '',
+                            instructions: (rep as any).instructions || '',
+                            why_it_matters: (rep as any).why_it_matters || '',
+                            due_date: (rep as any).due_date || '',
+                          })
+                        }} style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.75rem', cursor: 'pointer' }}>Edit</button>
+                        <button onClick={async () => { await supabase.from('weekly_reps').delete().eq('id', rep.id); fetchAll() }} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
