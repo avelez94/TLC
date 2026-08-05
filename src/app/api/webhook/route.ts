@@ -137,7 +137,7 @@ export async function POST(request: Request) {
                 ${bookHtml}
                 <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">You will receive your Learning Hub invitation and program details shortly.</p>
                 <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">In the meantime, if you have any questions reach out to Tramaine directly at <a href="mailto:tramaine@tramainecrawford.com" style="color: #C88820;">tramaine@tramainecrawford.com</a> or <a href="tel:+12025991381" style="color: #C88820;">(202) 599-1381</a>.</p>
-                <p style="font-size: 1rem; line-height: 1.75;">We look forward to seeing you.</p>
+                <p style="font-size: 1rem; line-height: 1.75;">We look forward to making a greater impact with you.</p>
                 <p style="font-size: 1rem; line-height: 1.75; margin-top: 2rem; color: #4A5260;">Tramaine L. Crawford<br/>TLC Leadership Consulting &amp; Coaching</p>
               </div>
               <div style="background: #001737; padding: 1.5rem; text-align: center; margin-top: 2rem;">
