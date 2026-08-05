@@ -30,6 +30,9 @@ interface Cohort {
   expectations?: string | null
   session_day?: string | null
   session_time?: string | null
+  book_title?: string | null
+  book_image_url?: string | null
+  book_purchase_url?: string | null
 }
 
 interface CohortSession {
@@ -85,7 +88,7 @@ function RegisterContent() {
         { data: includesData },
       ] = await Promise.all([
         supabase.from('programs').select('*').eq('type', 'cohort').order('sort_order'),
-        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
+        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, book_title, book_image_url, book_purchase_url, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
         supabase.from('cohort_sessions').select('*').order('session_number'),
         supabase.from('program_includes').select('*').order('sort_order'),
       ])
@@ -122,8 +125,8 @@ function RegisterContent() {
     : []
 
   const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return ''
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    if (!dateStr) return ''
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
   const formatTime = (timeStr: string | null) => {
@@ -292,16 +295,39 @@ function RegisterContent() {
                 : null
               const displayIncludes = cohortIncludes || programIncludes.map(inc => inc.item)
               const displayExpectations = cohortExpectations || DEFAULT_EXPECTATIONS
+              const hasBook = !!cohort.book_title
               return (
                 <button
                   key={cohort.id}
                   onClick={() => { setSelectedCohort(cohort); setStep('form') }}
-                  style={{ width: '100%', padding: '1.75rem', background: 'white', border: '1.5px solid rgba(0,23,55,0.1)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', marginBottom: '1rem', transition: 'border-color 0.15s, box-shadow 0.15s' }}
+                  className="cohort-card"
+                  style={{ width: '100%', display: 'grid', gridTemplateColumns: hasBook ? '180px 1fr' : '1fr', gap: '1.75rem', padding: '1.75rem', background: 'white', border: '1.5px solid rgba(0,23,55,0.1)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', marginBottom: '1rem', transition: 'border-color 0.15s, box-shadow 0.15s' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 20px rgba(200,136,32,0.08)' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,23,55,0.1)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div>
+                  {/* BOOK COLUMN — order 2 on mobile (shows after cohort name/dates) */}
+                  {hasBook && (
+                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', order: 2 }}>
+                      {cohort.book_image_url ? (
+                        <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
+                          <Image src={cohort.book_image_url} alt={cohort.book_title || 'Book cover'} fill style={{ objectFit: 'cover' }} />
+                        </div>
+                      ) : (
+                        <div style={{ width: '100%', aspectRatio: '2/3', borderRadius: '3px', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem' }}>
+                          <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '0.95rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', letterSpacing: '0.03em' }}>{cohort.book_title}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.25rem' }}>What We Are Reading</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.3, display: 'block' }}>{cohort.book_title}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MAIN COLUMN */}
+                  <div className="cohort-main-col" style={{ display: 'flex', flexDirection: 'column', order: 1 }}>
+                    {/* Cohort name/dates — order 1 on mobile (shows first) */}
+                    <div className="cohort-header" style={{ order: 1, marginBottom: '1rem' }}>
                       <h2 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>{cohort.name}</h2>
                       {cohort.start_date && cohort.end_date && (
                         <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
@@ -315,54 +341,56 @@ function RegisterContent() {
                       )}
                     </div>
 
-                  </div>
-
-                  {cohortSessionList.length > 0 && (
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Sessions</span>
-                      {cohortSessionList.map(s => (
-                        <div key={s.id} style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--mist)', alignItems: 'flex-start' }}>
-                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', letterSpacing: '0.08em', flexShrink: 0, paddingTop: '0.1rem' }}>
-                            {s.session_date ? formatDate(s.session_date) : `Session ${s.session_number}`}
-                          </span>
-                          <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{s.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {displayIncludes.length > 0 && (
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>What is included</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {displayIncludes.map((item: string) => (
-                          <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
-                            <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>✓</span>
-                            <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{item}</span>
+                    {cohortSessionList.length > 0 && (
+                      <div className="cohort-sessions" style={{ order: 3, marginBottom: '1.25rem' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Sessions</span>
+                        {cohortSessionList.map(s => (
+                          <div key={s.id} style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--mist)', alignItems: 'flex-start' }}>
+                            <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', letterSpacing: '0.08em', flexShrink: 0, paddingTop: '0.1rem' }}>
+                              {s.session_date ? formatDate(s.session_date) : `Session ${s.session_number}`}
+                            </span>
+                            <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{s.title}</span>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  <div>
-                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Expectations</span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      {displayExpectations.map((item: string) => (
-                        <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
-                          <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>&#10022;</span>
-                          <span style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.5 }}>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                    )}
 
-                  <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--gold)', letterSpacing: '0.04em' }}>
-                      {selectedProgram.price_label || 'Contact Us'}
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                      Register &#8594;
-                    </span>
+                    {/* Includes/Expectations — side by side on desktop, order 4/5 stacked on mobile */}
+                    <div className="cohort-details-grid" style={{ order: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.25rem' }}>
+                      {displayIncludes.length > 0 && (
+                        <div className="cohort-includes" style={{ order: 4 }}>
+                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>What is included</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {displayIncludes.map((item: string) => (
+                              <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                                <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>✓</span>
+                                <span style={{ color: 'var(--ink)', fontSize: '0.85rem', lineHeight: 1.5 }}>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="cohort-expectations" style={{ order: 5 }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Expectations</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          {displayExpectations.map((item: string) => (
+                            <div key={item} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                              <span style={{ color: 'var(--gold)', fontSize: '0.85rem', flexShrink: 0 }}>&#10022;</span>
+                              <span style={{ color: 'var(--ink)', fontSize: '0.85rem', lineHeight: 1.5 }}>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="cohort-footer" style={{ order: 6, marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--gold)', letterSpacing: '0.04em' }}>
+                        {selectedProgram.price_label || 'Contact Us'}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                        Register &#8594;
+                      </span>
+                    </div>
                   </div>
                 </button>
               )
@@ -473,6 +501,18 @@ function RegisterContent() {
       <style>{`
         input:focus, textarea:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(200,136,32,0.1); }
         input::placeholder, textarea::placeholder { color: rgba(0,23,55,0.3); }
+        @media (max-width: 620px) {
+          .cohort-card { grid-template-columns: 1fr !important; gap: 0 !important; }
+          .cohort-book-col { order: 2 !important; flex-direction: row !important; align-items: center !important; margin-bottom: 1.25rem; }
+          .cohort-book-col > div:first-child { width: 90px !important; flex-shrink: 0; aspect-ratio: 2/3 !important; }
+          .cohort-main-col { display: contents !important; }
+          .cohort-header { order: 1 !important; }
+          .cohort-sessions { order: 3 !important; }
+          .cohort-details-grid { grid-template-columns: 1fr !important; order: 4 !important; gap: 1.25rem !important; }
+          .cohort-includes { order: 4 !important; }
+          .cohort-expectations { order: 5 !important; }
+          .cohort-footer { order: 6 !important; margin-top: 1rem !important; }
+        }
       `}</style>
     </div>
   )
