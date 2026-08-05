@@ -206,7 +206,7 @@ function RegisterContent() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '720px', margin: '0 auto', padding: 'clamp(2rem, 5vw, 4rem) clamp(1.25rem, 5vw, 2.75rem)' }}>
+      <div style={{ maxWidth: step === 'cohort' ? '960px' : '720px', margin: '0 auto', padding: 'clamp(2rem, 5vw, 4rem) clamp(1.25rem, 5vw, 2.75rem)' }}>
 
         {step === 'program' && (
           <div>
@@ -309,7 +309,7 @@ function RegisterContent() {
                   {hasBook && (
                     <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', order: 2 }}>
                       {cohort.book_image_url ? (
-                        <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
+                        <div style={{ position: 'relative', width: '100%', maxWidth: '160px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
                           <Image src={cohort.book_image_url} alt={cohort.book_title || 'Book cover'} fill style={{ objectFit: 'cover' }} />
                         </div>
                       ) : (
@@ -528,4 +528,4 @@ export default function Register() {
       <RegisterContent />
     </Suspense>
   )
-} 
+}
