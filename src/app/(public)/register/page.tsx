@@ -496,7 +496,7 @@ function RegisterContent() {
         input:focus, textarea:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(200,136,32,0.1); }
         input::placeholder, textarea::placeholder { color: rgba(0,23,55,0.3); }
         @media (min-width: 621px) {
-          .cohort-book-col { margin-top: 1.25rem; }
+          .cohort-book-col { margin-top: 5rem; }
         }
         @media (max-width: 620px) {
           .cohort-card { grid-template-columns: 1fr !important; gap: 0 !important; }
