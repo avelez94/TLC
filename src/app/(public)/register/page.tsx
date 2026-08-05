@@ -528,4 +528,4 @@ export default function Register() {
       <RegisterContent />
     </Suspense>
   )
-}
+} 
