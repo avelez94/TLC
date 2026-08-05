@@ -60,7 +60,7 @@ const DEFAULT_EXPECTATIONS = [
 
 function RegisterContent() {
   const searchParams = useSearchParams()
-  const programSlug = searchParams.get('program') // e.g. "finders", "makers", "leaders"
+  const programSlug = searchParams.get('program')
 
   const [programs, setPrograms] = useState<Program[]>([])
   const [cohorts, setCohorts] = useState<Cohort[]>([])
@@ -116,17 +116,13 @@ function RegisterContent() {
     ? cohorts.filter(c => c.program_id === selectedProgram.id)
     : []
 
-  const cohortSessions = selectedCohort
-    ? sessions.filter(s => s.cohort_id === selectedCohort.id)
-    : []
-
   const programIncludes = selectedProgram
     ? includes.filter(i => i.program_id === selectedProgram.id)
     : []
 
   const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return ''
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    if (!dateStr) return ''
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
   const formatTime = (timeStr: string | null) => {
@@ -301,32 +297,12 @@ function RegisterContent() {
                   key={cohort.id}
                   onClick={() => { setSelectedCohort(cohort); setStep('form') }}
                   className="cohort-card"
-                  style={{ width: '100%', display: 'grid', gridTemplateColumns: hasBook ? '180px 1fr' : '1fr', gap: '1.75rem', padding: '1.75rem', background: 'white', border: '1.5px solid rgba(0,23,55,0.1)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', marginBottom: '1rem', transition: 'border-color 0.15s, box-shadow 0.15s' }}
+                  style={{ width: '100%', display: 'grid', gridTemplateColumns: hasBook ? '1fr 200px' : '1fr', gap: '1.75rem', padding: '1.75rem', background: 'white', border: '1.5px solid rgba(0,23,55,0.1)', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', marginBottom: '1rem', transition: 'border-color 0.15s, box-shadow 0.15s' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gold)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 20px rgba(200,136,32,0.08)' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,23,55,0.1)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
                 >
-                  {/* BOOK COLUMN — order 2 on mobile (shows after cohort name/dates) */}
-                  {hasBook && (
-                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', order: 2 }}>
-                      {cohort.book_image_url ? (
-                        <div style={{ position: 'relative', width: '100%', maxWidth: '160px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
-                          <Image src={cohort.book_image_url} alt={cohort.book_title || 'Book cover'} fill style={{ objectFit: 'cover' }} />
-                        </div>
-                      ) : (
-                        <div style={{ width: '100%', aspectRatio: '2/3', borderRadius: '3px', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem' }}>
-                          <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '0.95rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', letterSpacing: '0.03em' }}>{cohort.book_title}</span>
-                        </div>
-                      )}
-                      <div>
-                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.25rem' }}>What We Are Reading</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.3, display: 'block' }}>{cohort.book_title}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* MAIN COLUMN */}
-                  <div className="cohort-main-col" style={{ display: 'flex', flexDirection: 'column', order: 1 }}>
-                    {/* Cohort name/dates — order 1 on mobile (shows first) */}
+                  {/* MAIN COLUMN — wider column, comes first in DOM */}
+                  <div className="cohort-main-col" style={{ display: 'flex', flexDirection: 'column' }}>
                     <div className="cohort-header" style={{ order: 1, marginBottom: '1rem' }}>
                       <h2 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>{cohort.name}</h2>
                       {cohort.start_date && cohort.end_date && (
@@ -355,7 +331,6 @@ function RegisterContent() {
                       </div>
                     )}
 
-                    {/* Includes/Expectations — side by side on desktop, order 4/5 stacked on mobile */}
                     <div className="cohort-details-grid" style={{ order: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.25rem' }}>
                       {displayIncludes.length > 0 && (
                         <div className="cohort-includes" style={{ order: 4 }}>
@@ -392,6 +367,25 @@ function RegisterContent() {
                       </span>
                     </div>
                   </div>
+
+                  {/* BOOK COLUMN — narrower, fixed 200px, comes second in DOM */}
+                  {hasBook && (
+                    <div className="cohort-book-col" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {cohort.book_image_url ? (
+                        <div style={{ position: 'relative', width: '100%', maxWidth: '160px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)' }}>
+                          <Image src={cohort.book_image_url} alt={cohort.book_title || 'Book cover'} fill style={{ objectFit: 'cover' }} />
+                        </div>
+                      ) : (
+                        <div style={{ width: '100%', maxWidth: '160px', aspectRatio: '2/3', borderRadius: '3px', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem' }}>
+                          <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '0.95rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', letterSpacing: '0.03em' }}>{cohort.book_title}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.25rem' }}>What We Are Reading</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.3, display: 'block' }}>{cohort.book_title}</span>
+                      </div>
+                    </div>
+                  )}
                 </button>
               )
             })}
