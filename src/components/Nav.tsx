@@ -81,7 +81,7 @@ export default function Nav() {
             {dropdownOpen && (
               <div className="nav-dropdown-menu" role="menu">
                 <Link href="/consulting" onClick={closeAll} role="menuitem">Leadership Consulting</Link>
-                <Link href="/coaching" onClick={closeAll} role="menuitem">Performance &amp; Developmental Coaching</Link>
+                <Link href="/coaching" onClick={closeAll} role="menuitem">Executive &amp; Leadership Coaching</Link>
                 <Link href="/parent-coaching" onClick={closeAll} role="menuitem">Coaching for Parents</Link>
                 <div className="nav-dropdown-divider" aria-hidden="true" />
                 <Link href="/impact" onClick={closeAll} role="menuitem">The Impact Lab</Link>
