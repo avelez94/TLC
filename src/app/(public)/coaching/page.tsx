@@ -48,7 +48,7 @@ export default function Coaching() {
     <>
       {/* HERO */}
       <section aria-label="Executive and leadership coaching" style={{ background: 'var(--navy)', paddingTop: '115px' }}>
-        <div className="container reveal-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 'clamp(2.5rem, 5vw, 4rem)', alignItems: 'center', padding: 'clamp(3rem, 6vw, 5rem) 0' }}>
+        <div className="container coaching-wide reveal-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 'clamp(2.5rem, 5vw, 4rem)', alignItems: 'center', padding: 'clamp(3rem, 6vw, 5rem) 0' }}>
           <div>
             <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
               <div style={{ flex: '0 0 2.5rem', height: '1px', background: 'var(--gold)' }} aria-hidden="true" />
@@ -85,7 +85,7 @@ export default function Coaching() {
 
       {/* WHY THIS MATTERS — 3 COLUMN */}
       <section style={{ background: 'white', padding: 'clamp(3.5rem, 7vw, 6rem) 0' }} aria-label="Why leadership coaching matters">
-        <div className="container reveal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(2rem, 4vw, 3rem)' }}>
+        <div className="container coaching-wide reveal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(2rem, 4vw, 3rem)' }}>
           {whyCards.map(({ title, body }, i) => (
             <div key={title} className="reveal" style={{ transitionDelay: `${i * 0.08}s` }}>
               <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.35rem', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1.2, marginBottom: '0.5rem' }}>{title}</h3>
@@ -100,7 +100,7 @@ export default function Coaching() {
 
       {/* THE WORK BEHIND BETTER LEADERSHIP — NAVY BAND */}
       <section style={{ background: 'var(--navy)', padding: 'clamp(3rem, 6vw, 4.5rem) 0' }} aria-label="The work behind better leadership">
-        <div className="container">
+        <div className="container coaching-wide">
           <span className="reveal" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '2rem' }}>
             The Work Behind Better Leadership
           </span>
@@ -118,7 +118,7 @@ export default function Coaching() {
 
       {/* CHALLENGE + HOW IT WORKS */}
       <section style={{ background: 'var(--paper)', padding: 'clamp(3.5rem, 7vw, 6rem) 0' }} aria-label="How coaching works">
-        <div className="container reveal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: 'clamp(2.5rem, 5vw, 4rem)' }}>
+        <div className="container coaching-wide reveal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: 'clamp(2.5rem, 5vw, 4rem)' }}>
           <div className="reveal">
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.75rem, 3.5vw, 2.4rem)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1.1, marginBottom: '0.5rem' }}>
               You bring the challenge.<br />We work on the leader.
@@ -157,7 +157,7 @@ export default function Coaching() {
 
       {/* TWO WAYS TO ENGAGE */}
       <section style={{ background: 'white', padding: 'clamp(3.5rem, 7vw, 6rem) 0', borderTop: '1px solid var(--mist)' }} aria-label="Two ways to engage">
-        <div className="container">
+        <div className="container coaching-wide">
           <span className="reveal eyebrow" style={{ display: 'block', marginBottom: '2rem' }}>Two Ways to Engage</span>
           <div className="reveal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(1.5rem, 3vw, 2.5rem)' }}>
             <div className="reveal" style={{ background: 'var(--paper)', borderRadius: '4px', padding: '1.75rem' }}>
@@ -192,7 +192,7 @@ export default function Coaching() {
 
       {/* THE LEADER IS THE CLIENT — NAVY BAND */}
       <section style={{ background: 'var(--navy)', padding: 'clamp(2.5rem, 5vw, 3.5rem) 0' }} aria-label="The leader is the client">
-        <div className="container reveal leader-client-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', alignItems: 'center' }}>
+        <div className="container coaching-wide reveal leader-client-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', alignItems: 'center' }}>
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.5rem, 3vw, 2rem)', color: 'white', letterSpacing: '0.02em' }}>
             The Leader Is the Client.
           </h2>
@@ -210,7 +210,7 @@ export default function Coaching() {
 
       {/* FINAL CTA */}
       <section style={{ background: 'var(--paper)', padding: 'clamp(3.5rem, 7vw, 5.5rem) 0', textAlign: 'center' }} aria-label="Develop the leader, expand the impact">
-        <div className="container reveal">
+        <div className="container coaching-wide reveal">
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.9rem, 4vw, 2.75rem)', color: 'var(--navy)', letterSpacing: '0.02em', marginBottom: '0.75rem' }}>
             Develop the Leader. Expand the Impact.
           </h2>
@@ -224,6 +224,7 @@ export default function Coaching() {
       </section>
 
       <style>{`
+        .coaching-wide { max-width: 1360px !important; }
         @media (max-width: 860px) {
           .container.reveal-grid[style*="1.1fr 1fr"] { grid-template-columns: 1fr !important; }
           .hero-image-wrap { aspect-ratio: 16/10 !important; order: -1; }
