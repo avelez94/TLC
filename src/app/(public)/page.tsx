@@ -209,7 +209,7 @@ export default function Home() {
         @media (max-width: 860px) {
           .hero-split { grid-template-columns: 1fr !important; min-height: auto !important; }
           .hero-split > div:first-child { min-height: 70svh; }
-          .hero-split > div:last-child { min-height: 480px; aspect-ratio: 3/4; }
+          .hero-split > div:last-child { min-height: 480px !important; aspect-ratio: 3/4; }
         }
         @media (max-width: 720px) {
           .belief-grid { grid-template-columns: 1fr !important; }
