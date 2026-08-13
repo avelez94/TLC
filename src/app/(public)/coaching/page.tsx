@@ -159,7 +159,7 @@ export default function Coaching() {
       <section style={{ background: 'white', padding: 'clamp(3.5rem, 7vw, 6rem) 0', borderTop: '1px solid var(--mist)' }} aria-label="Two ways to engage">
         <div className="container coaching-wide">
           <span className="reveal eyebrow" style={{ display: 'block', marginBottom: '2rem' }}>Two Ways to Engage</span>
-          <div className="reveal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(1.5rem, 3vw, 2.5rem)' }}>
+          <div className="reveal-grid engage-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(1.5rem, 3vw, 2.5rem)' }}>
             <div className="reveal" style={{ background: 'var(--paper)', borderRadius: '4px', padding: '1.75rem' }}>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.6rem' }}>For Individual Leaders</span>
               <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.3rem', color: 'var(--navy)', letterSpacing: '0.02em', marginBottom: '0.75rem' }}>Invest in the leader you&rsquo;re becoming.</h3>
@@ -231,11 +231,11 @@ export default function Coaching() {
           .hero-two-col { grid-template-columns: 1fr !important; gap: 1.25rem !important; }
         }
         @media (max-width: 720px) {
+          .engage-grid { grid-template-columns: 1fr !important; }
           section .reveal-grid[style*="repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
           section .reveal-grid[style*="repeat(4, 1fr)"] { grid-template-columns: 1fr 1fr !important; }
           .container.reveal-grid[style*="1fr 1.1fr"] { grid-template-columns: 1fr !important; }
           .leader-client-grid { grid-template-columns: 1fr !important; text-align: left; }
-          section > div[style*="repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 480px) {
           section .reveal-grid[style*="repeat(4, 1fr)"] { grid-template-columns: 1fr !important; }
