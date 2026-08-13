@@ -49,8 +49,12 @@ export default function ParentCoaching() {
       <section aria-label="Parent coaching introduction">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch', minHeight: '100svh', paddingTop: '115px' }} className="hero-split">
           <div style={{ background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)' }}>
+            <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ flex: '0 0 2.5rem', height: '1px', background: 'var(--gold)' }} aria-hidden="true" />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 700 }}>Coaching For Parents</span>
+            </div>
             <h1 className="reveal" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2.6rem, 6vw, 4.5rem)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1, marginBottom: '0.5rem' }}>
-              You carry a lot.
+                You carry a lot.
             </h1>
             <h2 className="reveal" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.6rem, 3.5vw, 2.4rem)', color: 'var(--gold)', letterSpacing: '0.02em', lineHeight: 1.15, marginBottom: '1.5rem', transitionDelay: '0.08s' }}>
               You don&rsquo;t have to think<br />through everything alone.
@@ -62,7 +66,6 @@ export default function ParentCoaching() {
               <a href={discoveryLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ display: 'inline-block' }}>
                 Schedule a Free Discovery Session
               </a>
-              <p style={{ fontSize: '0.82rem', color: 'var(--slate)', marginTop: '0.75rem' }}>Sessions from $45</p>
             </div>
           </div>
           <div style={{ position: 'relative', minHeight: '100%' }} aria-hidden="true">
@@ -199,7 +202,7 @@ export default function ParentCoaching() {
         @media (max-width: 860px) {
           .hero-split { grid-template-columns: 1fr !important; min-height: auto !important; }
           .hero-split > div:first-child { min-height: 60svh; }
-          .hero-split > div:last-child { min-height: 420px; }
+          .hero-split > div:last-child { min-height: 420px !important; }
         }
         @media (max-width: 720px) {
           .topics-grid { grid-template-columns: 1fr 1fr !important; }
