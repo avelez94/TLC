@@ -95,7 +95,7 @@ export default function ParentCoaching() {
       </section>
 
       {/* PRICING */}
-      <section style={{ background: 'white', padding: 'clamp(3.5rem, 7vw, 6rem) 0' }} aria-label="Choose the time you need">
+      <section id="pricing" style={{ background: 'white', padding: 'clamp(3.5rem, 7vw, 6rem) 0' }} aria-label="Choose the time you need">
         <div className="container">
           <h2 className="reveal" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.75rem, 4vw, 2.75rem)', color: 'var(--navy)', letterSpacing: '0.03em', textAlign: 'center', marginBottom: '2.5rem' }}>
             Choose the time you need
@@ -171,31 +171,30 @@ export default function ParentCoaching() {
       </section>
 
       {/* CTA BAND */}
-      <section style={{ background: 'var(--gold)', padding: 'clamp(2.5rem, 5vw, 3.5rem) 0' }} aria-label="Get started">
-        <div className="container reveal cta-band" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div>
-            <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.5rem, 3vw, 2rem)', color: 'white', letterSpacing: '0.02em', marginBottom: '0.35rem' }}>What&rsquo;s on your mind?</h3>
-            <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>You don&rsquo;t have to figure it out alone.</p>
+      <section style={{ background: 'var(--navy)', padding: 'clamp(3.5rem, 7vw, 5.5rem) 0', textAlign: 'center' }} aria-label="Get started">
+        <div className="container reveal">
+          <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.9rem, 4.5vw, 3rem)', color: 'white', letterSpacing: '0.03em', marginBottom: '0.75rem' }}>
+            Ready to Get Started?
+          </h2>
+          <div style={{ width: '3rem', height: '3px', background: 'var(--gold)', margin: '0 auto 1.5rem' }} />
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '1rem', marginBottom: '2rem' }}>
+            Choose the time that works for you and bring whatever you need to think through.
+          </p>
+          <a href="#pricing" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+            Book a Coaching Session <span aria-hidden="true">&#8594;</span>
+          </a>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', marginBottom: '1.75rem' }}>
+            45 or 60-minute sessions available. No package or long-term commitment.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div style={{ flex: '0 1 120px', height: '1px', background: 'rgba(200,136,32,0.4)' }} />
+            <span style={{ color: 'var(--gold)', fontSize: '0.9rem' }}>or</span>
+            <div style={{ flex: '0 1 120px', height: '1px', background: 'rgba(200,136,32,0.4)' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: '1.5rem' }}>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ display: 'block', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase' }}>45 Minutes</span>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem', color: 'white' }}>$45</span>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ display: 'block', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase' }}>60 Minutes</span>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem', color: 'white' }}>$59</span>
-              </div>
-            </div>
-            <a href={discoveryLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: 'var(--navy)', color: 'white', padding: '0.85rem 1.75rem', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none' }}>
-              Schedule a Free Discovery Session
-            </a>
-          </div>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.9rem' }}>
+            Still have questions? <a href={discoveryLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', textDecoration: 'underline' }}>Schedule a free discovery session.</a>
+          </p>
         </div>
-        <p style={{ textAlign: 'center', color: 'white', fontSize: '0.85rem', marginTop: '1.5rem' }}>
-          Have questions first? <a href={discoveryLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--navy)', fontWeight: 700, textDecoration: 'underline' }}>Schedule a free discovery session.</a>
-        </p>
       </section>
 
       <style>{`
@@ -208,7 +207,6 @@ export default function ParentCoaching() {
           .topics-grid { grid-template-columns: 1fr 1fr !important; }
           .pricing-grid { grid-template-columns: 1fr !important; }
           .session-info-grid { grid-template-columns: 1fr !important; }
-          .cta-band { flex-direction: column; align-items: flex-start !important; }
         }
         @media (max-width: 480px) {
           .topics-grid { grid-template-columns: 1fr !important; }
