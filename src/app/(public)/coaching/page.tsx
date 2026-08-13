@@ -164,13 +164,13 @@ export default function Coaching() {
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.6rem' }}>For Individual Leaders</span>
               <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.3rem', color: 'var(--navy)', letterSpacing: '0.02em', marginBottom: '0.75rem' }}>Invest in the leader you&rsquo;re becoming.</h3>
               <p style={{ color: 'var(--slate)', fontSize: '0.87rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>You don&rsquo;t need to wait for your organization to invest in you. Coaching provides dedicated space to strengthen your leadership, navigate challenges, and prepare for what&rsquo;s next.</p>
-              <a href={discoveryLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: '0.78rem' }}>Schedule a Discovery Call</a>
+              <a href={discoveryLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: '0.78rem', whiteSpace: 'normal' }}>Schedule a Discovery Call</a>
             </div>
             <div className="reveal" style={{ background: 'var(--paper)', borderRadius: '4px', padding: '1.75rem', transitionDelay: '0.06s' }}>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.6rem' }}>For Organizations</span>
               <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.3rem', color: 'var(--navy)', letterSpacing: '0.02em', marginBottom: '0.75rem' }}>Develop the leader. Strengthen the organization.</h3>
               <p style={{ color: 'var(--slate)', fontSize: '0.87rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Organization-sponsored coaching provides individualized development focused on the leadership capabilities, behaviors, and challenges that matter to the leader and the organization.</p>
-              <a href="/contact" className="btn btn-ghost-dark" style={{ fontSize: '0.78rem' }}>Discuss Organization-Sponsored Coaching</a>
+              <a href="/contact" className="btn btn-ghost-dark" style={{ fontSize: '0.78rem', whiteSpace: 'normal', textAlign: 'center' }}>Discuss Organization-Sponsored Coaching</a>
             </div>
             <div className="reveal" style={{ background: 'var(--navy)', borderRadius: '4px', padding: '1.75rem', transitionDelay: '0.12s' }}>
               <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.2rem', color: 'white', letterSpacing: '0.02em', lineHeight: 1.2, marginBottom: '1rem' }}>Coaching That Connects Development to the Work</h3>
