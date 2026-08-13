@@ -235,6 +235,7 @@ export default function Coaching() {
           section .reveal-grid[style*="repeat(4, 1fr)"] { grid-template-columns: 1fr 1fr !important; }
           .container.reveal-grid[style*="1fr 1.1fr"] { grid-template-columns: 1fr !important; }
           .leader-client-grid { grid-template-columns: 1fr !important; text-align: left; }
+          section > div[style*="repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 480px) {
           section .reveal-grid[style*="repeat(4, 1fr)"] { grid-template-columns: 1fr !important; }
