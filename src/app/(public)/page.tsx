@@ -119,7 +119,7 @@ export default function Home() {
             <span className="eyebrow">Four ways in</span>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2.5rem, 6vw, 5rem)', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginTop: '0.75rem' }}>How TLC helps.</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} className="services-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }} className="services-grid">
             {[
               { href: '/consulting', tag: 'Leadership Consulting', title: 'Custom systems for organizations.', desc: 'When an organization needs to develop its leaders, it needs more than a workshop. TLC designs and builds programs, learning journeys, and pipelines built for how your people actually work.', delay: '0s' },
               { href: '/coaching', tag: 'Executive & Leadership Coaching', title: 'THE ROLE IS YOURS. HOW YOU LEAD IT MATTERS.', desc: 'One-to-one coaching for executives, leaders, and emerging leaders navigating greater responsibility, complex challenges, transitions, and growth. Strengthen how you think, make decisions, lead others, and move forward with greater clarity and confidence.', delay: '0.12s' },
