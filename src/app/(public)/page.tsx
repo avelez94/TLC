@@ -163,39 +163,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* IMPACT LAB FEATURE — updated copy */}
-      <section style={{ background: 'var(--paper)', padding: 'clamp(4.5rem, 9vw, 8rem) 0' }} aria-label="The Impact Lab">
-        <div className="container">
-          <div className="reveal impact-intro-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(3rem, 6vw, 5rem)', alignItems: 'center', marginBottom: 'clamp(3rem, 6vw, 5rem)', paddingBottom: 'clamp(2rem, 4vw, 3.5rem)', borderBottom: '1.5px solid var(--mist)' }}>
-            <div>
-              <span className="eyebrow" style={{ marginBottom: '0.75rem', display: 'block' }}>The Impact Lab</span>
-              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2.5rem, 6vw, 5rem)', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginTop: '0.25rem' }}>One learning environment. Multiple paths to growth.</h2>
-            </div>
-            <div>
-              <p style={{ color: 'var(--slate)', fontSize: '1rem', lineHeight: 1.8, marginBottom: '1rem' }}>The Impact Lab is TLC Leadership Consulting &amp; Coaching&apos;s virtual learning environment. It brings together cohort-based learning experiences for people who want to grow, strengthen their contribution, and create greater impact in their work, their families, and their communities.</p>
-              <Link href="/impact" className="btn btn-primary">Explore The Impact Lab</Link>
-            </div>
-          </div>
-
-          <div className="reveal impact-programs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', border: '1px solid rgba(0,23,55,0.12)', borderRadius: '2px', overflow: 'hidden', transitionDelay: '0.1s' }}>
-            {[
-              { num: '01', name: 'Impact Finders', motion: 'Find your direction', desc: 'Before you build anything, you have to see clearly. Impact Finders helps you see where you want your impact, what matters most, and what is getting in your way.', price: 'Free or low founding-cohort price', dark: false, cta: 'Join the Cohort', href: '/register', ctaClass: 'btn-ghost-dark' },
-              { num: '02', name: 'Impact Makers', motion: 'Build your impact', desc: 'Builds the behaviors that turn effort into real impact, whether you come as an individual or your organization develops a group.', price: 'Founding cohorts open. Inquire for details.', dark: true, cta: 'Join the Cohort', href: '/register', ctaClass: 'btn-primary' },
-              { num: '03', name: 'Impact Leaders', motion: 'Raise it in others', desc: 'For team leads, supervisors, and managers who want to raise the level of play across a team while owning how they show up.', price: 'Contact for organizational pricing', dark: false, cta: 'Request Support', href: '/contact', ctaClass: 'btn-ghost-dark' },
-            ].map(({ num, name, motion, desc, price, dark, cta, href, ctaClass }) => (
-              <div key={num} style={{ padding: '2.25rem', borderRight: '1px solid rgba(0,23,55,0.1)', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: dark ? 'var(--navy)' : 'white' }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: dark ? 'rgba(200,136,32,0.7)' : 'var(--gold)' }}>Program {num}</span>
-                <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.6rem, 3vw, 2.25rem)', color: dark ? 'white' : 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1 }}>{name}</h3>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)' }}>{motion}</span>
-                <p style={{ color: dark ? 'rgba(255,255,255,0.6)' : 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.72, flex: 1 }}>{desc}</p>
-                <p style={{ fontSize: '0.78rem', color: dark ? 'rgba(255,255,255,0.35)' : 'var(--slate)', paddingTop: '1rem', borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,23,55,0.08)'}` }}>{price}</p>
-                <Link href={href} className={`btn ${ctaClass}`} style={{ fontSize: '0.75rem', padding: '0.65rem 1.25rem' }}>{cta}</Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA BAND */}
       <section style={{ background: 'var(--navy3)', padding: 'clamp(4.5rem, 9vw, 8rem) 0', textAlign: 'center', position: 'relative', overflow: 'hidden' }} aria-label="Get started">
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(200,136,32,0.07) 1px, transparent 1px)', backgroundSize: '36px 36px', pointerEvents: 'none' }} aria-hidden="true" />
