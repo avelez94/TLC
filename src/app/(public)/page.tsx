@@ -116,14 +116,15 @@ export default function Home() {
       <section style={{ background: 'var(--paper)', padding: 'clamp(4.5rem, 9vw, 8rem) 0' }} aria-label="Services">
         <div className="container">
           <div className="reveal" style={{ marginBottom: 'clamp(2.5rem, 5vw, 4rem)' }}>
-            <span className="eyebrow">Three ways in</span>
+            <span className="eyebrow">Four ways in</span>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2.5rem, 6vw, 5rem)', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginTop: '0.75rem' }}>How TLC helps.</h2>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} className="services-grid">
             {[
               { href: '/consulting', tag: 'Leadership Consulting', title: 'Custom systems for organizations.', desc: 'When an organization needs to develop its leaders, it needs more than a workshop. TLC designs and builds programs, learning journeys, and pipelines built for how your people actually work.', delay: '0s' },
-              { href: '/coaching', tag: 'Performance & Developmental Coaching', title: 'One to one. The work is yours.', desc: 'Whether you invest in yourself or an organization sponsors your growth, the focus stays on you. Coaching builds the clarity, capability, and behavior change that shows up in how you lead and perform.', delay: '0.12s' },
+              { href: '/coaching', tag: 'Executive & Leadership Coaching', title: 'THE ROLE IS YOURS. HOW YOU LEAD IT MATTERS.', desc: 'One-to-one coaching for executives, leaders, and emerging leaders navigating greater responsibility, complex challenges, transitions, and growth. Strengthen how you think, make decisions, lead others, and move forward with greater clarity and confidence.', delay: '0.12s' },
               { href: '/impact', tag: 'The Impact Lab', title: 'Step up. Solve problems. Create impact.', desc: 'Cohort programs built to move people from where they are to who they are capable of becoming. Three programs, one path. Find your direction, build your impact, raise it in others.', delay: '0.24s' },
+              { href: '/coaching/parents', tag: 'Coaching for Parents', title: 'YOU CARRY A LOT. MAKE SPACE FOR YOU.', desc: 'Parenting is only one part of your life. One-to-one coaching gives you space to think through work, relationships, personal growth, family, important decisions, and what is next. Strengthen how you show up everywhere.', delay: '0.36s' },
             ].map(({ href, tag, title, desc, delay }) => (
               <Link key={href} href={href} className="reveal" style={{ background: 'white', border: '1px solid rgba(0,23,55,0.1)', borderRadius: '2px', padding: '2.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', textDecoration: 'none', color: 'inherit', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', position: 'relative', transitionDelay: delay }}>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)' }}>{tag}</span>
