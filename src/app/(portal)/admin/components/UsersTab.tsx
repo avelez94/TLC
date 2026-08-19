@@ -10,6 +10,7 @@ type UsersTabProps = Pick<AdminPanel,
   'billingRate' | 'setBillingRate' | 'billingHours' | 'setBillingHours' | 'billingSessions' | 'setBillingSessions' |
   'billingMinutesPerSession' | 'setBillingMinutesPerSession' | 'billingClientType' | 'setBillingClientType' |
   'paymentLinkUrl' | 'setPaymentLinkUrl' | 'paymentRequestLoading' | 'handleSendPaymentRequest' |
+  'resetEmailLoading' | 'handleSendResetEmail' |
   'handleUpdateHourlyRate' | 'handleUpdateUserRole' | 'showSuccess'
 >
 
@@ -22,6 +23,7 @@ export default function UsersTab({
   billingRate, setBillingRate, billingHours, setBillingHours, billingSessions, setBillingSessions,
   billingMinutesPerSession, setBillingMinutesPerSession, billingClientType, setBillingClientType,
   paymentLinkUrl, setPaymentLinkUrl, paymentRequestLoading, handleSendPaymentRequest,
+  resetEmailLoading, handleSendResetEmail,
   handleUpdateHourlyRate, handleUpdateUserRole, showSuccess,
 }: UsersTabProps) {
   const impactUsers = users.filter(u => u.role === 'impact_participant')
@@ -158,6 +160,14 @@ export default function UsersTab({
                       <div>
                         <span style={labelStyle}>Timezone</span>
                         <p style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>{user.timezone || 'Not set'}</p>
+                      </div>
+                      <div>
+                        <span style={labelStyle}>Last Login</span>
+                        <p style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>
+                          {user.last_sign_in_at
+                            ? `Last login: ${new Date(user.last_sign_in_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                            : 'Never logged in'}
+                        </p>
                       </div>
                       {user.role === 'impact_participant' && (
                         <div style={{ gridColumn: '1 / -1' }}>
@@ -302,6 +312,14 @@ export default function UsersTab({
                           <option value="admin">Admin</option>
                         </select>
                       </div>
+                      <button
+                        onClick={() => handleSendResetEmail(user.email || '')}
+                        disabled={resetEmailLoading || !user.email}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.78rem', padding: '0.45rem 0.9rem' }}
+                      >
+                        {resetEmailLoading ? 'Sending...' : 'Send Reset Email'}
+                      </button>
                     </div>
                   </div>
                 )}

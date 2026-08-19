@@ -51,6 +51,7 @@ export function useAdminPanel() {
   const [billingClientType, setBillingClientType] = useState<'new' | 'existing'>('existing')
   const [paymentLinkUrl, setPaymentLinkUrl] = useState('')
   const [paymentRequestLoading, setPaymentRequestLoading] = useState(false)
+  const [resetEmailLoading, setResetEmailLoading] = useState(false)
 
   // Form state
   const [invite, setInvite] = useState({ email: '', full_name: '', role: 'impact_participant', program_id: '', cohort_id: '' })
@@ -80,6 +81,7 @@ export function useAdminPanel() {
       { data: resourcesData },
       { data: certsData },
       { data: enrollmentsData },
+      userLoginsResult,
     ] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('programs').select('*').order('name'),
@@ -91,6 +93,7 @@ export function useAdminPanel() {
       supabase.from('resources').select('*, programs(name)').order('created_at', { ascending: false }),
       supabase.from('certificates').select('*, profiles(full_name, email), programs(name)').order('issued_at', { ascending: false }),
       supabase.from('cohort_enrollments').select('*, profiles(full_name, email, role), cohorts(name)').order('enrolled_at', { ascending: false }),
+      fetch('/api/admin/user-logins').then(r => r.ok ? r.json() : null).catch(() => null),
     ])
     const { data: registrationsData } = await supabase
       .from('registrations')
@@ -100,7 +103,10 @@ export function useAdminPanel() {
       .from('cohort_sessions')
       .select('*')
       .order('session_number')
-    if (usersData) setUsers(usersData)
+    if (usersData) {
+      const lastSignIns: Record<string, string | null> = userLoginsResult?.lastSignIns || {}
+      setUsers(usersData.map(u => ({ ...u, last_sign_in_at: lastSignIns[u.id] ?? null })))
+    }
     if (programsData) setPrograms(programsData)
     if (cohortsData) setCohorts(cohortsData)
     if (repsData) setReps(repsData)
@@ -387,6 +393,27 @@ export function useAdminPanel() {
     setPaymentRequestLoading(false)
   }
 
+  const handleSendResetEmail = async (email: string) => {
+    if (!email) return
+    setResetEmailLoading(true)
+    try {
+      const res = await fetch('/api/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        showSuccess(`Failed to send reset email: ${data.error}`)
+      } else {
+        showSuccess(`Password reset email sent to ${email}.`)
+      }
+    } catch {
+      showSuccess('Failed to send reset email. Please try again.')
+    }
+    setResetEmailLoading(false)
+  }
+
   const handleUpdateCohortStatus = async (cohortId: string, status: string) => {
     await supabase.from('cohorts').update({ status }).eq('id', cohortId)
     fetchAll()
@@ -521,6 +548,7 @@ export function useAdminPanel() {
     successMsg,
     billingRate, setBillingRate, billingHours, setBillingHours, billingSessions, setBillingSessions, billingMinutesPerSession, setBillingMinutesPerSession, billingClientType, setBillingClientType,
     paymentLinkUrl, setPaymentLinkUrl, paymentRequestLoading,
+    resetEmailLoading,
     invite, setInvite,
     newCohort, setNewCohort,
     newRep, setNewRep,
@@ -550,6 +578,7 @@ export function useAdminPanel() {
     handleUpdateUserRole,
     handleUpdateHourlyRate,
     handleSendPaymentRequest,
+    handleSendResetEmail,
     handleUpdateCohortStatus,
     handleUpdateRegistrationStatus,
     handleGenerateSchedule,

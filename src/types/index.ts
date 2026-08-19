@@ -14,6 +14,7 @@ export interface Profile {
   timezone: string | null
   hourly_rate: number | null
   created_at: string
+  last_sign_in_at?: string | null
 }
 
 export interface Program {
