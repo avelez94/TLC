@@ -89,7 +89,7 @@ function RegisterContent() {
         { data: includesData },
       ] = await Promise.all([
         supabase.from('programs').select('*').eq('type', 'cohort').order('sort_order'),
-        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, book_title, book_image_url, book_purchase_url, description, programs(*)').in('status', ['active', 'upcoming']).order('start_date'),
+        supabase.from('cohorts').select('id, program_id, name, start_date, end_date, status, session_day, session_time, created_at, includes, expectations, book_title, book_image_url, book_purchase_url, description, programs(*)').in('status', ['upcoming']).order('start_date'),
         supabase.from('cohort_sessions').select('*').order('session_number'),
         supabase.from('program_includes').select('*').order('sort_order'),
       ])
