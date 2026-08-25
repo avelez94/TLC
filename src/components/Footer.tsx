@@ -21,7 +21,7 @@ export default function Footer() {
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase' as const, color: 'var(--gold)', marginBottom: '1.1rem', display: 'block' }}>Services</span>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <li><Link href="/consulting" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Leadership Consulting</Link></li>
-              <li><Link href="/coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Executive &amp; Leadership Coaching</Link></li>
+              <li><Link href="/coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Leadership &amp; Professional Coaching</Link></li>
               <li><Link href="/parent-coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Coaching for Parents</Link></li>
               <li><Link href="/impact" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>The Impact Lab</Link></li>
               <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#finders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Impact Finders</Link></li>
