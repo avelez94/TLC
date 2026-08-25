@@ -16,10 +16,30 @@ function ResetContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // If user arrives via reset link from email, go straight to set password step
+  // If user arrives via reset link from email, Supabase appends the session
+  // tokens to the URL hash (not a query param). We need to read those and
+  // call setSession() ourselves — without this, updateUser() fails with
+  // "Auth session missing!" even though the page shows the right step.
   useEffect(() => {
     const type = searchParams.get('type')
-    if (type === 'recovery') {
+    if (type !== 'recovery') return
+
+    const hash = window.location.hash.substring(1)
+    const hashParams = new URLSearchParams(hash)
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+
+    if (accessToken && refreshToken) {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+        if (error) {
+          setError('This reset link has expired or already been used. Please request a new one.')
+        } else {
+          setStep('set')
+        }
+      })
+    } else {
+      // Tokens not found in hash — link may have expired or been consumed already
+      setError('This reset link has expired or already been used. Please request a new one.')
       setStep('set')
     }
   }, [searchParams])
