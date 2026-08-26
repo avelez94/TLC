@@ -60,7 +60,7 @@ export default function Coaching() {
             </a>
           </div>
           <div className="reveal hero-image-wrap" style={{ position: 'relative', minHeight: '100%', transitionDelay: '0.1s' }} aria-hidden="true">
-            <Image src="/images/coaching-hero.jpg" alt="A coach facilitating a discussion with a small group of professionals" fill style={{ objectFit: 'cover', objectPosition: 'center top' }} priority />
+            <Image src="/images/coaching-hero.jpg" alt="A coach facilitating a discussion with a small group of professionals" fill style={{ objectFit: 'cover', objectPosition: '75% center' }} priority />
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, var(--paper) 0%, rgba(247,245,240,0.5) 8%, transparent 22%)', pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px', background: 'var(--gold)' }} />
           </div>
