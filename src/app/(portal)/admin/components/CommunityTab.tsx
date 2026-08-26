@@ -101,6 +101,9 @@ export default function CommunityTab({
       <div style={{ marginBottom: '1.5rem' }}>
         <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Community</span>
         <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>Community Feed</h1>
+        <p style={{ color: 'var(--slate)', fontSize: '0.85rem', lineHeight: 1.6, marginTop: '0.5rem', fontStyle: 'italic' }}>
+          <strong>Posts</strong> — the public feed where members share updates that others can like and comment on. <strong>Cohort Chats</strong> — the live group conversation for each cohort, where you can view, delete, and send messages as yourself.
+        </p>
       </div>
 
       {/* View toggle: Posts vs Chat moderation */}
