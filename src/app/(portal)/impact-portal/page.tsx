@@ -536,7 +536,10 @@ export default function ImpactPortal() {
             <div>
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Community</span>
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '0.5rem' }}>Cohort Community</h1>
-              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Share wins, ask questions, and encourage one another. This is your cohort space.</p>
+              <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '0.75rem' }}>Share wins, ask questions, and encourage one another. This is your cohort space.</p>
+              <p style={{ color: 'var(--slate)', fontSize: '0.8rem', lineHeight: 1.6, marginBottom: '1.5rem', fontStyle: 'italic' }}>
+                <strong>Posts</strong> — share something the whole cohort can like and comment on, whenever they see it. <strong>Members</strong> — see who is in your cohort. <strong>Chat</strong> — a live group conversation with everyone in your cohort.
+              </p>
 
               {/* Community sub-tabs */}
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--mist)' }}>
