@@ -182,7 +182,7 @@ export default function Coaching() {
         @media (max-width: 860px) {
           .hero-split { grid-template-columns: 1fr !important; min-height: auto !important; }
           .hero-split > div:first-child { min-height: 60svh; }
-          .hero-image-wrap { min-height: 420px !important; aspect-ratio: 4/3; width: 100% !important; }
+          .hero-image-wrap { min-height: auto !important; aspect-ratio: 4/3; width: calc(100% - 2rem) !important; margin: 0 1rem; border-radius: 4px; overflow: hidden; }
           .who-grid { grid-template-columns: 1fr 1fr !important; }
           .who-grid > div { border-left: none !important; border-top: 1px solid var(--mist); padding-top: 1.5rem !important; }
           .who-grid > div:nth-child(1), .who-grid > div:nth-child(2) { border-top: none; padding-top: 0 !important; }
