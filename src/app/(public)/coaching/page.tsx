@@ -40,7 +40,7 @@ export default function Coaching() {
     <>
       {/* HERO */}
       <section aria-label="Leadership and professional coaching" style={{ paddingTop: '115px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch', minHeight: '78vh' }} className="hero-split">
+        <div style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', alignItems: 'stretch', minHeight: '78vh' }} className="hero-split">
           <div style={{ background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)' }}>
             <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
               <div style={{ flex: '0 0 2.5rem', height: '1px', background: 'var(--gold)' }} aria-hidden="true" />
@@ -61,7 +61,7 @@ export default function Coaching() {
           </div>
           <div className="reveal hero-image-wrap" style={{ position: 'relative', minHeight: '100%', transitionDelay: '0.1s' }} aria-hidden="true">
             <Image src="/images/coaching-hero.jpg" alt="A coach facilitating a discussion with a small group of professionals" fill style={{ objectFit: 'cover', objectPosition: 'center top' }} priority />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,23,55,0.2) 0%, transparent 50%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, var(--paper) 0%, rgba(247,245,240,0.5) 8%, transparent 22%)', pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px', background: 'var(--gold)' }} />
           </div>
         </div>
