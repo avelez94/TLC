@@ -40,7 +40,7 @@ export default function Coaching() {
     <>
       {/* HERO */}
       <section aria-label="Leadership and professional coaching" style={{ paddingTop: '115px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '0.78fr 1.22fr', alignItems: 'stretch', minHeight: '78vh' }} className="hero-split">
+        <div style={{ display: 'grid', gridTemplateColumns: '0.68fr 1.32fr', alignItems: 'stretch', minHeight: '78vh' }} className="hero-split">
           <div style={{ background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)' }}>
             <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
               <div style={{ flex: '0 0 2.5rem', height: '1px', background: 'var(--gold)' }} aria-hidden="true" />
@@ -178,6 +178,7 @@ export default function Coaching() {
 
       <style>{`
         .coaching-wide { max-width: 1360px !important; }
+        body { overflow-x: hidden; }
         @media (max-width: 860px) {
           .hero-split { grid-template-columns: 1fr !important; min-height: auto !important; }
           .hero-split > div:first-child { min-height: 60svh; }
