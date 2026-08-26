@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 type Page = 'dashboard' | 'programs' | 'cohort' | 'reps' | 'journal' | 'community' | 'announcements' | 'library' | 'assessments' | 'evaluations' | 'progress' | 'my-impact' | 'certificates' | 'profile'
+type CommunityTab = 'posts' | 'members' | 'chat'
 
 const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
@@ -24,6 +25,7 @@ const navItems: { id: Page; label: string; icon: string }[] = [
 export default function ImpactPortal() {
   const router = useRouter()
   const [page, setPage] = useState<Page>('dashboard')
+  const [communityTab, setCommunityTab] = useState<CommunityTab>('posts')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -43,6 +45,8 @@ export default function ImpactPortal() {
   const [journalEntries, setJournalEntries] = useState<any[]>([])
   const [journalPrompts, setJournalPrompts] = useState<any[]>([])
   const [communityPosts, setCommunityPosts] = useState<any[]>([])
+  const [cohortMembers, setCohortMembers] = useState<any[]>([])
+  const [cohortMessages, setCohortMessages] = useState<any[]>([])
 
   // UI state
   const [activeRep, setActiveRep] = useState<string | null>(null)
@@ -53,8 +57,10 @@ export default function ImpactPortal() {
   const [editPostBody, setEditPostBody] = useState('')
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
+  const [newMessage, setNewMessage] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   const cardStyle = { background: 'white', borderRadius: '6px', border: '1px solid rgba(0,23,55,0.08)', padding: '1.5rem', marginBottom: '1.25rem' }
   const inputStyle = { width: '100%', padding: '0.75rem 1rem', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.9rem', color: 'var(--ink)', background: 'white', outline: 'none' }
@@ -80,14 +86,14 @@ export default function ImpactPortal() {
     if (profileData) setProfile(profileData)
 
     const { data: enrollmentData } = await supabase
-    .from('cohort_enrollments')
-    .select('*, cohorts(*, programs(*))')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .in('cohorts.status', ['active', 'upcoming'])
-    .order('enrolled_at', { ascending: false })
-    .limit(1)
-    .single()
+      .from('cohort_enrollments')
+      .select('*, cohorts(*, programs(*))')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .in('cohorts.status', ['active', 'upcoming'])
+      .order('enrolled_at', { ascending: false })
+      .limit(1)
+      .single()
 
     if (enrollmentData) {
       setEnrollment(enrollmentData)
@@ -105,6 +111,8 @@ export default function ImpactPortal() {
         { data: journalData },
         { data: postsData },
         { data: journalPromptsData },
+        { data: membersData },
+        { data: messagesData },
       ] = await Promise.all([
         supabase.from('weekly_reps').select('*').eq('cohort_id', c.id).order('week_number'),
         supabase.from('weekly_rep_submissions').select('*').eq('user_id', user.id),
@@ -115,6 +123,8 @@ export default function ImpactPortal() {
         supabase.from('journal_entries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('community_posts').select('*, profiles(full_name), community_likes(user_id), community_comments(*, profiles(full_name, role))').eq('cohort_id', c.id).order('created_at', { ascending: false }),
         supabase.from('journal_prompts').select('*').or(`program_id.eq.${c.programs.id},program_id.is.null`).order('sort_order'),
+        supabase.from('cohort_enrollments').select('user_id, profiles(full_name)').eq('cohort_id', c.id).eq('status', 'active'),
+        supabase.from('cohort_messages').select('*, profiles(full_name)').eq('cohort_id', c.id).order('created_at', { ascending: true }),
       ])
 
       if (repsData) setReps(repsData)
@@ -126,12 +136,36 @@ export default function ImpactPortal() {
       if (journalData) setJournalEntries(journalData)
       if (postsData) setCommunityPosts(postsData)
       if (journalPromptsData) setJournalPrompts(journalPromptsData)
+      if (membersData) setCohortMembers(membersData)
+      if (messagesData) setCohortMessages(messagesData)
     }
 
     setLoading(false)
   }, [router])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  // Poll for new chat messages every 5 seconds while the Chat tab is open,
+  // so members see new messages without a manual refresh.
+  useEffect(() => {
+    if (page !== 'community' || communityTab !== 'chat' || !cohort) return
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('cohort_messages')
+        .select('*, profiles(full_name)')
+        .eq('cohort_id', cohort.id)
+        .order('created_at', { ascending: true })
+      if (data) setCohortMessages(data)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [page, communityTab, cohort])
+
+  // Auto-scroll to the newest chat message when messages update or the tab opens
+  useEffect(() => {
+    if (page === 'community' && communityTab === 'chat') {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [cohortMessages, page, communityTab])
 
   const isRepCompleted = (repId: string) => submissions.some(s => s.weekly_rep_id === repId)
 
@@ -251,6 +285,26 @@ export default function ImpactPortal() {
     })
     setCommentDrafts(prev => ({ ...prev, [postId]: '' }))
     fetchAll()
+    setActionLoading(false)
+  }
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !profile || !cohort) return
+    setActionLoading(true)
+    const { error } = await supabase.from('cohort_messages').insert({
+      cohort_id: cohort.id,
+      user_id: profile.id,
+      content: newMessage,
+    })
+    if (!error) {
+      setNewMessage('')
+      const { data } = await supabase
+        .from('cohort_messages')
+        .select('*, profiles(full_name)')
+        .eq('cohort_id', cohort.id)
+        .order('created_at', { ascending: true })
+      if (data) setCohortMessages(data)
+    }
     setActionLoading(false)
   }
 
@@ -483,86 +537,197 @@ export default function ImpactPortal() {
               <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Community</span>
               <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '0.5rem' }}>Cohort Community</h1>
               <p style={{ color: 'var(--slate)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>Share wins, ask questions, and encourage one another. This is your cohort space.</p>
-              <div style={cardStyle}>
-                <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share a win, ask a question, or encourage someone..." rows={3} style={{ ...inputStyle, resize: 'none' }} />
-                <button onClick={handlePost} disabled={actionLoading} className="btn btn-primary" style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>Post</button>
+
+              {/* Community sub-tabs */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--mist)' }}>
+                {([
+                  { id: 'posts', label: 'Posts' },
+                  { id: 'members', label: 'Members' },
+                  { id: 'chat', label: 'Chat' },
+                ] as { id: CommunityTab; label: string }[]).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => setCommunityTab(id)}
+                    style={{
+                      padding: '0.65rem 1.1rem',
+                      background: 'none',
+                      border: 'none',
+                      borderBottom: `2px solid ${communityTab === id ? 'var(--gold)' : 'transparent'}`,
+                      color: communityTab === id ? 'var(--navy)' : 'var(--slate)',
+                      fontWeight: communityTab === id ? 700 : 500,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-montserrat), sans-serif',
+                      marginBottom: '-1px',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-              {communityPosts.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.88rem', textAlign: 'center', padding: '2rem' }}>No posts yet. Be the first to share something.</p>}
-              {communityPosts.map(post => {
-                const liked = post.community_likes?.some((l: any) => l.user_id === profile?.id)
-                const isOwnPost = post.user_id === profile?.id
-                const isEditing = editingPostId === post.id
-                const comments = (post.community_comments || []).slice().sort((a: { created_at: string }, b: { created_at: string }) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                const commentsOpen = !!expandedComments[post.id]
-                return (
-                  <div key={post.id} style={cardStyle}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
-                          {post.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
-                        </div>
-                        <div>
-                          <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{post.profiles?.full_name || 'Participant'}</span>
-                          <span style={{ display: 'block', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)', letterSpacing: '0.08em' }}>
-                            {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                          </span>
-                        </div>
-                      </div>
-                      {isOwnPost && !isEditing && (
-                        <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0 }}>
-                          <button onClick={() => handleStartEditPost(post)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>✎ Edit</button>
-                          <button onClick={() => handleDeletePost(post.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Delete</button>
-                        </div>
-                      )}
-                    </div>
 
-                    {isEditing ? (
-                      <div style={{ marginBottom: '0.75rem' }}>
-                        <textarea value={editPostBody} onChange={e => setEditPostBody(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                          <button onClick={() => handleSaveEditPost(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.45rem 1rem' }}>{actionLoading ? 'Saving...' : 'Save'}</button>
-                          <button onClick={() => { setEditingPostId(null); setEditPostBody('') }} style={{ background: 'none', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.45rem 1rem', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '0.75rem' }}>{post.body}</p>
-                    )}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                      <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: liked ? 'var(--gold)' : 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
-                        {liked ? '♥' : '♡'} {post.community_likes?.length || 0}
-                      </button>
-                      <button onClick={() => toggleComments(post.id)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
-                        {comments.length} comment{comments.length === 1 ? '' : 's'} {commentsOpen ? '▲' : '▼'}
-                      </button>
-                    </div>
-
-                    {commentsOpen && (
-                      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--mist)' }}>
-                        {comments.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>No comments yet.</p>}
-                        {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null; role?: string } }) => (
-                          <div key={c.id} style={{ marginBottom: '0.6rem' }}>
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
-                              <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || (c.profiles?.role === 'admin' ? 'Tramaine' : 'Participant')}</span>
-                              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>{new Date(c.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
-                            </div>
-                            <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>{c.body}</p>
-                          </div>
-                        ))}
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                          <input
-                            value={commentDrafts[post.id] || ''}
-                            onChange={e => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                            placeholder="Add a comment..."
-                            style={{ ...inputStyle, flex: 1 }}
-                          />
-                          <button onClick={() => handleAddComment(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}>Send</button>
-                        </div>
-                      </div>
-                    )}
+              {/* POSTS TAB */}
+              {communityTab === 'posts' && (
+                <>
+                  <div style={cardStyle}>
+                    <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share a win, ask a question, or encourage someone..." rows={3} style={{ ...inputStyle, resize: 'none' }} />
+                    <button onClick={handlePost} disabled={actionLoading} className="btn btn-primary" style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>Post</button>
                   </div>
-                )
-              })}
+                  {communityPosts.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.88rem', textAlign: 'center', padding: '2rem' }}>No posts yet. Be the first to share something.</p>}
+                  {communityPosts.map(post => {
+                    const liked = post.community_likes?.some((l: any) => l.user_id === profile?.id)
+                    const isOwnPost = post.user_id === profile?.id
+                    const isEditing = editingPostId === post.id
+                    const comments = (post.community_comments || []).slice().sort((a: { created_at: string }, b: { created_at: string }) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    const commentsOpen = !!expandedComments[post.id]
+                    return (
+                      <div key={post.id} style={cardStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
+                              {post.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                            </div>
+                            <div>
+                              <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{post.profiles?.full_name || 'Participant'}</span>
+                              <span style={{ display: 'block', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)', letterSpacing: '0.08em' }}>
+                                {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                              </span>
+                            </div>
+                          </div>
+                          {isOwnPost && !isEditing && (
+                            <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0 }}>
+                              <button onClick={() => handleStartEditPost(post)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>✎ Edit</button>
+                              <button onClick={() => handleDeletePost(post.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Delete</button>
+                            </div>
+                          )}
+                        </div>
+
+                        {isEditing ? (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <textarea value={editPostBody} onChange={e => setEditPostBody(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <button onClick={() => handleSaveEditPost(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.45rem 1rem' }}>{actionLoading ? 'Saving...' : 'Save'}</button>
+                              <button onClick={() => { setEditingPostId(null); setEditPostBody('') }} style={{ background: 'none', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.45rem 1rem', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '0.75rem' }}>{post.body}</p>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                          <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: liked ? 'var(--gold)' : 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+                            {liked ? '♥' : '♡'} {post.community_likes?.length || 0}
+                          </button>
+                          <button onClick={() => toggleComments(post.id)} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+                            {comments.length} comment{comments.length === 1 ? '' : 's'} {commentsOpen ? '▲' : '▼'}
+                          </button>
+                        </div>
+
+                        {commentsOpen && (
+                          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--mist)' }}>
+                            {comments.length === 0 && <p style={{ color: 'var(--slate)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>No comments yet.</p>}
+                            {comments.map((c: { id: string; body: string; created_at: string; profiles?: { full_name: string | null; role?: string } }) => (
+                              <div key={c.id} style={{ marginBottom: '0.6rem' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.78rem' }}>{c.profiles?.full_name || (c.profiles?.role === 'admin' ? 'Tramaine' : 'Participant')}</span>
+                                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>{new Date(c.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+                                </div>
+                                <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>{c.body}</p>
+                              </div>
+                            ))}
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <input
+                                value={commentDrafts[post.id] || ''}
+                                onChange={e => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                placeholder="Add a comment..."
+                                style={{ ...inputStyle, flex: 1 }}
+                              />
+                              <button onClick={() => handleAddComment(post.id)} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}>Send</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+
+              {/* MEMBERS TAB */}
+              {communityTab === 'members' && (
+                <div style={cardStyle}>
+                  <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>
+                    Your Cohort ({cohortMembers.length})
+                  </h3>
+                  {cohortMembers.length === 0 ? (
+                    <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No other members found yet.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.85rem' }}>
+                      {cohortMembers.map((m: any) => {
+                        const name = m.profiles?.full_name || 'Participant'
+                        const memberInitials = name.split(' ').map((n: string) => n[0]).join('')
+                        const isYou = m.user_id === profile?.id
+                        return (
+                          <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.6rem 0.75rem', background: 'var(--paper)', borderRadius: '4px' }}>
+                            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
+                              {memberInitials}
+                            </div>
+                            <span style={{ color: 'var(--ink)', fontSize: '0.85rem', fontWeight: 500 }}>
+                              {name}{isYou ? ' (you)' : ''}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* CHAT TAB */}
+              {communityTab === 'chat' && (
+                <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', height: '520px', padding: 0 }}>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+                    {cohortMessages.length === 0 ? (
+                      <p style={{ color: 'var(--slate)', fontSize: '0.85rem', textAlign: 'center', padding: '2rem 0' }}>No messages yet. Say hello to your cohort.</p>
+                    ) : cohortMessages.map((msg: any) => {
+                      const isYou = msg.user_id === profile?.id
+                      const name = msg.profiles?.full_name || 'Participant'
+                      return (
+                        <div key={msg.id} style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', alignItems: isYou ? 'flex-end' : 'flex-start' }}>
+                          <div style={{ maxWidth: '75%' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline', marginBottom: '0.25rem', justifyContent: isYou ? 'flex-end' : 'flex-start' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.75rem' }}>{isYou ? 'You' : name}</span>
+                              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', color: 'var(--slate)' }}>
+                                {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div style={{
+                              background: isYou ? 'var(--gold)' : 'var(--paper)',
+                              color: isYou ? 'var(--navy)' : 'var(--ink)',
+                              borderRadius: '10px',
+                              padding: '0.6rem 0.9rem',
+                              fontSize: '0.85rem',
+                              lineHeight: 1.55,
+                            }}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div ref={chatEndRef} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', padding: '1rem 1.25rem', borderTop: '1px solid var(--mist)' }}>
+                    <input
+                      value={newMessage}
+                      onChange={e => setNewMessage(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
+                      placeholder="Message your cohort..."
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button onClick={handleSendMessage} disabled={actionLoading || !newMessage.trim()} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.6rem 1.25rem', flexShrink: 0 }}>Send</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
