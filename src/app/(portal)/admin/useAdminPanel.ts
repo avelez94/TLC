@@ -172,6 +172,18 @@ export function useAdminPanel() {
     setActionLoading(false)
   }
 
+  const handleDeleteCohort = async (cohortId: string) => {
+    setActionLoading(true)
+    const { error } = await supabase.from('cohorts').delete().eq('id', cohortId)
+    if (error) {
+      showSuccess('Could not delete cohort. It may still have enrollments, sessions, or other linked records.')
+    } else {
+      showSuccess('Cohort deleted.')
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
   const handleCreateRep = async () => {
     if (!newRep.title.trim() || !newRep.cohort_id) return
     setActionLoading(true)
@@ -561,6 +573,7 @@ export function useAdminPanel() {
     showSuccess,
     handleInvite,
     handleCreateCohort,
+    handleDeleteCohort,
     handleCreateRep,
     handleUpdateRep,
     handleCreatePrompt,
