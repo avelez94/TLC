@@ -442,8 +442,8 @@ export function useAdminPanel() {
       Thursday: 4, Friday: 5, Saturday: 6
     }
     const targetDay = dayMap[sessionDay]
-    const start = new Date(cohort.start_date)
-    const end = new Date(cohort.end_date)
+    const start = new Date(cohort.start_date + 'T12:00:00')
+    const end = new Date(cohort.end_date + 'T12:00:00')
     const dates: Date[] = []
     const current = new Date(start)
     while (current.getDay() !== targetDay) {
