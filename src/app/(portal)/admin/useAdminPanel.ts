@@ -184,6 +184,41 @@ export function useAdminPanel() {
     setActionLoading(false)
   }
 
+  const handleDuplicateCohort = async (cohortId: string) => {
+    setActionLoading(true)
+    const original = cohorts.find(c => c.id === cohortId)
+    if (!original) {
+      setActionLoading(false)
+      return
+    }
+    // Copy every editable field except id/created_at, append "(Copy)" to the
+    // name, and always reset status to upcoming since a duplicate is a fresh
+    // cohort, not a continuation of one that may already be active or completed.
+    const { error } = await supabase.from('cohorts').insert({
+      name: `${original.name} (Copy)`,
+      program_id: original.program_id,
+      start_date: (original as any).start_date || null,
+      end_date: (original as any).end_date || null,
+      zoom_link: (original as any).zoom_link || null,
+      status: 'upcoming',
+      session_day: (original as any).session_day || null,
+      session_time: (original as any).session_time || null,
+      description: (original as any).description || null,
+      includes: (original as any).includes || null,
+      expectations: (original as any).expectations || null,
+      book_title: (original as any).book_title || null,
+      book_image_url: (original as any).book_image_url || null,
+      book_purchase_url: (original as any).book_purchase_url || null,
+    })
+    if (error) {
+      showSuccess('Could not duplicate cohort.')
+    } else {
+      showSuccess('Cohort duplicated.')
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
   const handleCreateRep = async () => {
     if (!newRep.title.trim() || !newRep.cohort_id) return
     setActionLoading(true)
@@ -574,6 +609,7 @@ export function useAdminPanel() {
     handleInvite,
     handleCreateCohort,
     handleDeleteCohort,
+    handleDuplicateCohort,    
     handleCreateRep,
     handleUpdateRep,
     handleCreatePrompt,
