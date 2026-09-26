@@ -27,6 +27,7 @@ export default function ProgramsTab({ programs, cohorts, enrollments, expandedPr
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{p.type}</span>
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{cohorts.filter(c => c.program_id === p.id).length} cohorts</span>
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{enrollments.filter(e => cohorts.find(c => c.program_id === p.id && c.id === e.cohort_id)).length} participants</span>
+                {(p as any).price_label && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)' }}>{(p as any).price_label}</span>}
               </div>
             </div>
             <span style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>{expandedProgram === p.id ? '▲' : '▼'}</span>
@@ -34,6 +35,14 @@ export default function ProgramsTab({ programs, cohorts, enrollments, expandedPr
           {expandedProgram === p.id && (
             <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--mist)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={labelStyle}>Price <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— used at checkout, in dollars</span></label>
+                  <input type="number" id={`price-${p.id}`} defaultValue={(p as any).price ?? ''} placeholder="e.g. 500" min="0" step="0.01" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Price Label <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register and Impact Lab pages, e.g. "$500" or "Request a Quote"</span></label>
+                  <input id={`priceLabel-${p.id}`} defaultValue={(p as any).price_label || ''} placeholder='e.g. "$500" or "Request a Quote"' style={inputStyle} />
+                </div>
                 {/* COACHING PROGRAM — focus areas only */}
                 {p.type === 'coaching' && (
                   <>
@@ -98,6 +107,8 @@ export default function ProgramsTab({ programs, cohorts, enrollments, expandedPr
                   const duration = (document.getElementById(`duration-${p.id}`) as HTMLInputElement)?.value
                   const motto = (document.getElementById(`motto-${p.id}`) as HTMLInputElement)?.value
                   const keywords = (document.getElementById(`keywords-${p.id}`) as HTMLInputElement)?.value
+                  const price = (document.getElementById(`price-${p.id}`) as HTMLInputElement)?.value
+                  const priceLabel = (document.getElementById(`priceLabel-${p.id}`) as HTMLInputElement)?.value
                   await supabase.from('programs').update({
                     description: desc || null,
                     motto: motto || null,
@@ -107,6 +118,8 @@ export default function ProgramsTab({ programs, cohorts, enrollments, expandedPr
                     session_day: day || null,
                     session_time: time || null,
                     duration_weeks: duration ? parseInt(duration) : null,
+                    price: price ? parseFloat(price) : null,
+                    price_label: priceLabel || null,
                   }).eq('id', p.id)
                   showSuccess(`${p.name} updated.`)
                   setExpandedProgram(null)
