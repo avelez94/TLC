@@ -7,7 +7,7 @@ type CohortsTabProps = Pick<AdminPanel,
   'cohorts' | 'programs' | 'enrollments' | 'cohortSessions' | 'reps' |
   'showCohortForm' | 'setShowCohortForm' | 'newCohort' | 'setNewCohort' | 'handleCreateCohort' | 'actionLoading' |
   'expandedCohort' | 'setExpandedCohort' | 'handleUpdateCohortStatus' | 'fetchAll' |
-  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession'
+  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession' | 'handleDeleteCohort'
 >
 
 type SectionKey = 'details' | 'content' | 'reading' | 'schedule' | 'participants'
@@ -101,11 +101,73 @@ function DescriptionEditor({ cohortId, initialValue, onSave }: { cohortId: strin
   )
 }
 
+// Type-to-confirm delete modal. Requires the admin to type the exact word
+// DELETE before the button becomes clickable, so an accidental double-click
+// on the wrong cohort can't wipe out real data.
+function DeleteCohortModal({ cohortName, onConfirm, onCancel, deleting }: { cohortName: string; onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
+  const [confirmText, setConfirmText] = useState('')
+  const canDelete = confirmText === 'DELETE'
+
+  return (
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,23,55,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1.5rem' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'white', borderRadius: '6px', padding: '2rem', maxWidth: '440px', width: '100%', borderTop: '4px solid #ff6b6b' }}
+      >
+        <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.4rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>
+          Delete this cohort?
+        </h3>
+        <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.65, marginBottom: '0.5rem' }}>
+          You are about to permanently delete <strong style={{ color: 'var(--navy)' }}>{cohortName}</strong>. This cannot be undone. Any sessions, enrollments, or reps tied to it may be affected.
+        </p>
+        <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+          Type <strong style={{ color: '#ff6b6b' }}>DELETE</strong> below to confirm.
+        </p>
+        <input
+          value={confirmText}
+          onChange={e => setConfirmText(e.target.value)}
+          placeholder="Type DELETE to confirm"
+          autoFocus
+          style={{ ...inputStyle, marginBottom: '1.25rem', borderColor: canDelete ? '#ff6b6b' : undefined }}
+        />
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel}
+            style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--slate)', borderRadius: '3px', padding: '0.6rem 1.25rem', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!canDelete || deleting}
+            style={{
+              background: canDelete ? '#ff6b6b' : 'rgba(255,107,107,0.35)',
+              border: 'none',
+              color: 'white',
+              borderRadius: '3px',
+              padding: '0.6rem 1.25rem',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: canDelete && !deleting ? 'pointer' : 'not-allowed',
+              fontFamily: 'var(--font-montserrat), sans-serif',
+            }}
+          >
+            {deleting ? 'Deleting...' : 'Delete Permanently'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CohortsTab({
   cohorts, programs, enrollments, cohortSessions, reps,
   showCohortForm, setShowCohortForm, newCohort, setNewCohort, handleCreateCohort, actionLoading,
   expandedCohort, setExpandedCohort, handleUpdateCohortStatus, fetchAll,
-  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession,
+  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession, handleDeleteCohort,
 }: CohortsTabProps) {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     details: true,
@@ -121,11 +183,23 @@ export default function CohortsTab({
   // actual saved value — this only drives the preview; saving still happens onBlur.
   const [bookImagePreview, setBookImagePreview] = useState<Record<string, string>>({})
   const [bookImageError, setBookImageError] = useState<Record<string, boolean>>({})
+  const [deleteModalCohortId, setDeleteModalCohortId] = useState<string | null>(null)
+  const [deletingCohort, setDeletingCohort] = useState(false)
 
   const saveDescription = async (cohortId: string, html: string) => {
     await supabase.from('cohorts').update({ description: html || null }).eq('id', cohortId)
     fetchAll()
   }
+
+  const confirmDeleteCohort = async () => {
+    if (!deleteModalCohortId) return
+    setDeletingCohort(true)
+    await handleDeleteCohort(deleteModalCohortId)
+    setDeletingCohort(false)
+    setDeleteModalCohortId(null)
+  }
+
+  const cohortPendingDelete = cohorts.find(c => c.id === deleteModalCohortId)
 
   return (
     <div>
@@ -204,6 +278,15 @@ export default function CohortsTab({
           {expandedCohort === c.id && (
             <div style={{ marginTop: '1.25rem', paddingTop: '0.25rem', borderTop: '1px solid var(--mist)' }}>
 
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteModalCohortId(c.id) }}
+                  style={{ background: 'none', border: '1px solid rgba(255,59,48,0.3)', color: 'rgba(255,59,48,0.7)', borderRadius: '2px', padding: '0.45rem 0.9rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                >
+                  Delete Cohort
+                </button>
+              </div>
+
               {/* DETAILS */}
               <div style={{ borderBottom: '1px solid var(--mist)' }}>
                 <SectionHeader title="Details" isOpen={openSections.details} onClick={() => toggleSection('details')} />
@@ -212,6 +295,12 @@ export default function CohortsTab({
                     <div>
                       <label style={labelStyle}>Cohort Name</label>
                       <input defaultValue={c.name} style={inputStyle} onBlur={async e => { if (e.target.value !== c.name) { await supabase.from('cohorts').update({ name: e.target.value }).eq('id', c.id); fetchAll() } }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Program</label>
+                      <select defaultValue={c.program_id} style={inputStyle} onChange={async e => { await supabase.from('cohorts').update({ program_id: e.target.value }).eq('id', c.id); fetchAll() }}>
+                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label style={labelStyle}>Status</label>
@@ -430,6 +519,15 @@ export default function CohortsTab({
           )}
         </div>
       ))}
+
+      {deleteModalCohortId && cohortPendingDelete && (
+        <DeleteCohortModal
+          cohortName={cohortPendingDelete.name}
+          onConfirm={confirmDeleteCohort}
+          onCancel={() => setDeleteModalCohortId(null)}
+          deleting={deletingCohort}
+        />
+      )}
     </div>
   )
 }
