@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AdminPanel } from '../useAdminPanel'
 import { cardStyle, inputStyle, labelStyle, statusBadge } from './shared'
@@ -7,7 +7,7 @@ type CohortsTabProps = Pick<AdminPanel,
   'cohorts' | 'programs' | 'enrollments' | 'cohortSessions' | 'reps' |
   'showCohortForm' | 'setShowCohortForm' | 'newCohort' | 'setNewCohort' | 'handleCreateCohort' | 'actionLoading' |
   'expandedCohort' | 'setExpandedCohort' | 'handleUpdateCohortStatus' | 'fetchAll' |
-  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession' | 'handleDeleteCohort'
+  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession' | 'handleDeleteCohort' | 'handleDuplicateCohort'
 >
 
 type SectionKey = 'details' | 'content' | 'reading' | 'schedule' | 'participants'
@@ -167,7 +167,7 @@ export default function CohortsTab({
   cohorts, programs, enrollments, cohortSessions, reps,
   showCohortForm, setShowCohortForm, newCohort, setNewCohort, handleCreateCohort, actionLoading,
   expandedCohort, setExpandedCohort, handleUpdateCohortStatus, fetchAll,
-  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession, handleDeleteCohort,
+  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession, handleDeleteCohort, handleDuplicateCohort,
 }: CohortsTabProps) {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     details: true,
@@ -185,6 +185,21 @@ export default function CohortsTab({
   const [bookImageError, setBookImageError] = useState<Record<string, boolean>>({})
   const [deleteModalCohortId, setDeleteModalCohortId] = useState<string | null>(null)
   const [deletingCohort, setDeletingCohort] = useState(false)
+  const [openMenuCohortId, setOpenMenuCohortId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close the three-dot action menu whenever the admin clicks anywhere else
+  // on the page, not just when they pick an action from it.
+  useEffect(() => {
+    if (!openMenuCohortId) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuCohortId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openMenuCohortId])
 
   const saveDescription = async (cohortId: string, html: string) => {
     await supabase.from('cohorts').update({ description: html || null }).eq('id', cohortId)
@@ -278,13 +293,35 @@ export default function CohortsTab({
           {expandedCohort === c.id && (
             <div style={{ marginTop: '1.25rem', paddingTop: '0.25rem', borderTop: '1px solid var(--mist)' }}>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative' }}>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setDeleteModalCohortId(c.id) }}
-                  style={{ background: 'none', border: '1px solid rgba(255,59,48,0.3)', color: 'rgba(255,59,48,0.7)', borderRadius: '2px', padding: '0.45rem 0.9rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuCohortId(openMenuCohortId === c.id ? null : c.id) }}
+                  aria-label="Cohort actions"
+                  style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '4px', width: '32px', height: '32px', fontSize: '1rem', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  Delete Cohort
+                  &#8942;
                 </button>
+                {openMenuCohortId === c.id && (
+                  <div
+                    ref={menuRef}
+                    onClick={e => e.stopPropagation()}
+                    style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid rgba(0,23,55,0.12)', borderRadius: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 10, minWidth: '160px', overflow: 'hidden' }}
+                  >
+                    <button
+                      onClick={async () => { setOpenMenuCohortId(null); await handleDuplicateCohort(c.id) }}
+                      disabled={actionLoading}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.65rem 1rem', background: 'none', border: 'none', color: 'var(--navy)', fontSize: '0.82rem', cursor: 'pointer' }}
+                    >
+                      Duplicate
+                    </button>
+                    <button
+                      onClick={() => { setOpenMenuCohortId(null); setDeleteModalCohortId(c.id) }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.65rem 1rem', background: 'none', border: 'none', borderTop: '1px solid var(--mist)', color: 'rgba(255,59,48,0.85)', fontSize: '0.82rem', cursor: 'pointer' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* DETAILS */}
