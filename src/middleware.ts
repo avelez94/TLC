@@ -1,7 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { canAccess, homeForRole, isProtectedPath, normalizeRole } from '@/lib/access'
+import { assertSafeEnvironment } from '@/lib/env-guard'
 
+// Note: Next.js 16 deprecates `middleware` in favour of `proxy`. Renaming also switches the
+// runtime from edge to Node.js, so it is left as a separate, tested change.
 export async function middleware(request: NextRequest) {
+  assertSafeEnvironment(process.env)
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -24,30 +29,24 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  const protectedRoutes = ['/coaching-portal', '/impact-portal', '/admin']
-  const isProtected = protectedRoutes.some(route =>
-    request.nextUrl.pathname.startsWith(route)
-  )
+  const { pathname } = request.nextUrl
+  const isProtected = isProtectedPath(pathname)
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Redirect logged in users away from login page
-  if (request.nextUrl.pathname === '/login' && user) {
+  if (user && (isProtected || pathname === '/login')) {
+    // Role comes from profiles (readable by its owner under RLS), never from user metadata.
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
+    const role = normalizeRole(profile?.role)
 
-    if (profile?.role === 'admin') {
-      return NextResponse.redirect(new URL('/admin', request.url))
-    } else if (profile?.role === 'coaching_client') {
-      return NextResponse.redirect(new URL('/coaching-portal', request.url))
-    } else {
-      return NextResponse.redirect(new URL('/impact-portal', request.url))
+    if (pathname === '/login' || !canAccess(pathname, role)) {
+      return NextResponse.redirect(new URL(homeForRole(role), request.url))
     }
   }
 

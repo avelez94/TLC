@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test \"tests/unit/**/*.test.ts\"",
+    "test:rls": "supabase/tests/rls/run.sh"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.8.0",

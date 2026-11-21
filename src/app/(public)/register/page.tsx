@@ -1,5 +1,6 @@
 'use client'
 
+import { sanitizeRichText } from '@/lib/sanitize-html'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -72,6 +73,7 @@ function RegisterContent() {
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<'program' | 'cohort' | 'form' | 'success'>('program')
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -138,6 +140,7 @@ function RegisterContent() {
     e.preventDefault()
     if (!selectedCohort || !selectedProgram) return
     setSubmitting(true)
+    setSubmitError('')
 
     try {
       const res = await fetch('/api/checkout', {
@@ -151,20 +154,18 @@ function RegisterContent() {
           why: form.why,
           program_id: selectedProgram.id,
           cohort_id: selectedCohort.id,
-          program_name: selectedProgram.name,
-          cohort_name: selectedCohort.name,
-          price: selectedProgram.price,
         }),
       })
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
       } else {
-        console.error('Checkout error:', data.error)
+        setSubmitError(data.error || 'We could not start checkout. Please try again or contact us.')
         setSubmitting(false)
       }
     } catch (err) {
       console.error('Registration failed:', err)
+      setSubmitError('We could not reach the server. Please check your connection and try again.')
       setSubmitting(false)
     }
   }
@@ -335,7 +336,7 @@ function RegisterContent() {
                     {cohort.description && (
                       <div
                         style={{ order: 2, color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '1.25rem', whiteSpace: 'pre-wrap' }}
-                        dangerouslySetInnerHTML={{ __html: cohort.description }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(cohort.description) }}
                       />
                     )}
                     <div className="cohort-details-grid" style={{ order: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.25rem' }}>
@@ -471,6 +472,9 @@ function RegisterContent() {
               >
                 {submitting ? 'Redirecting to payment...' : `Continue to Payment — ${selectedProgram.price_label}`}
               </button>
+              {submitError && (
+                <p role="alert" style={{ color: '#B3261E', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center', lineHeight: 1.5 }}>{submitError}</p>
+              )}
               <p style={{ color: 'var(--slate)', fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.6 }}>
                 After payment you will receive a confirmation email with your registration details. Your Learning Hub invitation and program information will follow shortly.
               </p>

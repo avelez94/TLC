@@ -1,7 +1,15 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { assertSafeEnvironment } from './env-guard'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Next.js inlines these at build time, so the guard sees the same values in the browser.
+assertSafeEnvironment({
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  ALLOW_PRODUCTION_SERVICES: process.env.NEXT_PUBLIC_ALLOW_PRODUCTION_SERVICES,
+})
 
-// Browser client — use in client components
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)

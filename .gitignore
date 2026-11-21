@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# allow the template (no secrets)
+!.env.example
+
+# confidential incident material: never commit
+/confidential/

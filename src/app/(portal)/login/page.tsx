@@ -49,8 +49,14 @@ export default function Login() {
     }
 
     if (data.user) {
-      // Read role from user metadata — no database round trip, works on all devices
-      const role = data.user.user_metadata?.role || 'impact_participant'
+      // Role must come from profiles: user_metadata is editable by the user themselves and
+      // goes stale when an admin changes someone's role. Server-side checks use profiles too.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+      const role = profile?.role || 'impact_participant'
 
       if (role === 'admin') {
         router.push('/admin')

@@ -1,15 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
-import Stripe from 'stripe'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/supabase-server'
+import { requireAdmin, supabaseAdmin } from '@/lib/supabase-server'
+import { getStripe } from '@/lib/stripe'
+import { esc, sendEmail, FROM_TLC } from '@/lib/email'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+const MAX_AMOUNT_DOLLARS = 20000
+const isPositive = (n: unknown, max: number): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= max
 
 function describeSessions(sessions: number, minutesPerSession: number): string {
   const numberWords: Record<number, string> = { 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven', 8: 'Eight', 9: 'Nine', 10: 'Ten' }
@@ -36,15 +31,15 @@ function emailShell(bodyHtml: string) {
 
 function newClientEmail(name: string, sessionDescription: string, amount: number, paymentUrl: string) {
   return emailShell(`
-    <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Hi ${name},</p>
+    <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Hi ${esc(name)},</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Thank you for choosing TLC Leadership Consulting & Coaching.</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Your coaching engagement has been confirmed. To reserve your coaching sessions, please complete the payment request below.</p>
     <div style="background: #F7F5F0; border-left: 3px solid #C88820; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;">
       <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #C88820; margin: 0 0 0.5rem;">Coaching Engagement</p>
-      <p style="margin: 0 0 0.5rem;">${sessionDescription}</p>
+      <p style="margin: 0 0 0.5rem;">${esc(sessionDescription)}</p>
       <p style="margin: 0; font-weight: 700; color: #001737;">Investment: $${amount.toFixed(2)}</p>
     </div>
-    <a href="${paymentUrl}" style="display: inline-block; background: #C88820; color: #001737; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1.5rem; border-radius: 2px;">Pay Now</a>
+    <a href="${esc(paymentUrl)}" style="display: inline-block; background: #C88820; color: #001737; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1.5rem; border-radius: 2px;">Pay Now</a>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Once your payment is received, you'll receive a welcome email with your next steps, including your coaching agreement (if applicable), intake questionnaire, and information to help you prepare for your first session.</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">If you have any questions, please don't hesitate to reach out. I look forward to working with you.</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-top: 2rem; color: #4A5260;">Tramaine L. Crawford<br/>TLC Leadership Consulting & Coaching</p>
@@ -54,14 +49,14 @@ function newClientEmail(name: string, sessionDescription: string, amount: number
 
 function existingClientEmail(name: string, hours: number, amount: number, paymentUrl: string) {
   return emailShell(`
-    <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Hi ${name},</p>
+    <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Hi ${esc(name)},</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">I hope you're doing well.</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">This is a friendly reminder to submit your payment for your upcoming coaching session. You can complete your payment using the link below.</p>
     <div style="background: #F7F5F0; border-left: 3px solid #C88820; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;">
-      <p style="margin: 0 0 0.5rem;">Coaching Session - ${hours} hours</p>
+      <p style="margin: 0 0 0.5rem;">Coaching Session - ${esc(hours)} hours</p>
       <p style="margin: 0; font-weight: 700; color: #001737;">Amount Due: $${amount.toFixed(2)}</p>
     </div>
-    <a href="${paymentUrl}" style="display: inline-block; background: #C88820; color: #001737; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1.5rem; border-radius: 2px;">Pay Now</a>
+    <a href="${esc(paymentUrl)}" style="display: inline-block; background: #C88820; color: #001737; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1.5rem; border-radius: 2px;">Pay Now</a>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">Once your payment is received, your session will be confirmed.</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-bottom: 1.5rem;">If you have any questions, please let me know. I look forward to continuing our work together.</p>
     <p style="font-size: 1rem; line-height: 1.75; margin-top: 2rem; color: #4A5260;">Tramaine L. Crawford<br/>TLC Leadership Consulting & Coaching</p>
@@ -75,19 +70,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder')
-
   try {
     const { user_id, amount, hours, sessions, minutes_per_session, client_type } = await request.json()
 
-    if (!user_id || !amount || (client_type !== 'new' && client_type !== 'existing')) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (typeof user_id !== 'string' || !isPositive(amount, MAX_AMOUNT_DOLLARS) || (client_type !== 'new' && client_type !== 'existing')) {
+      return NextResponse.json({ error: `Amount must be between $0.01 and $${MAX_AMOUNT_DOLLARS}` }, { status: 400 })
     }
-    if (client_type === 'new' && (!sessions || !minutes_per_session)) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (client_type === 'new' && (!Number.isInteger(sessions) || !isPositive(sessions, 100) || !Number.isInteger(minutes_per_session) || !isPositive(minutes_per_session, 600))) {
+      return NextResponse.json({ error: 'Enter a whole number of sessions and minutes per session' }, { status: 400 })
     }
-    if (client_type === 'existing' && !hours) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (client_type === 'existing' && !isPositive(hours, 500)) {
+      return NextResponse.json({ error: 'Enter the number of hours' }, { status: 400 })
     }
 
     const { data: client, error: profileError } = await supabaseAdmin
@@ -105,7 +98,7 @@ export async function POST(request: Request) {
       ? `Coaching Engagement — ${sessionDescription}`
       : `Coaching Session — ${hours} hour${hours === 1 ? '' : 's'}`
 
-    const paymentLink = await stripe.paymentLinks.create({
+    const paymentLink = await getStripe().paymentLinks.create({
       line_items: [
         {
           price_data: {
@@ -128,8 +121,8 @@ export async function POST(request: Request) {
       ? newClientEmail(name, sessionDescription, amount, paymentLink.url)
       : existingClientEmail(name, hours, amount, paymentLink.url)
 
-    await resend.emails.send({
-      from: 'TLC Leadership <noreply@contact.tramainecrawford.com>',
+    await sendEmail({
+      from: FROM_TLC,
       to: client.email,
       subject,
       html,
