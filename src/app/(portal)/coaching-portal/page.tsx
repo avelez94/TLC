@@ -55,11 +55,25 @@ export default function CoachingPortal() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    if (profileData) setProfile(profileData)
+    // Your own full record (email, phone, organization) via my_profile(); other people's
+    // contact details are not readable from the browser.
+    const { data: mine, error: mineError } = await supabase.rpc('my_profile').maybeSingle()
+    if (!mineError && mine) {
+      setProfile(mine)
+    } else {
+      const { data: profileData } = await supabase.from('profiles').select('id, full_name, role').eq('id', user.id).single()
+      if (profileData) setProfile({ ...profileData, email: user.email ?? null })
+    }
 
-    // Get admin user (Tramaine) for messaging
-    const { data: adminData } = await supabase.from('profiles').select('*').eq('role', 'admin').single()
+    // The coach to message: the earliest admin account (Tramaine). With more than one admin,
+    // .single() used to fail and left messaging unavailable.
+    const { data: adminData } = await supabase
+      .from('profiles')
+      .select('id, full_name, role')
+      .eq('role', 'admin')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
     if (adminData) setTramaine(adminData)
 
     const [

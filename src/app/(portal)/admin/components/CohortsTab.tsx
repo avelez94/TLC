@@ -1,3 +1,4 @@
+import { sanitizeRichText } from '@/lib/sanitize-html'
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AdminPanel } from '../useAdminPanel'
@@ -40,7 +41,7 @@ function DescriptionEditor({ cohortId, initialValue, onSave }: { cohortId: strin
 
   const handleBlur = () => {
     if (editorRef.current) {
-      onSave(editorRef.current.innerHTML)
+      onSave(sanitizeRichText(editorRef.current.innerHTML))
     }
     setShowColorPicker(false)
   }
@@ -86,7 +87,7 @@ function DescriptionEditor({ cohortId, initialValue, onSave }: { cohortId: strin
         contentEditable
         suppressContentEditableWarning
         onBlur={handleBlur}
-        dangerouslySetInnerHTML={{ __html: initialValue }}
+        dangerouslySetInnerHTML={{ __html: sanitizeRichText(initialValue) }}
         style={{
         ...inputStyle,
         minHeight: '100px',

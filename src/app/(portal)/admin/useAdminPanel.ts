@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment, JournalPrompt } from '@/types'
 
+// Every cohorts column except zoom_link, which signed-in users cannot read directly.
+const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description'
+
 export function useAdminPanel() {
   const [loading, setLoading] = useState(true)
 
@@ -81,19 +84,21 @@ export function useAdminPanel() {
       { data: resourcesData },
       { data: certsData },
       { data: enrollmentsData },
-      userLoginsResult,
+      meetingLinksResult,
     ] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      // Full user records (contact details, rates, last sign-in) come from an admin-only route.
+      fetch('/api/admin/users').then(r => r.ok ? r.json() : null).then(d => ({ data: d?.users as Profile[] | undefined })).catch(() => ({ data: undefined })),
       supabase.from('programs').select('*').order('name'),
-      supabase.from('cohorts').select('*, programs(name)').order('created_at', { ascending: false }),
+      supabase.from('cohorts').select(`${COHORT_COLUMNS}, programs(name)`).order('created_at', { ascending: false }),
       supabase.from('weekly_reps').select('*, cohorts(name)').order('week_number'),
       supabase.from('journal_prompts').select('*, programs(name)').order('sort_order'),
-      supabase.from('community_posts').select('*, profiles(full_name, email, role), cohorts(name), community_likes(user_id), community_comments(*, profiles(full_name, role))').order('created_at', { ascending: false }),
+      supabase.from('community_posts').select('*, profiles(full_name, role), cohorts(name), community_likes(user_id), community_comments(*, profiles(full_name, role))').order('created_at', { ascending: false }),
       supabase.from('announcements').select('*, cohorts(name)').order('created_at', { ascending: false }),
       supabase.from('resources').select('*, programs(name)').order('created_at', { ascending: false }),
-      supabase.from('certificates').select('*, profiles(full_name, email), programs(name)').order('issued_at', { ascending: false }),
-      supabase.from('cohort_enrollments').select('*, profiles(full_name, email, role), cohorts(name)').order('enrolled_at', { ascending: false }),
-      fetch('/api/admin/user-logins').then(r => r.ok ? r.json() : null).catch(() => null),
+      supabase.from('certificates').select('*, profiles(full_name), programs(name)').order('issued_at', { ascending: false }),
+      supabase.from('cohort_enrollments').select('*, profiles(full_name, role), cohorts(name)').order('enrolled_at', { ascending: false }),
+      // Meeting links are not readable column-by-column; this function returns them to admins.
+      supabase.rpc('cohort_meeting_links'),
     ])
     const { data: registrationsData } = await supabase
       .from('registrations')
@@ -103,19 +108,34 @@ export function useAdminPanel() {
       .from('cohort_sessions')
       .select('*')
       .order('session_number')
+    const emailById: Record<string, string | null> = {}
     if (usersData) {
-      const lastSignIns: Record<string, string | null> = userLoginsResult?.lastSignIns || {}
-      setUsers(usersData.map(u => ({ ...u, last_sign_in_at: lastSignIns[u.id] ?? null })))
+      setUsers(usersData)
+      for (const u of usersData) emailById[u.id] = u.email
     }
     if (programsData) setPrograms(programsData)
-    if (cohortsData) setCohorts(cohortsData)
+    if (cohortsData) {
+      const links: Record<string, string> = {}
+      let linkRows = meetingLinksResult.data as { cohort_id: string; zoom_link: string }[] | null
+      if (meetingLinksResult.error) {
+        // Before the phase-2 migration the function does not exist but the column is
+        // readable; never show blank links (an admin edit would then erase them).
+        const { data: direct } = await supabase.from('cohorts').select('id, zoom_link')
+        linkRows = (direct ?? []).map((d: { id: string; zoom_link: string | null }) => ({ cohort_id: d.id, zoom_link: d.zoom_link ?? '' }))
+      }
+      for (const l of linkRows ?? []) if (l.zoom_link) links[l.cohort_id] = l.zoom_link
+      setCohorts((cohortsData as unknown as Cohort[]).map(c => ({ ...c, zoom_link: links[c.id] ?? null })))
+    }
     if (repsData) setReps(repsData)
     if (journalPromptsData) setJournalPrompts(journalPromptsData)
     if (communityPostsData) setCommunityPosts(communityPostsData)
     if (announcementsData) setAnnouncements(announcementsData)
     if (resourcesData) setResources(resourcesData)
-    if (certsData) setCertificates(certsData)
-    if (enrollmentsData) setEnrollments(enrollmentsData)
+    // Re-attach emails (admin-only data) to embedded profiles for display.
+    const withEmail = <T extends { user_id: string; profiles?: unknown }>(rows: T[]) =>
+      rows.map(r => ({ ...r, profiles: r.profiles ? { ...(r.profiles as object), email: emailById[r.user_id] ?? null } : r.profiles }))
+    if (certsData) setCertificates(withEmail(certsData) as Certificate[])
+    if (enrollmentsData) setEnrollments(withEmail(enrollmentsData) as CohortEnrollment[])
     if (registrationsData) setRegistrations(registrationsData)
     if (cohortSessionsData) setCohortSessions(cohortSessionsData)
     setLoading(false)

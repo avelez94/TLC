@@ -1,3 +1,4 @@
+import { STORAGE_PREFIX } from '@/lib/resource-links'
 import { supabase } from '@/lib/supabase'
 import type { AdminPanel } from '../useAdminPanel'
 import { cardStyle, inputStyle, labelStyle, thStyle, tdStyle } from './shared'
@@ -76,14 +77,19 @@ export default function ResourcesTab({ resources, programs, showResourceForm, se
                   const file = e.target.files?.[0]
                   if (!file) return
                   setActionLoading(true)
-                  const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`
-                  const { data, error } = await supabase.storage.from('resources').upload(fileName, file)
+                  if (file.size > 50 * 1024 * 1024) {
+                    showSuccess('That file is larger than 50 MB. Please upload a smaller file or paste a link instead.')
+                    setActionLoading(false)
+                    return
+                  }
+                  const fileName = `${Date.now()}-${file.name.replace(/[^A-Za-z0-9._-]+/g, '-')}`
+                  const { data, error } = await supabase.storage.from('resources').upload(fileName, file, { contentType: file.type })
                   if (!error && data) {
-                    const { data: urlData } = supabase.storage.from('resources').getPublicUrl(fileName)
-                    setNewResource({ ...newResource, url: urlData.publicUrl })
+                    // Private bucket: store the path; participants open it through a signed URL.
+                    setNewResource({ ...newResource, url: `${STORAGE_PREFIX}${data.path}` })
                     showSuccess(`File uploaded: ${file.name}`)
                   } else {
-                    showSuccess('Upload failed. Try again.')
+                    showSuccess(`Upload failed: ${error?.message ?? 'please try again.'}`)
                   }
                   setActionLoading(false)
                 }}

@@ -5,6 +5,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { safeHref } from '@/lib/sanitize-html'
+import { resourceOpenHref } from '@/lib/resource-links'
+
+// Every cohorts column except zoom_link (members get their link via cohort_meeting_links()).
+const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description'
 
 type Page = 'dashboard' | 'programs' | 'cohort' | 'reps' | 'journal' | 'community' | 'announcements' | 'library' | 'assessments' | 'evaluations' | 'progress' | 'my-impact' | 'certificates' | 'profile'
 type CommunityTab = 'posts' | 'members' | 'chat'
@@ -52,6 +57,8 @@ export default function ImpactPortal() {
   const [activeRep, setActiveRep] = useState<string | null>(null)
   const [repReflection, setRepReflection] = useState('')
   const [journalEntry, setJournalEntry] = useState('')
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editEntryBody, setEditEntryBody] = useState('')
   const [newPost, setNewPost] = useState('')
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editPostBody, setEditPostBody] = useState('')
@@ -82,12 +89,15 @@ export default function ImpactPortal() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    if (profileData) setProfile(profileData)
+    // Directory columns only; the sign-in email comes from the auth session.
+    const { data: profileData } = await supabase.from('profiles').select('id, full_name, role').eq('id', user.id).single()
+    if (profileData) setProfile({ ...profileData, email: user.email ?? null })
 
+    // !inner makes the cohort-status filter apply to the enrollment itself, so a
+    // participant whose only cohort has finished gets the empty state, not a crash.
     const { data: enrollmentData } = await supabase
       .from('cohort_enrollments')
-      .select('*, cohorts(*, programs(*))')
+      .select(`*, cohorts!inner(${COHORT_COLUMNS}, programs(*))`)
       .eq('user_id', user.id)
       .eq('status', 'active')
       .in('cohorts.status', ['active', 'upcoming'])
@@ -98,7 +108,15 @@ export default function ImpactPortal() {
     if (enrollmentData) {
       setEnrollment(enrollmentData)
       const c = enrollmentData.cohorts
-      setCohort(c)
+      const { data: links, error: linksError } = await supabase.rpc('cohort_meeting_links')
+      let zoom: string | null = null
+      if (!linksError) {
+        zoom = (links as { cohort_id: string; zoom_link: string }[] | null)?.find(l => l.cohort_id === c.id)?.zoom_link ?? null
+      } else {
+        const { data: direct } = await supabase.from('cohorts').select('zoom_link').eq('id', c.id).maybeSingle()
+        zoom = (direct as { zoom_link: string | null } | null)?.zoom_link ?? null
+      }
+      setCohort({ ...c, zoom_link: zoom })
       setProgram(c?.programs)
 
       const [
@@ -167,7 +185,7 @@ export default function ImpactPortal() {
     }
   }, [cohortMessages, page, communityTab])
 
-  const isRepCompleted = (repId: string) => submissions.some(s => s.weekly_rep_id === repId)
+  const isRepCompleted = (repId: string) => submissions.some(s => s.rep_id === repId)
 
   const currentCohortWeek = (() => {
     if (!cohort?.start_date) return 1
@@ -198,15 +216,17 @@ export default function ImpactPortal() {
     if (!repReflection.trim() || !activeRep || !profile) return
     setActionLoading(true)
     const { error } = await supabase.from('weekly_rep_submissions').insert({
-      weekly_rep_id: activeRep,
+      rep_id: activeRep,
       user_id: profile.id,
-      reflection: repReflection,
+      reflection: repReflection.trim(),
     })
     if (!error) {
       showSuccess('Rep submitted!')
       setActiveRep(null)
       setRepReflection('')
       fetchAll()
+    } else {
+      showSuccess(error.code === '23505' ? 'You already submitted this rep.' : 'Your reflection could not be saved. Please try again.')
     }
     setActionLoading(false)
   }
@@ -214,14 +234,38 @@ export default function ImpactPortal() {
   const handleSaveJournal = async () => {
     if (!journalEntry.trim() || !profile) return
     setActionLoading(true)
-    await supabase.from('journal_entries').insert({
+    const { error } = await supabase.from('journal_entries').insert({
       user_id: profile.id,
-      body: journalEntry,
-      prompt: currentJournalPrompt,
+      portal_type: 'impact',
+      program_id: program?.id ?? null,
+      body: journalEntry.trim(),
+      prompt_used: currentJournalPrompt,
     })
-    setJournalEntry('')
-    showSuccess('Entry saved.')
-    fetchAll()
+    if (error) {
+      showSuccess('Your entry could not be saved. Please try again.')
+    } else {
+      setJournalEntry('')
+      showSuccess('Entry saved.')
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  const handleSaveJournalEdit = async (entryId: string) => {
+    if (!editEntryBody.trim()) return
+    setActionLoading(true)
+    const { error, count } = await supabase
+      .from('journal_entries')
+      .update({ body: editEntryBody.trim() }, { count: 'exact' })
+      .eq('id', entryId)
+    if (error || count === 0) {
+      showSuccess('Your changes could not be saved. Please try again.')
+    } else {
+      setEditingEntryId(null)
+      setEditEntryBody('')
+      showSuccess('Entry updated.')
+      fetchAll()
+    }
     setActionLoading(false)
   }
 
@@ -437,7 +481,7 @@ export default function ImpactPortal() {
                     {cohort.start_date && <div><span style={labelStyle}>Start Date</span><p style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>{new Date(cohort.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>}
                     {cohort.end_date && <div><span style={labelStyle}>End Date</span><p style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>{new Date(cohort.end_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>}
                     {cohort.session_day && cohort.session_time && <div><span style={labelStyle}>Sessions</span><p style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>{cohort.session_day}s at {(() => { const [h, m] = cohort.session_time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm} ET` })()}</p></div>}
-                    {cohort.zoom_link && <div><span style={labelStyle}>Zoom Link</span><a href={cohort.zoom_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.88rem' }}>Join Session</a></div>}
+                    {safeHref(cohort.zoom_link) && <div><span style={labelStyle}>Zoom Link</span><a href={safeHref(cohort.zoom_link)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.88rem' }}>Join Session</a></div>}
                   </div>
                   <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Session Schedule</h3>
                   {cohortSessions.length === 0 ? (
@@ -465,7 +509,7 @@ export default function ImpactPortal() {
               {reps.map(rep => {
                 const completed = isRepCompleted(rep.id)
                 return (
-                  <div key={rep.id} style={{ ...cardStyle, borderLeft: `4px solid ${completed ? 'var(--gold)' : 'var(--mist)'}`, cursor: 'pointer' }} onClick={() => { setActiveRep(rep.id); const sub = submissions.find(s => s.weekly_rep_id === rep.id); setRepReflection(sub?.reflection || '') }}>
+                  <div key={rep.id} style={{ ...cardStyle, borderLeft: `4px solid ${completed ? 'var(--gold)' : 'var(--mist)'}`, cursor: 'pointer' }} onClick={() => { setActiveRep(rep.id); const sub = submissions.find(s => s.rep_id === rep.id); setRepReflection(sub?.reflection || '') }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
@@ -489,7 +533,7 @@ export default function ImpactPortal() {
             const rep = reps.find(r => r.id === activeRep)
             if (!rep) return null
             const completed = isRepCompleted(rep.id)
-            const sub = submissions.find(s => s.weekly_rep_id === rep.id)
+            const sub = submissions.find(s => s.rep_id === rep.id)
             return (
               <div>
                 <button onClick={() => setActiveRep(null)} style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.85rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600 }}>&#8592; Back to reps</button>
@@ -501,7 +545,7 @@ export default function ImpactPortal() {
                   <span style={labelStyle}>Reflection — What happened when you did this rep?</span>
                   <textarea value={repReflection} onChange={e => setRepReflection(e.target.value)} placeholder="Write your reflection here..." rows={5} style={{ ...inputStyle, resize: 'vertical' }} disabled={completed} />
                   {!completed && <button onClick={handleSubmitRep} disabled={actionLoading} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>{actionLoading ? 'Submitting...' : 'Submit Rep'}</button>}
-                  {completed && <p style={{ color: 'var(--gold)', fontSize: '0.82rem', marginTop: '0.75rem', fontFamily: 'var(--font-jetbrains), monospace', letterSpacing: '0.1em' }}>Submitted on {new Date(sub?.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>}
+                  {completed && <p style={{ color: 'var(--gold)', fontSize: '0.82rem', marginTop: '0.75rem', fontFamily: 'var(--font-jetbrains), monospace', letterSpacing: '0.1em' }}>Submitted on {new Date(sub?.completed_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>}
                 </div>
               </div>
             )
@@ -524,8 +568,22 @@ export default function ImpactPortal() {
                   <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--gold)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>
                     {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   </span>
-                  {entry.prompt && <p style={{ color: 'var(--slate)', fontSize: '0.8rem', fontStyle: 'italic', marginBottom: '0.5rem' }}>{entry.prompt}</p>}
-                  <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7 }}>{entry.body}</p>
+                  {entry.prompt_used && <p style={{ color: 'var(--slate)', fontSize: '0.8rem', fontStyle: 'italic', marginBottom: '0.5rem' }}>{entry.prompt_used}</p>}
+                  {editingEntryId === entry.id ? (
+                    <div>
+                      <label htmlFor={`edit-${entry.id}`} style={{ ...labelStyle }}>Edit entry</label>
+                      <textarea id={`edit-${entry.id}`} value={editEntryBody} onChange={e => setEditEntryBody(e.target.value)} rows={5} style={{ ...inputStyle, resize: 'vertical' }} />
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <button onClick={() => handleSaveJournalEdit(entry.id)} disabled={actionLoading || !editEntryBody.trim()} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.45rem 1rem' }}>{actionLoading ? 'Saving...' : 'Save changes'}</button>
+                        <button onClick={() => { setEditingEntryId(null); setEditEntryBody('') }} style={{ background: 'none', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.45rem 1rem', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ color: 'var(--ink)', fontSize: '0.88rem', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{entry.body}</p>
+                      <button onClick={() => { setEditingEntryId(entry.id); setEditEntryBody(entry.body ?? '') }} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.75rem', cursor: 'pointer', marginTop: '0.5rem', padding: 0, fontFamily: 'var(--font-montserrat), sans-serif' }}>✎ Edit</button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -776,7 +834,7 @@ export default function ImpactPortal() {
                         <span style={{ color: 'var(--ink)', fontSize: '0.88rem', fontWeight: 500 }}>{r.title}</span>
                         {r.description && <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.78rem' }}>{r.description}</span>}
                       </div>
-                      {r.url && <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: '2px', padding: '0.3rem 0.75rem', fontSize: '0.72rem', textDecoration: 'none', flexShrink: 0 }}>View</a>}
+                      {resourceOpenHref(r) && <a href={resourceOpenHref(r)} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: '2px', padding: '0.3rem 0.75rem', fontSize: '0.72rem', textDecoration: 'none', flexShrink: 0 }}>View</a>}
                     </div>
                   ))}
                 </div>
