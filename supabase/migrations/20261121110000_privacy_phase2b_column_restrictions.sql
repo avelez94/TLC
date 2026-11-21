@@ -1,6 +1,6 @@
 -- =====================================================================================
 -- PRIVACY HARDENING 2b (COLUMN RESTRICTIONS) — TLC Leadership (project jpgvclclgnyfguatuihx)
--- Status: NOT APPLIED. Apply ONLY AFTER the application release from this branch is live:
+-- Status: APPLIED to production 2026-11-21 17:2x UTC, after release 5752e5e went live. Requires that release:
 -- the older code reads profiles.* and cohorts.* directly and would break.
 --
 --  * Signed-in users can read only directory columns of profiles (id, full_name, role,

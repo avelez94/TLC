@@ -1,6 +1,6 @@
 -- =====================================================================================
 -- PRIVACY HARDENING 2a (ADDITIVE) — TLC Leadership (project jpgvclclgnyfguatuihx)
--- Status: NOT APPLIED. Safe with the code currently in production: it only adds
+-- Status: APPLIED to production 2026-11-21 (privacy_phase2a_additive_20261121). It only adds
 -- functions, columns, indexes and a table, and makes the (empty) resources bucket private.
 -- Deployment order: 2a -> deploy application release -> 2b.
 --
