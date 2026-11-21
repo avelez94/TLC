@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { escapeHtml, escapeMultiline, cleanLine, cleanText, isValidEmail, safeHttpUrl, createRateLimiter, clientIp } from '../../src/lib/security.ts'
-import { resolveCheckoutPrice } from '../../src/lib/checkout-pricing.ts'
-import { canAccess, homeForRole, isProtectedPath, normalizeRole } from '../../src/lib/access.ts'
-import { environmentProblems, assertSafeEnvironment, emailRecipient, PRODUCTION_SUPABASE_REF } from '../../src/lib/env-guard.ts'
+import { escapeHtml, escapeMultiline, cleanLine, cleanText, isValidEmail, safeHttpUrl, createRateLimiter, clientIp } from '../../src/lib/security'
+import { resolveCheckoutPrice } from '../../src/lib/checkout-pricing'
+import { canAccess, homeForRole, isProtectedPath, normalizeRole } from '../../src/lib/access'
+import { environmentProblems, assertSafeEnvironment, emailRecipient, PRODUCTION_SUPABASE_REF } from '../../src/lib/env-guard'
 
 // ---------------------------------------------------------------- email encoding
 test('escapeHtml neutralises markup, attributes and links', () => {
@@ -132,8 +132,8 @@ test('email goes to real recipients only outside known test environments', () =>
 })
 
 // ---------------------------------------------------------------- displayed vs charged price
-import { displayedDollars } from '../../src/lib/checkout-pricing.ts'
-import { sanitizeRichText, safeHref } from '../../src/lib/sanitize-html.ts'
+import { displayedDollars } from '../../src/lib/checkout-pricing'
+import { sanitizeRichText, safeHref } from '../../src/lib/sanitize-html'
 
 test('checkout refuses when the displayed price differs from the charged price', () => {
   assert.equal(displayedDollars('$97'), 97)

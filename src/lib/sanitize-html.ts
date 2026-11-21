@@ -1,7 +1,7 @@
 // Allow-list sanitizer for the small amount of admin-authored rich text (cohort
 // descriptions). Runs in the browser (uses DOMParser). Without a DOM it returns plain,
 // escaped text, so it never emits unsanitized markup.
-import { escapeHtml, safeHttpUrl } from './security.ts'
+import { escapeHtml, safeHttpUrl } from './security'
 
 const ALLOWED_TAGS = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'H3', 'H4', 'BLOCKQUOTE', 'SPAN', 'DIV'])
 const DROP_WITH_CONTENT = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'NOSCRIPT', 'TEMPLATE', 'SVG', 'MATH', 'FORM', 'INPUT', 'BUTTON', 'TEXTAREA', 'SELECT', 'LINK', 'META'])
