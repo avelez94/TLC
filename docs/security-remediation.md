@@ -58,6 +58,15 @@ After applying, verified live:
 3. Apply `20261121110000_privacy_phase2b_column_restrictions.sql` immediately after the deploy.
 Rollbacks for each are in `supabase/rollback/` and never run automatically.
 
+## Vercel preview build (2026-11-21)
+
+Bisected on Vercel: the unchanged production tree builds; production + this branch's
+`tsconfig.json` alone fails. Cause: `allowImportingTsExtensions` breaks `next/font/google`
+resolution under Turbopack on Vercel. Fixed by restoring production's `tsconfig.json` exactly;
+unit tests resolve imports through a Node hook instead. The branch now compiles and type-checks
+on Vercel, then stops at the environment guard ("preview is configured with the PRODUCTION
+Supabase project … LIVE Stripe secret key"), as designed, until Preview variables are separated.
+
 ## Tests
 
 - Database access matrix on a structural replica of production: before 41/79 failing (exposure reproduced) · after lockdown 79/79 · phase 2 31/31 · current production code paths after 2a 79/79 · rollback exact (124/124, 0 differences).
