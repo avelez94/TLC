@@ -7,6 +7,15 @@ import { rateLimit } from '@/lib/rate-limit'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(request: Request) {
+  // Owner decision 2026-11-21: online checkout stays closed until pathway pricing is set and
+  // approved. Re-open by setting CHECKOUT_ENABLED=true in Vercel (Production).
+  if (process.env.CHECKOUT_ENABLED !== 'true') {
+    return NextResponse.json(
+      { error: 'Online registration is not open right now. Please contact us and we will help you enroll.' },
+      { status: 503 }
+    )
+  }
+
   if (!(await rateLimit('checkout-ip', clientIp(request.headers), 8, 600))) {
     return NextResponse.json({ error: 'Too many attempts. Please wait a few minutes and try again.' }, { status: 429 })
   }
