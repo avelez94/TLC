@@ -1,8 +1,6 @@
 # Impact Lab Redesign, Inquiries and Admin Improvements: Test Summary
 
-**Status:** on branch `feature/impact-lab-revamp`, **not deployed**. Production still runs the
-security release (`5752e5e`). Database change `20261122000000_pathways_inquiries_admin.sql`
-(2c) is **not applied**.
+**Status:** **deployed 2026-11-22** (`main` = `a66b5da`, Vercel `dpl_CoB93KhQx89kpxBZ6ps3pucmFRg7`); migration 2c applied. See `docs/change-log.md` for the production record and `docs/admin-two-step-verification.md` for the admins' next step.
 
 ## Final design refinement (2026-11-22)
 
