@@ -34,6 +34,13 @@ for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_ad
   run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null
 done
 run -d rls_test -f "$HERE/04_checks_phase2.sql"
+echo "=== 2c: pathways, inquiries, audit/email logs ==="
+setup
+for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions 20261122000000_pathways_inquiries_admin; do
+  run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null
+done
+run -d rls_test -f "$HERE/05_checks_2c.sql"
+run -d rls_test -f "$HERE/04_checks_phase2.sql" | tail -3
 echo "=== COMPATIBILITY: current production code paths still work after 2a only ==="
 setup
 run -d rls_test -f "$ROOT/supabase/migrations/20261121000000_emergency_rls_lockdown.sql" >/dev/null
