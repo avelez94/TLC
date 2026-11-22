@@ -96,10 +96,12 @@ function RegisterContent() {
         supabase.from('program_includes').select('*').order('sort_order'),
       ])
       if (programsData) {
-        setPrograms(programsData)
+        // Historical programs stay in the database but are not offered (is_public = false).
+        const offered = programsData.filter((p: Program & { is_public?: boolean }) => p.is_public !== false)
+        setPrograms(offered)
         if (programSlug) {
-          const matched = programsData.find((p: Program) =>
-            p.name.toLowerCase().includes(programSlug.toLowerCase())
+          const matched = offered.find((p: Program & { slug?: string | null }) =>
+            p.slug === programSlug || p.name.toLowerCase().includes(programSlug.toLowerCase())
           )
           if (matched) {
             setSelectedProgram(matched)
@@ -210,7 +212,7 @@ function RegisterContent() {
           <div>
             <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>The Impact Lab</span>
             <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 5vw, 3.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Join a Cohort</h1>
-            <p style={{ color: 'var(--slate)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '2.5rem' }}>Choose the program that is right for where you are. Each one is designed to meet you at your current stage of growth.</p>
+            <p style={{ color: 'var(--slate)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '2.5rem' }}>Choose the pathway that fits your role today. Each pathway is independent: there are no prerequisites and no required order.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {programs.map(p => (

@@ -6,6 +6,11 @@ import { rateLimit } from '@/lib/rate-limit'
 const interestLabels: Record<string, string> = {
   consulting: 'Leadership Consulting',
   coaching: 'Performance & Success Coaching',
+  'emerging-leaders': 'The Impact Lab — Emerging Leaders',
+  'new-leaders': 'The Impact Lab — New Leaders',
+  'practicing-leaders': 'The Impact Lab — Practicing Leaders',
+  'impact-org': 'The Impact Lab — Organizational programs',
+  // legacy values from cached pages
   finders: 'The Impact Lab — Impact Finders',
   makers: 'The Impact Lab — Impact Makers',
   leaders: 'The Impact Lab — Impact Leaders',
@@ -42,6 +47,7 @@ export async function POST(request: Request) {
 
   try {
     await sendEmail({
+      template: 'contact_owner',
       from: FROM_WEBSITE,
       to: OWNER_INBOX,
       replyTo: email,
@@ -75,6 +81,7 @@ export async function POST(request: Request) {
     // can't be used to send arbitrary content to arbitrary addresses.
     const firstName = cleanLine(name.split(' ')[0], 40)
     await sendEmail({
+      template: 'contact_autoreply',
       from: FROM_TLC,
       to: email,
       subject: 'We received your message',

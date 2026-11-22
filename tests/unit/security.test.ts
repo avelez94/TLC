@@ -150,3 +150,20 @@ test('rich text without a DOM falls back to escaped plain text', () => {
   assert.equal(safeHref('javascript:alert(1)'), undefined)
   assert.equal(safeHref('https://zoom.us/j/1'), 'https://zoom.us/j/1')
 })
+
+// ---------------------------------------------------------------- pathways
+import { mergePathways, DEFAULT_PATHWAYS, LEGACY_ANCHORS } from '../../src/lib/pathways'
+
+test('pathways fall back to approved copy and never show price unless enrollment is open', () => {
+  assert.deepEqual(mergePathways(null).map(p => p.slug), ['emerging-leaders', 'new-leaders', 'practicing-leaders'])
+  const row = { id: 'x', slug: 'new-leaders', pathway_number: 2, name: 'New Leaders', tagline: 'Edited tagline', opening_statement: null, audience: null, description: null, leadership_goal: null, keywords: 'A, B', price_label: '$450', enrollment_open: false, is_public: true }
+  const merged = mergePathways([row])
+  const nl = merged.find(p => p.slug === 'new-leaders')!
+  assert.equal(nl.tagline, 'Edited tagline')
+  assert.deepEqual(nl.focus, ['A', 'B'])
+  assert.equal(nl.openingStatement, DEFAULT_PATHWAYS[1].openingStatement, 'empty fields keep approved copy')
+  assert.equal(nl.priceLabel, null, 'closed enrollment hides price')
+  assert.equal(mergePathways([{ ...row, enrollment_open: true }]).find(p => p.slug === 'new-leaders')!.priceLabel, '$450')
+  assert.equal(mergePathways([{ ...row, is_public: false, tagline: 'Hidden' }]).find(p => p.slug === 'new-leaders')!.tagline, DEFAULT_PATHWAYS[1].tagline)
+  assert.equal(LEGACY_ANCHORS.makers, 'new-leaders')
+})

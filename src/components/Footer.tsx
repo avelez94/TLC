@@ -24,9 +24,9 @@ export default function Footer() {
               <li><Link href="/coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Leadership &amp; Professional Coaching</Link></li>
               <li><Link href="/parent-coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Coaching for Parents</Link></li>
               <li><Link href="/impact" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>The Impact Lab</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#finders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Impact Finders</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#makers" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Impact Makers</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Impact Leaders</Link></li>
+              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#emerging-leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Emerging Leaders</Link></li>
+              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#new-leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>New Leaders</Link></li>
+              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#practicing-leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Practicing Leaders</Link></li>
             </ul>
           </div>
           <div>

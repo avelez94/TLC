@@ -20,6 +20,9 @@ interface Cohort {
 }
 
 const PROGRAM_LABELS: Record<string, string> = {
+  'emerging-leaders': 'Emerging Leaders',
+  'new-leaders': 'New Leaders',
+  'practicing-leaders': 'Practicing Leaders',
   finders: 'Impact Finders',
   makers: 'Impact Makers',
   leaders: 'Impact Leaders',
@@ -27,7 +30,7 @@ const PROGRAM_LABELS: Record<string, string> = {
 
 function ReadingContent() {
   const searchParams = useSearchParams()
-  const programSlug = searchParams.get('program') // e.g. "finders", "makers", "leaders"
+  const programSlug = searchParams.get('program') // e.g. "new-leaders" (legacy "finders"/"makers"/"leaders" still work)
 
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [loading, setLoading] = useState(true)

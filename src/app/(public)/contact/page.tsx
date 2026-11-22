@@ -127,9 +127,10 @@ export default function Contact() {
                       <option value="" disabled>Select an area</option>
                       <option value="consulting">Leadership Consulting</option>
                       <option value="coaching">Performance & Success Coaching</option>
-                      <option value="finders">The Impact Lab — Impact Finders</option>
-                      <option value="makers">The Impact Lab — Impact Makers</option>
-                      <option value="leaders">The Impact Lab — Impact Leaders</option>
+                      <option value="emerging-leaders">The Impact Lab — Emerging Leaders</option>
+                      <option value="new-leaders">The Impact Lab — New Leaders</option>
+                      <option value="practicing-leaders">The Impact Lab — Practicing Leaders</option>
+                      <option value="impact-org">The Impact Lab — Organizational programs</option>
                       <option value="speaking">Speaking</option>
                       <option value="other">Other</option>
                     </select>
