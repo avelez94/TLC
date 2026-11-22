@@ -8,7 +8,7 @@ type CohortsTabProps = Pick<AdminPanel,
   'cohorts' | 'programs' | 'enrollments' | 'cohortSessions' | 'reps' |
   'showCohortForm' | 'setShowCohortForm' | 'newCohort' | 'setNewCohort' | 'handleCreateCohort' | 'actionLoading' |
   'expandedCohort' | 'setExpandedCohort' | 'handleUpdateCohortStatus' | 'fetchAll' |
-  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession' | 'handleDeleteCohort' | 'handleDuplicateCohort'
+  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession' | 'handleDeleteCohort' | 'handleDuplicateCohort' | 'handleUpdateCohortCapacity'
 >
 
 type SectionKey = 'details' | 'content' | 'reading' | 'schedule' | 'participants'
@@ -168,7 +168,7 @@ export default function CohortsTab({
   cohorts, programs, enrollments, cohortSessions, reps,
   showCohortForm, setShowCohortForm, newCohort, setNewCohort, handleCreateCohort, actionLoading,
   expandedCohort, setExpandedCohort, handleUpdateCohortStatus, fetchAll,
-  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession, handleDeleteCohort, handleDuplicateCohort,
+  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession, handleDeleteCohort, handleDuplicateCohort, handleUpdateCohortCapacity,
 }: CohortsTabProps) {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     details: true,
@@ -234,7 +234,7 @@ export default function CohortsTab({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={labelStyle}>Cohort Name</label>
-              <input value={newCohort.name} onChange={e => setNewCohort({ ...newCohort, name: e.target.value })} placeholder="e.g. Impact Makers — Fall 2025" style={inputStyle} />
+              <input value={newCohort.name} onChange={e => setNewCohort({ ...newCohort, name: e.target.value })} placeholder="e.g. New Leaders — Spring 2027" style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Program</label>
@@ -254,9 +254,12 @@ export default function CohortsTab({
             <div>
               <label style={labelStyle}>Status</label>
               <select value={newCohort.status} onChange={e => setNewCohort({ ...newCohort, status: e.target.value })} style={inputStyle}>
-                <option value="upcoming">Upcoming</option>
-                <option value="active">Active</option>
+                <option value="draft">Draft (not shown publicly)</option>
+                <option value="upcoming">Upcoming (open for registration)</option>
+                <option value="active">Active (in progress)</option>
                 <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="archived">Archived</option>
               </select>
             </div>
             <div>
@@ -316,6 +319,12 @@ export default function CohortsTab({
                       Duplicate
                     </button>
                     <button
+                      onClick={async () => { setOpenMenuCohortId(null); await handleUpdateCohortStatus(c.id, 'archived') }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', background: 'none', border: 'none', fontSize: '0.82rem', color: 'var(--navy)', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}
+                    >
+                      Archive
+                    </button>
+                    <button
                       onClick={() => { setOpenMenuCohortId(null); setDeleteModalCohortId(c.id) }}
                       style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.65rem 1rem', background: 'none', border: 'none', borderTop: '1px solid var(--mist)', color: 'rgba(255,59,48,0.85)', fontSize: '0.82rem', cursor: 'pointer' }}
                     >
@@ -343,10 +352,18 @@ export default function CohortsTab({
                     <div>
                       <label style={labelStyle}>Status</label>
                       <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={inputStyle}>
-                        <option value="upcoming">Upcoming</option>
-                        <option value="active">Active</option>
+                        <option value="draft">Draft (not shown publicly)</option>
+                        <option value="upcoming">Upcoming (open for registration)</option>
+                        <option value="active">Active (in progress)</option>
                         <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="archived">Archived</option>
                       </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle} htmlFor={`capacity-${c.id}`}>Capacity <span style={{ textTransform: 'none', letterSpacing: 0 }}>(empty = no limit)</span></label>
+                      <input id={`capacity-${c.id}`} type="number" min={1} max={500} defaultValue={c.capacity ?? ''} placeholder="e.g. 20" style={inputStyle} onBlur={e => { if (e.target.value !== String(c.capacity ?? '')) handleUpdateCohortCapacity(c.id, e.target.value) }} />
+                      <span style={{ fontSize: '0.72rem', color: 'var(--slate)' }}>{enrollments.filter(en => en.cohort_id === c.id && en.status === 'active').length} active enrolled</span>
                     </div>
                     <div>
                       <label style={labelStyle}>Start Date</label>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin, supabaseAdmin } from '@/lib/supabase-server'
 import { getStripe } from '@/lib/stripe'
 import { esc, sendEmail, FROM_TLC } from '@/lib/email'
+import { audit } from '@/lib/audit'
 
 const MAX_AMOUNT_DOLLARS = 20000
 const isPositive = (n: unknown, max: number): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= max
@@ -122,12 +123,14 @@ export async function POST(request: Request) {
       : existingClientEmail(name, hours, amount, paymentLink.url)
 
     await sendEmail({
+      template: 'payment_request',
       from: FROM_TLC,
       to: client.email,
       subject,
       html,
     })
 
+    await audit(admin.id, 'payment_link.create', 'profile', user_id, { amount, client_type })
     return NextResponse.json({ success: true, url: paymentLink.url })
   } catch (err) {
     console.error('Create payment link error:', err)

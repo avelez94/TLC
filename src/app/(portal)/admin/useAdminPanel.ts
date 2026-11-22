@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment, JournalPrompt } from '@/types'
 
 // Every cohorts column except zoom_link, which signed-in users cannot read directly.
-const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description'
+const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description, capacity'
 
 export function useAdminPanel() {
   const [loading, setLoading] = useState(true)
@@ -89,7 +89,8 @@ export function useAdminPanel() {
       // Full user records (contact details, rates, last sign-in) come from an admin-only route.
       fetch('/api/admin/users').then(r => r.ok ? r.json() : null).then(d => ({ data: d?.users as Profile[] | undefined })).catch(() => ({ data: undefined })),
       supabase.from('programs').select('*').order('name'),
-      supabase.from('cohorts').select(`${COHORT_COLUMNS}, programs(name)`).order('created_at', { ascending: false }),
+      supabase.from('cohorts').select(`${COHORT_COLUMNS}, programs(name)`).order('created_at', { ascending: false })
+        .then(async r => r.error ? await supabase.from('cohorts').select(`${COHORT_COLUMNS.replace(', capacity', '')}, programs(name)`).order('created_at', { ascending: false }) : r),
       supabase.from('weekly_reps').select('*, cohorts(name)').order('week_number'),
       supabase.from('journal_prompts').select('*, programs(name)').order('sort_order'),
       supabase.from('community_posts').select('*, profiles(full_name, role), cohorts(name), community_likes(user_id), community_comments(*, profiles(full_name, role))').order('created_at', { ascending: false }),
@@ -192,13 +193,57 @@ export function useAdminPanel() {
     setActionLoading(false)
   }
 
+  // Admin activity log (append-only; admins can read it in Security). Best effort.
+  const logAction = async (action: string, entityType: string, entityId: string | null, details: Record<string, unknown> = {}) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('admin_audit_log').insert({ actor_id: user.id, action, entity_type: entityType, entity_id: entityId, details })
+  }
+
+  // Returning participants: enroll an existing account in another cohort (or reactivate).
+  const handleEnrollUser = async (userId: string, cohortId: string) => {
+    if (!userId || !cohortId) return
+    setActionLoading(true)
+    const existing = enrollments.find(e => e.user_id === userId && e.cohort_id === cohortId)
+    const { error } = existing
+      ? await supabase.from('cohort_enrollments').update({ status: 'active' }).eq('id', existing.id)
+      : await supabase.from('cohort_enrollments').insert({ user_id: userId, cohort_id: cohortId, status: 'active' })
+    if (error) {
+      showSuccess(error.code === '23505' ? 'That person is already enrolled in this cohort.' : `Could not enroll: ${error.message}`)
+    } else {
+      showSuccess(existing ? 'Enrollment reactivated.' : 'Participant enrolled.')
+      await logAction(existing ? 'enrollment.reactivate' : 'enrollment.create', 'cohort_enrollment', existing?.id ?? null, { user_id: userId, cohort_id: cohortId })
+      fetchAll()
+    }
+    setActionLoading(false)
+  }
+
+  // Withdraw keeps the record (history, certificates) instead of deleting it.
+  const handleWithdrawEnrollment = async (enrollmentId: string) => {
+    setActionLoading(true)
+    const { error } = await supabase.from('cohort_enrollments').update({ status: 'withdrawn' }).eq('id', enrollmentId)
+    if (error) showSuccess(`Could not update the enrollment: ${error.message}`)
+    else { showSuccess('Enrollment marked as withdrawn.'); await logAction('enrollment.withdraw', 'cohort_enrollment', enrollmentId); fetchAll() }
+    setActionLoading(false)
+  }
+
   const handleDeleteCohort = async (cohortId: string) => {
+    // Deleting a cohort cascades to its enrollments, posts, chat and sessions. Only allow it
+    // for cohorts with no participants or registrations; otherwise archive instead.
+    const hasEnrollments = enrollments.some(e => e.cohort_id === cohortId)
+    const hasRegistrations = registrations.some((r: { cohort_id: string }) => r.cohort_id === cohortId)
+    const hasCertificates = certificates.some(c => c.cohort_id === cohortId)
+    if (hasEnrollments || hasRegistrations || hasCertificates) {
+      showSuccess('This cohort has participants, registrations or certificates, so it cannot be deleted. Use Archive instead to keep its history.')
+      return
+    }
     setActionLoading(true)
     const { error } = await supabase.from('cohorts').delete().eq('id', cohortId)
     if (error) {
       showSuccess('Could not delete cohort. It may still have enrollments, sessions, or other linked records.')
     } else {
       showSuccess('Cohort deleted.')
+      await logAction('cohort.delete', 'cohort', cohortId)
       fetchAll()
     }
     setActionLoading(false)
@@ -413,7 +458,10 @@ export function useAdminPanel() {
   }
 
   const handleUpdateUserRole = async (userId: string, role: string) => {
-    await supabase.from('profiles').update({ role }).eq('id', userId)
+    const { error } = await supabase.from('profiles').update({ role }).eq('id', userId)
+    if (error) { showSuccess(`Could not change the role: ${error.message}`); return }
+    await logAction('user.role_change', 'profile', userId, { role })
+    showSuccess('Role updated.')
     fetchAll()
   }
 
@@ -482,8 +530,22 @@ export function useAdminPanel() {
   }
 
   const handleUpdateCohortStatus = async (cohortId: string, status: string) => {
-    await supabase.from('cohorts').update({ status }).eq('id', cohortId)
+    const { error } = await supabase.from('cohorts').update({ status }).eq('id', cohortId)
+    if (error) { showSuccess(`Could not change the status: ${error.message}`); return }
+    await logAction('cohort.status', 'cohort', cohortId, { status })
+    showSuccess(status === 'archived' ? 'Cohort archived. Its history is kept.' : 'Cohort status updated.')
     fetchAll()
+  }
+
+  const handleUpdateCohortCapacity = async (cohortId: string, value: string) => {
+    const capacity = value.trim() === '' ? null : parseInt(value, 10)
+    if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1 || capacity > 500)) {
+      showSuccess('Capacity must be a whole number between 1 and 500, or empty for no limit.')
+      return
+    }
+    const { error } = await supabase.from('cohorts').update({ capacity }).eq('id', cohortId)
+    if (error) showSuccess(`Could not save capacity: ${error.message}`)
+    else { showSuccess('Capacity saved.'); fetchAll() }
   }
 
   const handleUpdateRegistrationStatus = async (id: string, status: string) => {
@@ -629,7 +691,11 @@ export function useAdminPanel() {
     handleInvite,
     handleCreateCohort,
     handleDeleteCohort,
-    handleDuplicateCohort,    
+    handleDuplicateCohort,
+    handleUpdateCohortCapacity,
+    handleEnrollUser,
+    handleWithdrawEnrollment,
+    logAction,    
     handleCreateRep,
     handleUpdateRep,
     handleCreatePrompt,

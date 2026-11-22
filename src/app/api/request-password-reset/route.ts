@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const resetLink = data.properties.action_link
     try {
       await sendEmail({
+      template: 'password_reset',
         from: FROM_TLC,
         to: email,
         subject: 'Reset your TLC Leadership password',

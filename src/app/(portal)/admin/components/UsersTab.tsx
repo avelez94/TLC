@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { AdminPanel } from '../useAdminPanel'
 import { cardStyle, inputStyle, labelStyle, roleBadge, statusBadge } from './shared'
 
@@ -11,7 +12,8 @@ type UsersTabProps = Pick<AdminPanel,
   'billingMinutesPerSession' | 'setBillingMinutesPerSession' | 'billingClientType' | 'setBillingClientType' |
   'paymentLinkUrl' | 'setPaymentLinkUrl' | 'paymentRequestLoading' | 'handleSendPaymentRequest' |
   'resetEmailLoading' | 'handleSendResetEmail' |
-  'handleUpdateHourlyRate' | 'handleUpdateUserRole' | 'showSuccess'
+  'handleUpdateHourlyRate' | 'handleUpdateUserRole' | 'showSuccess' |
+  'handleEnrollUser' | 'handleWithdrawEnrollment' | 'actionLoading'
 >
 
 export default function UsersTab({
@@ -25,10 +27,16 @@ export default function UsersTab({
   paymentLinkUrl, setPaymentLinkUrl, paymentRequestLoading, handleSendPaymentRequest,
   resetEmailLoading, handleSendResetEmail,
   handleUpdateHourlyRate, handleUpdateUserRole, showSuccess,
+  handleEnrollUser, handleWithdrawEnrollment, actionLoading,
 }: UsersTabProps) {
+  const [search, setSearch] = useState('')
+  const [enrollPick, setEnrollPick] = useState<Record<string, string>>({})
   const impactUsers = users.filter(u => u.role === 'impact_participant')
   const coachingUsers = users.filter(u => u.role === 'coaching_client')
-  const filteredUsers = userFilter === 'all' ? users : users.filter(u => u.role === userFilter)
+  const q = search.trim().toLowerCase()
+  const filteredUsers = (userFilter === 'all' ? users : users.filter(u => u.role === userFilter))
+    .filter(u => !q || (u.full_name ?? '').toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q) || (u.organization ?? '').toLowerCase().includes(q))
+  const openCohorts = cohorts.filter(c => !['archived', 'cancelled', 'completed'].includes(c.status))
 
   return (
     <div>
@@ -120,6 +128,10 @@ export default function UsersTab({
       </div>
 
       <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+        <div style={{ margin: '0 0 1rem' }}>
+          <label htmlFor="user-search" style={labelStyle}>Search people</label>
+          <input id="user-search" type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, email or organization" style={{ ...inputStyle, maxWidth: '420px' }} />
+        </div>
         {filteredUsers.length === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--slate)', fontSize: '0.88rem' }}>No users yet. Invite someone to get started.</div>
         ) : (
@@ -303,6 +315,31 @@ export default function UsersTab({
                       )
                     })()}
 
+                    {user.role === 'impact_participant' && (
+                      <div style={{ margin: '0 0 1rem', padding: '0.9rem 1rem', background: 'var(--paper)', borderRadius: '4px' }}>
+                        <span style={labelStyle}>Cohort enrollments</span>
+                        {enrollments.filter(e => e.user_id === user.id).length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--slate)', margin: '0 0 0.5rem' }}>Not enrolled in any cohort.</p>}
+                        {enrollments.filter(e => e.user_id === user.id).map(e => (
+                          <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.35rem 0' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--ink)' }}>{(e.cohorts as { name?: string } | undefined)?.name ?? 'Cohort'}</span>
+                            {statusBadge(e.status)}
+                            {e.status === 'active' && (
+                              <button onClick={() => handleWithdrawEnrollment(e.id)} disabled={actionLoading} style={{ background: 'none', border: 'none', color: 'var(--slate)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>Mark withdrawn</button>
+                            )}
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                          <label htmlFor={`enroll-${user.id}`} style={{ position: 'absolute', left: '-9999px' }}>Enroll in cohort</label>
+                          <select id={`enroll-${user.id}`} value={enrollPick[user.id] ?? ''} onChange={e => setEnrollPick(prev => ({ ...prev, [user.id]: e.target.value }))} style={{ ...inputStyle, width: 'auto', minWidth: '220px' }}>
+                            <option value="">Enroll in a cohort…</option>
+                            {openCohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                          <button className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.45rem 0.9rem' }} disabled={!enrollPick[user.id] || actionLoading}
+                            onClick={async () => { await handleEnrollUser(user.id, enrollPick[user.id]); setEnrollPick(prev => ({ ...prev, [user.id]: '' })) }}>Enroll</button>
+                        </div>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--slate)', margin: '0.5rem 0 0' }}>Use this for returning participants. Their account, history and certificates stay the same.</p>
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--slate)' }}>Change role:</span>

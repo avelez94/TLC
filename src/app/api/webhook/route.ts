@@ -124,6 +124,7 @@ export async function POST(request: Request) {
 
   if (!reg.confirmation_email_sent_at) try {
     await sendEmail({
+      template: 'registration_confirmation',
       from: FROM_TLC,
       to: reg.email,
       subject: 'Your Impact Lab registration is confirmed',
@@ -161,6 +162,7 @@ export async function POST(request: Request) {
 
   if (!reg.owner_notified_at) try {
     await sendEmail({
+      template: 'registration_owner',
       from: FROM_PLATFORM,
       to: OWNER_INBOX,
       subject: `New Impact Lab registration — ${reg.full_name}`,

@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'coaching_client' | 'impact_participant'
-export type CohortStatus = 'active' | 'upcoming' | 'completed'
+export type CohortStatus = 'draft' | 'upcoming' | 'active' | 'completed' | 'archived' | 'cancelled'
 export type EnrollmentStatus = 'active' | 'completed' | 'withdrawn'
 export type SessionStatus = 'upcoming' | 'completed' | 'cancelled'
 
@@ -32,6 +32,7 @@ export interface Cohort {
   start_date: string | null
   end_date: string | null
   zoom_link: string | null
+  capacity?: number | null
   status: CohortStatus
   created_at: string
   programs?: { name: string }

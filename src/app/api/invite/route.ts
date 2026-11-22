@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin, supabaseAdmin } from '@/lib/supabase-server'
 import { esc, sendEmail, FROM_TLC } from '@/lib/email'
 import { cleanLine, isValidEmail } from '@/lib/security'
+import { audit } from '@/lib/audit'
 
 const ALLOWED_ROLES = ['impact_participant', 'coaching_client', 'admin'] as const
 type InviteRole = (typeof ALLOWED_ROLES)[number]
@@ -23,6 +24,45 @@ export async function POST(request: Request) {
 
     if (!isValidEmail(email) || !ALLOWED_ROLES.includes(role)) {
       return NextResponse.json({ error: 'A valid email and role are required' }, { status: 400 })
+    }
+
+    // Returning participant: the account already exists, so enroll them instead of inviting.
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles').select('id, full_name, role').ilike('email', email).maybeSingle()
+    if (existingProfile) {
+      if (role !== 'impact_participant' || !cohort_id) {
+        return NextResponse.json({ error: 'This email already has an account. To give them a new cohort, choose Impact Lab and a cohort, or use Users → Enroll in a cohort.' }, { status: 409 })
+      }
+      const { error: enrollError } = await supabaseAdmin
+        .from('cohort_enrollments')
+        .upsert({ user_id: existingProfile.id, cohort_id, status: 'active' }, { onConflict: 'cohort_id,user_id' })
+      if (enrollError) {
+        console.error('Invite: returning enrollment failed', enrollError.code)
+        return NextResponse.json({ error: 'Could not enroll the returning participant.' }, { status: 500 })
+      }
+      await audit(admin.id, 'enrollment.returning', 'profile', existingProfile.id, { cohort_id })
+      const { data: cohort } = await supabaseAdmin.from('cohorts').select('name').eq('id', cohort_id).maybeSingle()
+      try {
+        await sendEmail({
+          template: 'enrollment_returning',
+          from: FROM_TLC,
+          to: email,
+          subject: 'You are enrolled in your next Impact Lab cohort',
+          html: `
+            <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; color: #1C2430;">
+              <div style="background: #001737; padding: 2rem; text-align: center; margin-bottom: 2rem;"><h1 style="color: #C88820; font-size: 1.5rem; letter-spacing: 0.08em; margin: 0;">THE IMPACT LAB</h1></div>
+              <div style="padding: 0 1rem; font-size: 1rem; line-height: 1.75;">
+                <p>Hi ${esc(existingProfile.full_name || full_name || 'there')},</p>
+                <p>Welcome back. You are enrolled in <strong>${esc(cohort?.name ?? 'your new cohort')}</strong>. Sign in with your existing account to see your sessions and materials.</p>
+                <div style="text-align: center; margin: 2rem 0;"><a href="https://tramainecrawford.com/login" style="display: inline-block; background: #C88820; color: #001737; padding: 0.9rem 2rem; text-decoration: none; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 2px;">Sign In</a></div>
+                <p style="margin-top: 2rem; color: #4A5260;">Tramaine L. Crawford<br/>TLC Leadership Consulting &amp; Coaching</p>
+              </div>
+            </div>`,
+        })
+      } catch (emailErr) {
+        console.error('Invite: returning email failed', emailErr instanceof Error ? emailErr.message : emailErr)
+      }
+      return NextResponse.json({ success: true, returning: true, user: { id: existingProfile.id, email } })
     }
 
     // Generate the invite link ourselves (does NOT send Supabase's default email —
@@ -69,6 +109,7 @@ export async function POST(request: Request) {
       try {
         const roleLabel = role === 'coaching_client' ? 'Coaching Portal' : role === 'admin' ? 'Admin Panel' : 'Impact Portal'
         await sendEmail({
+      template: 'invite',
           from: FROM_TLC,
           to: email,
           subject: "You've been invited to TLC Leadership",
@@ -98,6 +139,7 @@ export async function POST(request: Request) {
       }
     }
 
+    await audit(admin.id, 'user.invite', 'profile', userId, { role, cohort_id })
     return NextResponse.json({ success: true, user: { id: userId, email } })
   } catch (err) {
     console.error('Invite error:', err instanceof Error ? err.message : err)
