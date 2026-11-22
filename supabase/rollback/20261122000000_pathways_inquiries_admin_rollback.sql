@@ -30,8 +30,10 @@ update public.programs set is_public = false, enrollment_open = false
 
 alter table public.programs drop constraint if exists programs_pathway_text_lengths;
 
--- Cohort statuses: 2c widened the allowed list (adds draft, archived, cancelled). The
--- previous rule is recorded before deployment (see docs/redesign-test-summary.md, checklist step 3);
--- re-create it by hand after moving any cohorts out of the new statuses. Until then the
--- 2c rule stays, which still allows every status the older code uses.
+-- Cohort statuses: restore the rule production had before 2c (recorded 2026-11-22:
+-- active / upcoming / completed). This fails, and the whole rollback is undone, if any
+-- cohort is still Draft, Archived or Cancelled: change those cohorts first.
+alter table public.cohorts drop constraint if exists cohorts_status_check;
+alter table public.cohorts add constraint cohorts_status_check
+  check (status = any (array['active'::text, 'upcoming'::text, 'completed'::text]));
 commit;
