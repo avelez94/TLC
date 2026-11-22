@@ -30,6 +30,10 @@ DIR="$(find "$WORK" -maxdepth 1 -type d -name 'tlc-prod-*' | head -1)"
 psql() { "$PGBIN/psql" -X -q -v ON_ERROR_STOP=1 "$@"; }
 psql -f "$ROOT/supabase/tests/rls/00_supabase_stub.sql" >/dev/null
 psql -f "$ROOT/supabase/tests/rls/01_live_replica.sql" >/dev/null
+# Bring the local structure up to what production runs (migrations applied there, in order).
+for m in ${APPLIED_MIGRATIONS:-20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions}; do
+  psql -f "$ROOT/supabase/migrations/$m.sql" >/dev/null 2>&1
+done
 
 # auth.users ids/emails so profile foreign keys resolve
 node -e '

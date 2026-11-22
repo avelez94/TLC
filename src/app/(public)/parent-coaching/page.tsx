@@ -47,7 +47,7 @@ export default function ParentCoaching() {
     <>
       {/* HERO */}
       <section aria-label="Parent coaching introduction">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch', minHeight: '100svh', paddingTop: '115px' }} className="hero-split">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch', minHeight: '100svh', paddingTop: 'var(--nav-h)' }} className="hero-split">
           <div style={{ background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)' }}>
             <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ flex: '0 0 2.5rem', height: '1px', background: 'var(--gold)' }} aria-hidden="true" />

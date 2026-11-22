@@ -44,12 +44,12 @@ export default function Nav() {
       <div style={{
         maxWidth: '1140px', margin: '0 auto',
         padding: '0 clamp(1.25rem, 5vw, 2.75rem)',
-        height: '115px', display: 'flex',
+        height: 'var(--nav-h)', display: 'flex',
         alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
       }}>
         {/* Logo */}
         <Link href="/" onClick={closeAll} aria-label="TLC Leadership Home">
-          <Image src="/images/tlc-logo.png" alt="TLC Leadership Consulting and Coaching" width={120} height={105} style={{ height: '105px', width: 'auto' }} priority />
+          <Image src="/images/tlc-logo.png" alt="TLC Leadership Consulting and Coaching" width={120} height={105} className="nav-logo" style={{ width: 'auto' }} priority />
         </Link>
 
         {/* Hamburger */}
@@ -57,7 +57,7 @@ export default function Nav() {
           onClick={() => setMenuOpen(!menuOpen)}
           aria-expanded={menuOpen}
           aria-label="Open navigation menu"
-          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: 'white', flexDirection: 'column', gap: '5px' }}
+          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', minWidth: '44px', minHeight: '44px', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column', gap: '5px' }}
           className="nav-hamburger"
         >
           <span style={{ display: 'block', width: '24px', height: '2px', background: 'currentColor', borderRadius: '1px', transition: 'transform 0.2s, opacity 0.2s', transform: menuOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
@@ -114,13 +114,14 @@ export default function Nav() {
 
       <style>{`
         .nav-hamburger { display: none; }
+        .nav-logo { height: calc(var(--nav-h) - 10px); }
         .nav-links { display: flex; align-items: center; gap: 0.15rem; list-style: none; }
         .nav-links a { font-family: 'Montserrat', sans-serif; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.7); text-decoration: none; padding: 0.4rem 0.85rem; border-radius: 3px; transition: color 0.15s, background 0.15s; white-space: nowrap; cursor: pointer; }
         .nav-links a:hover { color: white; background: rgba(255,255,255,0.07); }
         .nav-dropdown-toggle { font-family: 'Montserrat', sans-serif; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.04em; color: rgba(255,255,255,0.7); background: none; border: none; cursor: pointer; padding: 0.4rem 0.85rem; border-radius: 3px; display: flex; align-items: center; gap: 0.35rem; transition: color 0.15s, background 0.15s; white-space: nowrap; }
         .nav-dropdown-toggle:hover { color: white; background: rgba(255,255,255,0.07); }
         .nav-dropdown-arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid rgba(255,255,255,0.5); transition: transform 0.2s; flex-shrink: 0; }
-        .nav-dropdown-menu { position: fixed; top: 115px; background: var(--navy2); border: 1px solid rgba(200,136,32,0.2); border-radius: 4px; min-width: 240px; padding: 0.5rem 0; box-shadow: 0 12px 32px rgba(0,0,0,0.35); z-index: 9999; }
+        .nav-dropdown-menu { position: fixed; top: var(--nav-h); background: var(--navy2); border: 1px solid rgba(200,136,32,0.2); border-radius: 4px; min-width: 240px; padding: 0.5rem 0; box-shadow: 0 12px 32px rgba(0,0,0,0.35); z-index: 9999; }
         .nav-dropdown-menu a { display: block; padding: 0.65rem 1.25rem; font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.15s, background 0.15s; }
         .nav-dropdown-menu a:hover { color: white; background: rgba(255,255,255,0.07); }
         .nav-dropdown-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 0.35rem 0; }
@@ -131,7 +132,7 @@ export default function Nav() {
         @media (max-width: 900px) {
           .nav-hamburger { display: flex !important; }
           .nav-cta-wrap { display: none !important; }
-          .nav-links { display: none; position: fixed; top: 115px; left: 0; right: 0; bottom: 0; background: var(--navy3); flex-direction: column; align-items: stretch; padding: 1.5rem 0; gap: 0; border-top: 2px solid var(--gold); overflow-y: auto; z-index: 9998; }
+          .nav-links { display: none; position: fixed; top: var(--nav-h); left: 0; right: 0; bottom: 0; background: var(--navy3); flex-direction: column; align-items: stretch; padding: 1.5rem 0; gap: 0; border-top: 2px solid var(--gold); overflow-y: auto; z-index: 9998; }
           .nav-links.open { display: flex; }
           .nav-links > li { width: 100%; }
           .nav-links a { font-size: 1.1rem; padding: 1.2rem 2rem; width: 100%; display: block; border-bottom: 1px solid rgba(255,255,255,0.05); }

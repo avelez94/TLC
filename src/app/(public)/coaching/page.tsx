@@ -39,7 +39,7 @@ export default function Coaching() {
   return (
     <>
       {/* HERO */}
-      <section aria-label="Leadership and professional coaching" style={{ paddingTop: '115px' }}>
+      <section aria-label="Leadership and professional coaching" style={{ paddingTop: 'var(--nav-h)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '0.68fr 1.32fr', alignItems: 'stretch', minHeight: '78vh' }} className="hero-split">
           <div style={{ background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)' }}>
             <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>

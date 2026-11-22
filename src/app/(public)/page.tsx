@@ -17,7 +17,7 @@ export default function Home() {
     <>
       {/* HERO */}
       <section aria-label="Introduction">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch', minHeight: '100svh', paddingTop: '115px' }} className="hero-split">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch', minHeight: '100svh', paddingTop: 'var(--nav-h)' }} className="hero-split">
           <div style={{ background: 'var(--navy)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)', position: 'relative', zIndex: 1 }}>
             <div className="reveal" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: 'clamp(1.5rem, 3vw, 2.5rem)' }}>
               <div style={{ flex: '0 0 3rem', height: '1px', background: 'rgba(200,136,32,0.4)' }} aria-hidden="true" />
