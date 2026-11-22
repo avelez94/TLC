@@ -8,34 +8,34 @@ export default function Footer() {
         <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: '3rem', marginBottom: '3rem' }} className="footer-grid">
           <div>
             <Image src="/images/tlc-logo.png" alt="TLC Leadership Consulting and Coaching" width={200} height={168} style={{ height: '168px', width: 'auto', marginBottom: '0.75rem' }} />
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', lineHeight: 1.75, marginTop: '1rem' }}>
+            <p style={{ color: 'rgba(255,255,255,0.68)', fontSize: '0.85rem', lineHeight: 1.75, marginTop: '1rem' }}>
               Helping people grow, lead, and create greater impact. Individuals and organizations, from the front line to the executive suite.
             </p>
             <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <a href="mailto:contact@tramainecrawford.com" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>contact@tramainecrawford.com</a>
-              <a href="tel:+12025991381" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem' }}>(202) 599-1381</a>
-              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.78rem', lineHeight: 1.6 }}>2001 L St NW, Suite 500{'\n'}Washington, DC 20036</span>
+              <a href="tel:+12025991381" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.78rem' }}>(202) 599-1381</a>
+              <span style={{ color: 'rgba(255,255,255,0.58)', fontSize: '0.78rem', lineHeight: 1.6 }}>2001 L St NW, Suite 500{'\n'}Washington, DC 20036</span>
             </div>
           </div>
           <div>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase' as const, color: 'var(--gold)', marginBottom: '1.1rem', display: 'block' }}>Services</span>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li><Link href="/consulting" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Leadership Consulting</Link></li>
-              <li><Link href="/coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Leadership &amp; Professional Coaching</Link></li>
-              <li><Link href="/parent-coaching" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Coaching for Parents</Link></li>
-              <li><Link href="/impact" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>The Impact Lab</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#emerging-leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Emerging Leaders</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#new-leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>New Leaders</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#practicing-leaders" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', opacity: 0.7 }}>Practicing Leaders</Link></li>
+              <li><Link href="/consulting" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>Leadership Consulting</Link></li>
+              <li><Link href="/coaching" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>Leadership &amp; Professional Coaching</Link></li>
+              <li><Link href="/parent-coaching" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>Coaching for Parents</Link></li>
+              <li><Link href="/impact" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>The Impact Lab</Link></li>
+              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#emerging-leaders" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.78rem' }}>Emerging Leaders</Link></li>
+              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#new-leaders" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.78rem' }}>New Leaders</Link></li>
+              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#practicing-leaders" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.78rem' }}>Practicing Leaders</Link></li>
             </ul>
           </div>
           <div>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase' as const, color: 'var(--gold)', marginBottom: '1.1rem', display: 'block' }}>TLC</span>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li><Link href="/about" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>About Tramaine</Link></li>
-              <li><Link href="/resources" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Resources</Link></li>
-              <li><Link href="/contact" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Contact</Link></li>
-              <li><a href="https://www.linkedin.com/in/mrcrawfordceo/" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>LinkedIn</a></li>
+              <li><Link href="/about" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>About Tramaine</Link></li>
+              <li><Link href="/resources" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>Resources</Link></li>
+              <li><Link href="/contact" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>Contact</Link></li>
+              <li><a href="https://www.linkedin.com/in/mrcrawfordceo/" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.85rem' }}>LinkedIn</a></li>
             </ul>
             <div style={{ marginTop: '2rem' }}>
               <a href="https://calendly.com/tramainecrawford/30-minute-zoom-meeting?month=2026-07" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.7rem 1.35rem' }}>Schedule a Conversation</a>
@@ -43,12 +43,12 @@ export default function Footer() {
           </div>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' as const }}>
-          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>&copy; 2025 TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.2)' }}>
+          <p style={{ color: 'rgba(255,255,255,0.58)', fontSize: '0.75rem' }}>&copy; {new Date().getFullYear()} TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.55)' }}>
         Develop Leaders. Solve Problems. Create Impact.
   {' · '}
   Made with <span style={{ color: 'var(--gold)' }}>♥</span> by{' '}
-  <a href="https://alantevelez.com" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'underline' }}>
+  <a href="https://alantevelez.com" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>
     Alante Velez
   </a>
 </span>

@@ -1,4 +1,4 @@
-import { STORAGE_PREFIX } from '@/lib/resource-links'
+import { STORAGE_PREFIX, resourceOpenHref } from '@/lib/resource-links'
 import { supabase } from '@/lib/supabase'
 import type { AdminPanel } from '../useAdminPanel'
 import { cardStyle, inputStyle, labelStyle, thStyle, tdStyle } from './shared'
@@ -102,7 +102,9 @@ export default function ResourcesTab({ resources, programs, showResourceForm, se
             {newResource.url && (
               <div style={{ gridColumn: '1 / -1' }}>
                 <div style={{ background: 'rgba(200,136,32,0.06)', border: '1px solid rgba(200,136,32,0.2)', borderRadius: '4px', padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--slate)' }}>
-                  Ready to save: <a href={newResource.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', wordBreak: 'break-all' }}>{newResource.url}</a>
+                  {newResource.url.startsWith(STORAGE_PREFIX)
+                    ? <>Ready to save: uploaded file <strong style={{ color: 'var(--navy)', wordBreak: 'break-all' }}>{newResource.url.slice(STORAGE_PREFIX.length).replace(/^\d+-/, '')}</strong> (stored privately; participants open it through a secure, expiring link)</>
+                    : <>Ready to save: <a href={newResource.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', wordBreak: 'break-all' }}>{newResource.url}</a></>}
                 </div>
               </div>
             )}
@@ -128,9 +130,12 @@ export default function ResourcesTab({ resources, programs, showResourceForm, se
                   <tr key={r.id}>
                     <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{r.title}</span>{r.description && <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.75rem' }}>{r.description}</span>}</td>
                     <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'uppercase' }}>{r.type}</span></td>
-                    <td style={tdStyle}>{(r.programs as any)?.name || 'All'}</td>
-                    <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{r.portal_type}</span></td>
-                    <td style={tdStyle}><button onClick={() => handleDeleteResource(r.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.6)', fontSize: '0.75rem', cursor: 'pointer' }}>Remove</button></td>
+                    <td style={tdStyle}>{(r.programs as any)?.name || (r.portal_type === 'coaching' ? '—' : 'All programs')}</td>
+                    <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--gold)', textTransform: 'uppercase' }}>{r.portal_type === 'both' ? 'Both portals' : r.portal_type === 'coaching' ? 'Coaching' : 'Impact Lab'}</span></td>
+                    <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                      {resourceOpenHref(r) && <a href={resourceOpenHref(r)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--navy)', fontSize: '0.75rem', fontWeight: 600, marginRight: '1rem' }}>Open</a>}
+                      <button onClick={() => handleDeleteResource(r.id)} style={{ background: 'none', border: 'none', color: '#b3261e', fontSize: '0.75rem', cursor: 'pointer' }}>Remove</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

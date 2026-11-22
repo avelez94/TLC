@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Pathway } from '@/lib/pathways'
-import { PATHWAY_SELECTED_EVENT } from './PathwaySelector'
+import { OPEN_INQUIRY_EVENT, type OpenInquiryDetail } from './inquiry-events'
 import s from './impact.module.css'
 
 type Kind = 'organization' | 'individual'
@@ -21,15 +21,17 @@ export default function InquiryForm({ pathways }: { pathways: Pathway[] }) {
   const [done, setDone] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
 
-  // "Inquire about <pathway>" buttons preselect that pathway.
+  // Buttons elsewhere on the page open the form for an audience and, optionally, a pathway.
   useEffect(() => {
-    const onPick = (e: Event) => {
-      const slug = (e as CustomEvent<string>).detail
-      setSelected([slug])
+    const onOpen = (e: Event) => {
+      const { kind: k, pathway } = (e as CustomEvent<OpenInquiryDetail>).detail
+      setKind(k)
+      if (pathway) setSelected([pathway])
+      setErrors({})
       setDone(null)
     }
-    window.addEventListener(PATHWAY_SELECTED_EVENT, onPick)
-    return () => window.removeEventListener(PATHWAY_SELECTED_EVENT, onPick)
+    window.addEventListener(OPEN_INQUIRY_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_INQUIRY_EVENT, onOpen)
   }, [])
 
   const toggle = (slug: string) =>

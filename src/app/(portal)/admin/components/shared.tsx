@@ -1,20 +1,23 @@
 export type Page = 'dashboard' | 'registrations' | 'inquiries' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'certificates' | 'reports' | 'security'
 
-export const navItems: { id: Page; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
-  { id: 'registrations', label: 'Registrations', icon: '📥' },
-  { id: 'inquiries', label: 'Inquiries', icon: '✉️' },
-  { id: 'users', label: 'Users', icon: '👥' },
-  { id: 'programs', label: 'Pathways & Programs', icon: '🎯' },
-  { id: 'cohorts', label: 'Cohorts', icon: '📅' },
-  { id: 'reps', label: 'Weekly Reps', icon: '⚡' },
-  { id: 'prompts', label: 'Journal Prompts', icon: '📝' },
-  { id: 'community', label: 'Community', icon: '💬' },
-  { id: 'announcements', label: 'Announcements', icon: '📢' },
-  { id: 'resources', label: 'Resources', icon: '📚' },
-  { id: 'certificates', label: 'Certificates', icon: '🏆' },
-  { id: 'reports', label: 'Reports', icon: '📈' },
-  { id: 'security', label: 'Security', icon: '🔒' },
+export type NavGroup = 'Overview' | 'People' | 'Programs' | 'Participant experience' | 'Insights & security'
+
+// Grouped so the owner can find things by task. Order within a group is the order shown.
+export const navItems: { id: Page; label: string; icon: string; group: NavGroup }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: '⊞', group: 'Overview' },
+  { id: 'inquiries', label: 'Inquiries', icon: '✉️', group: 'People' },
+  { id: 'registrations', label: 'Registrations', icon: '📥', group: 'People' },
+  { id: 'users', label: 'Participants & Users', icon: '👥', group: 'People' },
+  { id: 'programs', label: 'Pathways & Programs', icon: '🎯', group: 'Programs' },
+  { id: 'cohorts', label: 'Cohorts', icon: '📅', group: 'Programs' },
+  { id: 'certificates', label: 'Certificates', icon: '🏆', group: 'Programs' },
+  { id: 'resources', label: 'Resources', icon: '📚', group: 'Participant experience' },
+  { id: 'announcements', label: 'Announcements', icon: '📢', group: 'Participant experience' },
+  { id: 'reps', label: 'Weekly Reps', icon: '⚡', group: 'Participant experience' },
+  { id: 'prompts', label: 'Journal Prompts', icon: '📝', group: 'Participant experience' },
+  { id: 'community', label: 'Community', icon: '💬', group: 'Participant experience' },
+  { id: 'reports', label: 'Reports', icon: '📈', group: 'Insights & security' },
+  { id: 'security', label: 'Security', icon: '🔒', group: 'Insights & security' },
 ]
 
 export const cardStyle = { background: 'white', borderRadius: '6px', border: '1px solid rgba(0,23,55,0.08)', padding: '1.5rem', marginBottom: '1.25rem' }

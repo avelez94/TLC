@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -17,10 +17,13 @@ function Sidebar({ activeId, onSignOut }: { activeId: string; onSignOut: () => v
         </div>
       </div>
       <nav style={{ flex: 1, padding: '0.75rem 0' }}>
-        {navItems.map(({ id, label, icon }) => (
-          <Link key={id} href={`/admin/${id}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 1.25rem', background: activeId === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${activeId === id ? 'var(--gold)' : 'transparent'}`, color: activeId === id ? 'var(--gold)' : 'rgba(255,255,255,0.5)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif', textDecoration: 'none' }}>
-            <span>{icon}</span>{label}
+        {navItems.map(({ id, label, icon, group }, i) => (
+          <Fragment key={id}>
+          {navItems[i - 1]?.group !== group && <p style={{ padding: '1rem 1.25rem 0.35rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>{group}</p>}
+          <Link href={`/admin/${id}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 1.25rem', background: activeId === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${activeId === id ? 'var(--gold)' : 'transparent'}`, color: activeId === id ? 'var(--gold)' : 'rgba(255,255,255,0.72)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif', textDecoration: 'none' }}>
+            <span aria-hidden="true">{icon}</span>{label}
           </Link>
+          </Fragment>
         ))}
       </nav>
       <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -76,10 +79,13 @@ function AdminShell({ children }: { children: ReactNode }) {
       {mobileNavOpen && (
         <div style={{ position: 'fixed', top: '64px', left: 0, right: 0, bottom: 0, background: 'var(--navy3)', zIndex: 199, overflowY: 'auto', borderTop: '2px solid var(--gold)' }}>
           <div style={{ padding: '1rem 0' }}>
-            {navItems.map(({ id, label, icon }) => (
-              <Link key={id} href={`/admin/${id}`} onClick={() => setMobileNavOpen(false)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '1rem 1.5rem', background: activeId === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${activeId === id ? 'var(--gold)' : 'transparent'}`, borderBottom: '1px solid rgba(255,255,255,0.05)', color: activeId === id ? 'var(--gold)' : 'rgba(255,255,255,0.65)', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-montserrat), sans-serif', textDecoration: 'none' }}>
-                <span>{icon}</span>{label}
+            {navItems.map(({ id, label, icon, group }, i) => (
+              <Fragment key={id}>
+              {navItems[i - 1]?.group !== group && <p style={{ padding: '1rem 1.5rem 0.4rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>{group}</p>}
+              <Link href={`/admin/${id}`} onClick={() => setMobileNavOpen(false)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '1rem 1.5rem', background: activeId === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${activeId === id ? 'var(--gold)' : 'transparent'}`, borderBottom: '1px solid rgba(255,255,255,0.05)', color: activeId === id ? 'var(--gold)' : 'rgba(255,255,255,0.65)', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-montserrat), sans-serif', textDecoration: 'none' }}>
+                <span aria-hidden="true">{icon}</span>{label}
               </Link>
+              </Fragment>
             ))}
             <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '0.5rem' }}>
               <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', cursor: 'pointer', display: 'block', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>

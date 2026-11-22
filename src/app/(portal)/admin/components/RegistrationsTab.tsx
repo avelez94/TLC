@@ -12,6 +12,8 @@ export default function RegistrationsTab({ registrations, expandedRegistration, 
   const [editingRegId, setEditingRegId] = useState<string | null>(null)
   const [editReg, setEditReg] = useState({ full_name: '', email: '', phone: '', organization: '', cohort_id: '' })
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   const startEdit = (reg: any) => {
     setEditingRegId(reg.id)
@@ -36,7 +38,10 @@ export default function RegistrationsTab({ registrations, expandedRegistration, 
     }).eq('id', regId)
     if (!error) {
       setEditingRegId(null)
+      setEditError(null)
       fetchAll()
+    } else {
+      setEditError(`Could not save the changes: ${error.message}`)
     }
     setSavingEdit(false)
   }
@@ -46,7 +51,7 @@ export default function RegistrationsTab({ registrations, expandedRegistration, 
       <div style={{ marginBottom: '1.5rem' }}>
         <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Registrations</span>
         <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>Registrations</h1>
-        <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginTop: '0.35rem' }}>Click a registration to confirm them and send their portal invite.</p>
+        <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginTop: '0.35rem' }}>Select a registration to see its details, confirm it, and send the participant their portal invite.</p>
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -124,6 +129,7 @@ export default function RegistrationsTab({ registrations, expandedRegistration, 
                             </select>
                           </div>
                         </div>
+                        {editError && <p role="alert" style={{ color: '#b3261e', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.75rem' }}>{editError}</p>}
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                           <button onClick={() => handleSaveEdit(reg.id)} disabled={savingEdit} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.55rem 1.1rem' }}>
                             {savingEdit ? 'Saving...' : 'Save'}
@@ -153,10 +159,21 @@ export default function RegistrationsTab({ registrations, expandedRegistration, 
                           <span style={labelStyle}>Submitted</span>
                           <p style={{ color: 'var(--ink)', fontSize: '0.85rem' }}>{new Date(reg.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                         </div>
-                        {reg.amount_paid && (
+                        {reg.payment_status === 'paid' && (
                           <div>
                             <span style={labelStyle}>Amount Paid</span>
-                            <p style={{ color: 'var(--ink)', fontSize: '0.85rem', fontWeight: 600 }}>${reg.amount_paid}</p>
+                            {reg.amount_paid != null
+                              ? <p style={{ color: 'var(--ink)', fontSize: '0.85rem', fontWeight: 600 }}>${reg.amount_paid}</p>
+                              : <p style={{ color: 'var(--slate)', fontSize: '0.82rem' }}>Not recorded. Check the Stripe dashboard for this payment.</p>}
+                          </div>
+                        )}
+                        {reg.payment_status === 'paid' && (
+                          <div>
+                            <span style={labelStyle}>Payment emails</span>
+                            <p style={{ color: 'var(--ink)', fontSize: '0.82rem', lineHeight: 1.6 }}>
+                              Participant confirmation: {reg.confirmation_email_sent_at ? `sent ${fmtDate(reg.confirmation_email_sent_at)}` : 'not recorded'}<br />
+                              Your notification: {reg.owner_notified_at ? `sent ${fmtDate(reg.owner_notified_at)}` : 'not recorded'}
+                            </p>
                           </div>
                         )}
                         {reg.why && (
@@ -174,12 +191,12 @@ export default function RegistrationsTab({ registrations, expandedRegistration, 
                             {actionLoading ? 'Processing...' : 'Confirm and Send Invite'}
                           </button>
                         )}
-                        <button onClick={() => startEdit(reg)} style={{ background: 'none', border: '1px solid rgba(200,136,32,0.4)', color: 'var(--gold)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', cursor: 'pointer' }}>Edit</button>
+                        <button onClick={() => { setEditError(null); startEdit(reg) }} style={{ background: 'none', border: '1px solid rgba(200,136,32,0.4)', color: 'var(--gold)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', cursor: 'pointer' }}>Edit</button>
                         {reg.status !== 'waitlist' && (
                           <button onClick={() => handleUpdateRegistrationStatus(reg.id, 'waitlist')} style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', cursor: 'pointer' }}>Waitlist</button>
                         )}
                         {reg.status !== 'declined' && (
-                          <button onClick={() => handleUpdateRegistrationStatus(reg.id, 'declined')} style={{ background: 'none', border: '1px solid rgba(255,59,48,0.3)', color: '#ff6b6b', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', cursor: 'pointer' }}>Decline</button>
+                          <button onClick={() => handleUpdateRegistrationStatus(reg.id, 'declined')} style={{ background: 'none', border: '1px solid rgba(255,59,48,0.3)', color: '#b3261e', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', cursor: 'pointer' }}>Decline</button>
                         )}
                       </div>
                     )}

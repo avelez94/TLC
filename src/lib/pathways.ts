@@ -22,6 +22,13 @@ export interface Pathway {
 export const PATHWAY_SLUGS: PathwaySlug[] = ['emerging-leaders', 'new-leaders', 'practicing-leaders']
 
 /** Old anchors and contact-form keys from the retired "levels" page. */
+// One-line "who it's for" summaries, used wherever the three pathways are listed together.
+export const PATHWAY_FOR_WHOM: Record<PathwaySlug, string> = {
+  'emerging-leaders': 'Preparing for a first leadership role',
+  'new-leaders': 'Newly responsible for supervising others',
+  'practicing-leaders': 'Already leading people and teams',
+}
+
 export const LEGACY_ANCHORS: Record<string, PathwaySlug> = {
   finders: 'emerging-leaders',
   makers: 'new-leaders',

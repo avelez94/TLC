@@ -2,19 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Pathway } from '@/lib/pathways'
-import { LEGACY_ANCHORS } from '@/lib/pathways'
+import { LEGACY_ANCHORS, PATHWAY_FOR_WHOM } from '@/lib/pathways'
+import InquiryLink from './InquiryLink'
 import s from './impact.module.css'
 
-const WHO: Record<string, string> = {
-  'emerging-leaders': 'I’m preparing for greater responsibility',
-  'new-leaders': 'I’m newly responsible for others',
-  'practicing-leaders': 'I already lead people and teams',
-}
-
-export const PATHWAY_SELECTED_EVENT = 'impact:pathway-inquire'
-
 // Accessible tabs: all three panels are in the HTML (search engines and no-JS readers see
-// everything); only the selected one is shown.
+// everything); only the selected one is shown. Numbers identify pathways; they are not steps.
 export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
   const [active, setActive] = useState(pathways[0]?.slug)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -26,7 +19,7 @@ export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
       const slug = LEGACY_ANCHORS[hash] ?? hash
       if (pathways.some(p => p.slug === slug)) {
         setActive(slug as Pathway['slug'])
-        document.getElementById(`panel-${slug}`)?.scrollIntoView({ block: 'start' })
+        document.getElementById('pathway-selector')?.scrollIntoView({ block: 'start' })
       }
     }
     pick()
@@ -45,13 +38,8 @@ export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
     tabRefs.current[next]?.focus()
   }
 
-  const inquire = (slug: string) => {
-    window.dispatchEvent(new CustomEvent(PATHWAY_SELECTED_EVENT, { detail: slug }))
-    document.getElementById('inquire')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
   return (
-    <>
+    <div className={s.selector} id="pathway-selector">
       <p className={s.selectorLabel} id="selector-label">Which describes you right now?</p>
       <div className={s.tabs} role="tablist" aria-labelledby="selector-label">
         {pathways.map((p, i) => (
@@ -60,6 +48,7 @@ export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
             ref={el => { tabRefs.current[i] = el }}
             className={s.tab}
             role="tab"
+            type="button"
             id={`tab-${p.slug}`}
             aria-controls={`panel-${p.slug}`}
             aria-selected={active === p.slug}
@@ -67,30 +56,36 @@ export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
             onClick={() => setActive(p.slug)}
             onKeyDown={e => onKey(e, i)}
           >
-            <span className={s.tabWho}>{WHO[p.slug]}</span>
-            <span className={s.tabTop}><span className={s.tabNum} aria-hidden="true">{p.number}</span><span className={s.tabName}>{p.name}</span></span>
-            <span className={s.tabTag}>{p.tagline}</span>
+            <span className={s.tabNum} aria-hidden="true">{p.number}</span>
+            <span className={s.tabText}>
+              <span className={s.tabName}>{p.name}</span>
+              <span className={s.tabWho}>{PATHWAY_FOR_WHOM[p.slug]}</span>
+            </span>
           </button>
         ))}
       </div>
 
       {pathways.map(p => (
         <article key={p.slug} className={s.panel} role="tabpanel" id={`panel-${p.slug}`} aria-labelledby={`tab-${p.slug}`} tabIndex={0} hidden={active !== p.slug}>
-          <div>
-            <span className={s.panelLabel}>{p.number} — {p.name} · {p.tagline}</span>
+          <div className={s.panelMain}>
+            <span className={s.panelLabel}><span aria-hidden="true">{p.number} · </span>{p.name} · {p.tagline}</span>
             <h3 className={s.opening}>{p.openingStatement}</h3>
-            <div className={s.panelBody}>
+            <div className={s.panelBlock}>
+              <span className={s.blockLabel}>Who it&rsquo;s for</span>
               <p>{p.audience}</p>
+            </div>
+            <div className={s.panelBlock}>
+              <span className={s.blockLabel}>How you&rsquo;ll grow</span>
               <p>{p.description}</p>
             </div>
           </div>
-          <div className={s.side}>
+          <aside className={s.panelSide} aria-label={`${p.name} at a glance`}>
             <div>
-              <span className={s.blockLabel}>Focus</span>
+              <span className={s.blockLabel}>Focus areas</span>
               <ul className={s.chips}>{p.focus.map(f => <li key={f}>{f}</li>)}</ul>
             </div>
             <div>
-              <span className={s.blockLabel}>Development Goal</span>
+              <span className={s.blockLabel}>Development goal</span>
               <p className={s.goal}>{p.goal}</p>
             </div>
             {p.priceLabel && (
@@ -99,14 +94,17 @@ export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
                 <p className={s.investment}>{p.priceLabel}</p>
               </div>
             )}
-            <div className={s.ctas}>
-              <button type="button" className={`${s.btn} ${s.btnGold}`} onClick={() => inquire(p.slug)}>
+            <div className={s.panelCtas}>
+              <InquiryLink kind="individual" pathway={p.slug} className={`${s.btn} ${s.btnGold} ${s.btnBlock}`}>
                 Inquire About {p.name} <span className={s.arrow} aria-hidden="true">&rarr;</span>
-              </button>
+              </InquiryLink>
+              <InquiryLink kind="organization" pathway={p.slug} className={s.textLink}>
+                Enrolling a team? Inquire for your organization
+              </InquiryLink>
             </div>
-          </div>
+          </aside>
         </article>
       ))}
-    </>
+    </div>
   )
 }

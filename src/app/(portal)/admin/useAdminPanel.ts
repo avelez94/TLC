@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { STORAGE_PREFIX } from '@/lib/resource-links'
 import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment, JournalPrompt } from '@/types'
 
 // Every cohorts column except zoom_link, which signed-in users cannot read directly.
@@ -439,7 +440,14 @@ export function useAdminPanel() {
   }
 
   const handleDeleteResource = async (id: string) => {
-    await supabase.from('resources').delete().eq('id', id)
+    const resource = resources.find(r => r.id === id)
+    if (!window.confirm(`Remove "${resource?.title ?? 'this resource'}" from the library? Participants will no longer see it.`)) return
+    const { error } = await supabase.from('resources').delete().eq('id', id)
+    if (error) { showSuccess(`Could not remove the resource: ${error.message}`); return }
+    // Remove an uploaded file too, so private files are not left behind in storage.
+    if (resource?.url?.startsWith(STORAGE_PREFIX)) await supabase.storage.from('resources').remove([resource.url.slice(STORAGE_PREFIX.length)])
+    await logAction('resource.delete', 'resource', id, { title: resource?.title ?? null })
+    showSuccess('Resource removed.')
     fetchAll()
   }
 

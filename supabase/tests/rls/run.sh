@@ -57,3 +57,16 @@ run -d rls_test -c "create temp table before_rb as select tablename, policyname,
              (select count(*) from (select tablename, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public'
                                     except select * from before_rb) d) as differences,
              has_table_privilege('anon','public.profiles','SELECT') as anon_select_restored"
+
+echo "=== ROLLBACK 2c: removes only the 2c additions; existing records untouched ==="
+setup
+for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions; do
+  run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null
+done
+run -d rls_test -c "create table public._before_2c as select (select count(*) from programs) p, (select count(*) from cohorts) c, (select count(*) from registrations) r, (select count(*) from certificates) ce, (select count(*) from cohort_enrollments) e" >/dev/null
+run -d rls_test -f "$ROOT/supabase/migrations/20261122000000_pathways_inquiries_admin.sql" >/dev/null
+run -d rls_test -c "insert into inquiries (kind, contact_name, email, pathways) values ('organization', 'Test Person', 'test@example.org', '{new-leaders}')" >/dev/null
+run -d rls_test -f "$ROOT/supabase/rollback/20261122000000_pathways_inquiries_admin_rollback.sql" >/dev/null
+run -d rls_test -c "select to_regclass('public.inquiries') is null and to_regclass('public.admin_audit_log') is null and to_regclass('public.email_log') is null as tables_removed,
+                           (select count(*) from programs where slug like '%-leaders') as pathway_rows_left,
+                           (select row(p, c, r, ce, e) from _before_2c) = row((select count(*) from programs), (select count(*) from cohorts), (select count(*) from registrations), (select count(*) from certificates), (select count(*) from cohort_enrollments)) as existing_records_unchanged"

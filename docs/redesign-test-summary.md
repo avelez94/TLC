@@ -4,6 +4,33 @@
 security release (`5752e5e`). Database change `20261122000000_pathways_inquiries_admin.sql`
 (2c) is **not applied**.
 
+## Final design refinement (2026-11-22)
+
+| Area | Change |
+|---|---|
+| Hero | Headline is three fixed lines (STEP UP. / SOLVE PROBLEMS. / CREATE IMPACT., the last in gold); each phrase is kept on one line and the size scales with the screen (50 px on phones to 88 px on large desktops). One intro paragraph, then **Explore the Pathways** and **Organizational Programs**. A right-hand summary lists the three pathways with who each is for and links to it. Hero height about 720–740 px on desktop, so both buttons are visible without scrolling at every tested size. |
+| Approved intro copy | Not removed, moved: paragraph 2 now introduces "How the Lab Works"; paragraph 3 introduces the pathways section beside the "Independent pathways, not levels" note. |
+| Pathway selector | Same names, taglines and numbers. Tabs show number, name and who it is for (desktop); on tablets and phones they are compact (number + name, 64–83 px tall) with the selected tab in navy with a pointer. Panel: opening statement, **Who it's for**, **How you'll grow**, **Focus areas**, **Development goal**, then **Inquire About {pathway}** and "Enrolling a team? Inquire for your organization". Keyboard (arrows, Home/End), focus outlines and tab/tabpanel roles unchanged. |
+| Organizations | "Develop Leaders. Strengthen Teams. Improve Performance." Two options (scheduled cohorts, dedicated programs), who it is for, and **Inquire About Organizational Programs**, which scrolls to the form already set to "For my organization" and focuses the first field. Pathway buttons open it set to "For myself" with that pathway ticked. |
+| Typography & contrast | Gold text on light backgrounds uses a darker gold (#8a5a10) that meets WCAG AA; form labels are plain sentence case at 0.85 rem; inputs 16 px (no zoom on iPhone); all buttons and choices at least 44 px tall. Footer text that was 20–35 % white (below AA) raised to 55–72 %; copyright year is now automatic. |
+| Admin | Sidebar grouped (Overview, People, Programs, Participant experience, Insights & security); inactive items brighter. Resources: **Open** link uses the secure signed-link route (stored files no longer show a broken `storage:` link); removing a resource asks first, deletes the private file and is recorded in the activity log. Registrations: paid registrations show amount (or "Not recorded. Check the Stripe dashboard") and whether the participant confirmation and owner notification emails were sent; edit failures now show an error instead of failing silently. |
+
+### Refinement tests
+
+| Test | Result |
+|---|---|
+| Rendered `/impact` at 375, 430, 768, 1024, 1280, 1440, 1920 px | Headline phrases one line each at every width; no horizontal scroll; no element wider than the screen; hero buttons above the fold at every size (lowest: 598 px of 812 on a 375 px phone) |
+| Tap targets (buttons, links, tabs, checkboxes) | all ≥ 44 px |
+| Anchors under the fixed 115 px header | `#pathways`, `#organizations`, `#inquire`, `#emerging-leaders` etc. land below the header |
+| Inquiry buttons (pathway, "Enrolling a team?", organizations, closing) | correct audience, pathway preselected, focus on first field |
+| Form validation with empty fields | three clear messages, focus moves to the first error |
+| Unit tests | 18/18 |
+| Typecheck | clean |
+| Lint (changed files) | no new findings (remaining findings are older `any` types) |
+| Database access matrices | lockdown 79/79 · phase 2 31/31 · 2c 25/25 · compatibility 79/79 · rollback 124/124 |
+| 2c rollback script (new) | removes inquiries, notes, activity and email logs and the unreferenced pathway rows; existing programs, cohorts, registrations, certificates and enrollments unchanged |
+| Security smoke tests against a local build | unchanged: checkout closed (503), forged webhook 400, cron/admin APIs 401, portals redirect to sign-in |
+
 ## What is in this release
 
 | Area | Change |
@@ -42,10 +69,25 @@ security release (`5752e5e`). Database change `20261122000000_pathways_inquiries
   with Tramaine present).
 - Inquiry email delivery (production Resend).
 
-## Deployment plan (needs owner approval)
+## Production deployment checklist (needs owner approval)
 
-1. Take a fresh encrypted backup and verify the restore (`supabase/scripts/backup.sh`, then `backup-restore-verify.sh`).
-2. Apply 2c (additive; existing rows untouched; adds the three pathway records, inquiry tables and logs).
-3. Fast-forward `main` to the branch; verify `/impact`, `/register`, `/contact`, home, admin tabs.
-4. With an admin signed in: open Pathways (review copy, keep enrollment closed), submit a test inquiry, check it in Inquiries and the email log, then turn on two-step verification.
-Rollback: Vercel Instant Rollback to `dpl_FioQXWCeVy3kHJBVpwcEa7jtxq4V` (2c is compatible with that release).
+Before
+1. Owner reviews the screenshots and approves.
+2. Fresh encrypted backup, then verify the restore (`supabase/scripts/backup.sh`, `backup-restore-verify.sh`).
+3. Confirm `CHECKOUT_ENABLED` is still unset in Vercel Production (checkout stays closed).
+   Record the current cohort status rule (`select pg_get_constraintdef(oid) from pg_constraint where conname = 'cohorts_status_check'`) in the change log; the 2c rollback needs it.
+
+Deploy
+4. Apply 2c (`20261122000000_pathways_inquiries_admin.sql`): additive; existing rows untouched; adds the three pathway records, inquiry tables, audit and email logs. Run the Supabase security advisor afterwards.
+5. Fast-forward `main` to the reviewed commit of `feature/impact-lab-revamp`; Vercel builds Production.
+
+Verify (non-destructive)
+6. `/impact` on a phone and a laptop: hero, tabs, `#makers` old link, organization button opens the form.
+7. Submit one clearly labelled test inquiry; confirm it appears in **Admin → Inquiries**, the owner email arrives and the **Security → Email log** shows it; then set it to Closed.
+8. Admin: Pathways shows the approved copy with enrollment closed; Dashboard figures match the data; Resources **Open** works; historical programs and certificates unchanged.
+9. Participant portal: journal and weekly reps load for a participant (no writes needed).
+10. Both admins enroll two-step verification (Security tab) with Tramaine present.
+
+Rollback
+- Application: Vercel Instant Rollback to `dpl_FioQXWCeVy3kHJBVpwcEa7jtxq4V` (the current security release; 2c is compatible with it).
+- Database: `supabase/rollback/20261122000000_pathways_inquiries_admin_rollback.sql` (removes only the 2c additions; take a backup first because it drops any inquiries received).

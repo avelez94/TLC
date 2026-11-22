@@ -45,3 +45,6 @@ next-env.d.ts
 
 # confidential incident material: never commit
 /confidential/
+
+# local review screenshots
+/previews/
