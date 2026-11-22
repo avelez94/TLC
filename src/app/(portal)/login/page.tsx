@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -16,6 +16,53 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Second step for accounts with an authenticator app (admins): TOTP code.
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaRole, setMfaRole] = useState<string | null>(null)
+
+  const goHome = (role: string) => {
+    if (role === 'admin') router.push('/admin')
+    else if (role === 'coaching_client') router.push('/coaching-portal')
+    else router.push('/impact-portal')
+  }
+
+  /** Returns true if the session still needs its second factor (and shows that step). */
+  const needsSecondFactor = async (role: string) => {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (!aal || aal.nextLevel !== 'aal2' || aal.currentLevel === 'aal2') return false
+    const { data: factors } = await supabase.auth.mfa.listFactors()
+    const totp = factors?.totp?.find(f => f.status === 'verified')
+    if (!totp) return false
+    setMfaFactorId(totp.id)
+    setMfaRole(role)
+    return true
+  }
+
+  // Redirected here from the admin area with ?mfa=1: the password step is done, ask for the code.
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('mfa')) return
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      await needsSecondFactor(profile?.role || 'impact_participant')
+    })()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!mfaFactorId) return
+    setLoading(true)
+    setError('')
+    const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code: mfaCode.replace(/\s/g, '') })
+    if (verifyError) {
+      setError('That code did not work. Enter the current 6-digit code from your authenticator app.')
+      setLoading(false)
+      return
+    }
+    goHome(mfaRole || 'impact_participant')
+  }
 
   const inputStyle = {
     width: '100%', padding: '0.9rem 1rem',
@@ -58,6 +105,11 @@ export default function Login() {
         .single()
       const role = profile?.role || 'impact_participant'
 
+      if (await needsSecondFactor(role)) {
+        setLoading(false)
+        return
+      }
+
       if (role === 'admin') {
         router.push('/admin')
         return
@@ -98,7 +150,23 @@ export default function Login() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(2rem, 5vw, 4rem)' }}>
         <div style={{ width: '100%', maxWidth: '480px' }}>
 
-          {portal === null && (
+          {mfaFactorId && (
+            <form onSubmit={handleVerifyCode} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.75rem' }}>Two-step verification</span>
+                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.92rem', lineHeight: 1.6 }}>Enter the 6-digit code from your authenticator app.</p>
+              </div>
+              <div>
+                <label htmlFor="mfa-code" style={labelStyle}>Verification code</label>
+                <input id="mfa-code" value={mfaCode} onChange={e => setMfaCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} autoFocus style={{ ...inputStyle, letterSpacing: '0.3em', fontSize: '1.2rem', textAlign: 'center' }} />
+              </div>
+              {error && <p role="alert" style={{ color: '#ff8a80', fontSize: '0.85rem' }}>{error}</p>}
+              <button type="submit" disabled={loading || mfaCode.replace(/\s/g, '').length < 6} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>{loading ? 'Verifying…' : 'Verify and continue'}</button>
+              <button type="button" onClick={async () => { await supabase.auth.signOut(); setMfaFactorId(null); setMfaCode(''); setError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', cursor: 'pointer' }}>Use a different account</button>
+            </form>
+          )}
+
+          {!mfaFactorId && portal === null && (
             <div>
               <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Welcome back</span>
@@ -140,7 +208,7 @@ export default function Login() {
             </div>
           )}
 
-          {portal !== null && (
+          {!mfaFactorId && portal !== null && (
             <div>
               <button
                 onClick={() => { setPortal(null); setEmail(''); setPassword(''); setError('') }}

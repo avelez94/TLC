@@ -44,7 +44,10 @@ export async function getSessionUserWithRole() {
     .select('role')
     .eq('id', user.id)
     .single()
-  return { user, role: normalizeRole(profile?.role) }
+  // If the account has an authenticator app, this session must have used it (aal2).
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  const mfaSatisfied = !aal || aal.nextLevel !== 'aal2' || aal.currentLevel === 'aal2'
+  return { user, role: normalizeRole(profile?.role), mfaSatisfied }
 }
 
 // Verifies the request's session belongs to a user with role 'admin'.
@@ -52,6 +55,6 @@ export async function getSessionUserWithRole() {
 // Use in API routes that perform admin-only actions.
 export async function requireAdmin() {
   const session = await getSessionUserWithRole()
-  if (!session || session.role !== 'admin') return null
+  if (!session || session.role !== 'admin' || !session.mfaSatisfied) return null
   return session.user
 }

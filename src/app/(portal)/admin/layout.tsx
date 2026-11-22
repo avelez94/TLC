@@ -10,5 +10,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await getSessionUserWithRole()
   if (!session) redirect('/login')
   if (session.role !== 'admin') redirect(homeForRole(session.role))
+  if (!session.mfaSatisfied) redirect('/login?mfa=1')
   return <AdminClientLayout>{children}</AdminClientLayout>
 }

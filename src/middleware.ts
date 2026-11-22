@@ -45,7 +45,8 @@ export async function middleware(request: NextRequest) {
       .single()
     const role = normalizeRole(profile?.role)
 
-    if (pathname === '/login' || !canAccess(pathname, role)) {
+    const finishingSecondFactor = pathname === '/login' && request.nextUrl.searchParams.has('mfa')
+    if (!finishingSecondFactor && (pathname === '/login' || !canAccess(pathname, role))) {
       return NextResponse.redirect(new URL(homeForRole(role), request.url))
     }
   }
