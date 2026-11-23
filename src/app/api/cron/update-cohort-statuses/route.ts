@@ -1,10 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
+// Daily cohort status job (Vercel Cron, 06:00 UTC). Moves cohorts Upcoming → Active on their
+// start date and Active → Completed after their end date (New York calendar date). The database
+// function makes each change and records it in the activity log as a system action in one
+// transaction, so repeated runs never duplicate entries. It never changes enrollments,
+// completion, certificates, registrations or payments, and sends no email.
 import { NextResponse } from 'next/server'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin } from '@/lib/supabase-server'
+import { audit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
@@ -13,36 +14,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const today = new Date().toISOString().split('T')[0]
-
-  // Upcoming -> Active: cohorts whose start date has arrived
-  const { data: activated, error: activateError } = await supabaseAdmin
-    .from('cohorts')
-    .update({ status: 'active' })
-    .eq('status', 'upcoming')
-    .lte('start_date', today)
-    .select('id, name')
-
-  if (activateError) {
-    console.error('Error activating cohorts:', activateError)
+  const { data, error } = await supabaseAdmin.rpc('system_update_cohort_statuses')
+  if (error) {
+    console.error('Cohort status job failed:', error.message)
+    await audit(null, 'cohort.status_auto', 'cohort', null, { reason: 'daily status job failed', error: error.message.slice(0, 200) }, { outcome: 'failed', system: true, label: 'Daily cohort status job' })
+    return NextResponse.json({ error: 'Status update failed' }, { status: 500 })
   }
-
-  // Active -> Completed: cohorts whose end date has passed
-  const { data: completed, error: completeError } = await supabaseAdmin
-    .from('cohorts')
-    .update({ status: 'completed' })
-    .eq('status', 'active')
-    .lt('end_date', today)
-    .select('id, name')
-
-  if (completeError) {
-    console.error('Error completing cohorts:', completeError)
-  }
-
+  const rows = (data ?? []) as { cohort_name: string; from_status: string; to_status: string }[]
   return NextResponse.json({
-    activated: activated?.length || 0,
-    activatedCohorts: activated?.map(c => c.name) || [],
-    completed: completed?.length || 0,
-    completedCohorts: completed?.map(c => c.name) || [],
+    changed: rows.length,
+    activatedCohorts: rows.filter(r => r.to_status === 'active').map(r => r.cohort_name),
+    completedCohorts: rows.filter(r => r.to_status === 'completed').map(r => r.cohort_name),
   })
 }

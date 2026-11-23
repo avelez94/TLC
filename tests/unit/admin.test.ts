@@ -48,8 +48,10 @@ test('calendar dates are never shifted; timestamps are shown in ET', () => {
 test('enrollment outcomes follow the documented definitions', () => {
   assert.equal(enrollmentOutcome('active', 'active'), 'in_progress')
   assert.equal(enrollmentOutcome('active', 'upcoming'), 'starting')
-  assert.equal(enrollmentOutcome('active', 'completed'), 'completed')
-  assert.equal(enrollmentOutcome('active', 'archived'), 'completed')
+  // A finished cohort does not complete anyone: completion is recorded by an administrator.
+  assert.equal(enrollmentOutcome('active', 'completed'), 'awaiting_review')
+  assert.equal(enrollmentOutcome('active', 'archived'), 'awaiting_review')
+  assert.equal(enrollmentOutcome('completed', 'completed'), 'completed')
   assert.equal(enrollmentOutcome('completed', 'active'), 'completed')
   assert.equal(enrollmentOutcome('withdrawn', 'completed'), 'withdrawn')
   assert.equal(enrollmentOutcome('active', 'cancelled'), 'cancelled')
@@ -80,12 +82,12 @@ test('Active participants counts distinct non-admin people in running cohorts on
   assert.equal(m.registrationsToReview, 1)
 })
 
-test('cohort counts separate completed, withdrawn and seats taken', () => {
+test('cohort counts separate completed, awaiting review, withdrawn and seats taken', () => {
   const c = cohortCounts({ id: 'x', status: 'completed' }, [
     { user_id: 'a', cohort_id: 'x', status: 'active' }, { user_id: 'b', cohort_id: 'x', status: 'withdrawn' },
-    { user_id: 'c', cohort_id: 'y', status: 'active' },
+    { user_id: 'd', cohort_id: 'x', status: 'completed' }, { user_id: 'c', cohort_id: 'y', status: 'active' },
   ])
-  assert.deepEqual([c.completed, c.withdrawn, c.seatsTaken, c.total], [1, 1, 1, 2])
+  assert.deepEqual([c.completed, c.awaitingReview, c.withdrawn, c.seatsTaken, c.total], [1, 1, 1, 1, 3])
 })
 
 test('cohort availability tells the owner whether enrollment is closed, open, full or finished', () => {

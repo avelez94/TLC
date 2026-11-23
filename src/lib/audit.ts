@@ -7,19 +7,20 @@ import { supabaseAdmin } from './supabase-server'
  */
 export async function audit(
   actorId: string | null, action: string, entityType: string, entityId: string | null,
-  details: Record<string, unknown> = {}, extra: { label?: string | null; outcome?: 'success' | 'failed' | 'blocked' } = {},
+  details: Record<string, unknown> = {}, extra: { label?: string | null; outcome?: 'success' | 'failed' | 'blocked'; system?: boolean; changes?: Record<string, unknown> } = {},
 ) {
   try {
     const row = {
       actor_id: actorId, action: action.slice(0, 80), entity_type: entityType.slice(0, 40),
       entity_id: entityId ? entityId.slice(0, 80) : null, details,
       entity_label: extra.label ? extra.label.slice(0, 200) : null, outcome: extra.outcome ?? 'success',
+      ...(extra.system ? { actor_type: 'system' } : {}), ...(extra.changes ? { changes: extra.changes } : {}),
     }
     const { error } = await supabaseAdmin.from('admin_audit_log').insert(row)
     if (error) {
       // Before migration 2d the label/outcome columns do not exist: keep the core entry.
-      const { entity_label: _l, outcome: _o, ...core } = row
-      void _l; void _o
+      const { entity_label: _l, outcome: _o, actor_type: _a, changes: _c, ...core } = row as typeof row & { actor_type?: string; changes?: unknown }
+      void _l; void _o; void _a; void _c
       await supabaseAdmin.from('admin_audit_log').insert(core)
     }
   } catch {

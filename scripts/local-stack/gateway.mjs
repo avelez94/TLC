@@ -61,6 +61,7 @@ const totpOk = (secret, code) => [-30000, 0, 30000].some(d => totp(secret, Date.
 
 // ---------------------------------------------------------------- users and sessions
 const refreshTokens = new Map() // token -> { userId, aal }
+const links = new Map() // one-time sign-in links -> { userId, type, redirect, expires }
 async function userObject(id) {
   const [u] = await json(`select u.id, u.email, u.raw_user_meta_data as user_metadata, u.created_at, u.last_sign_in_at,
     coalesce((select json_agg(json_build_object('id', f.id, 'friendly_name', f.friendly_name, 'factor_type', 'totp', 'status', f.status, 'created_at', f.created_at, 'updated_at', f.created_at) order by f.created_at)
@@ -158,8 +159,14 @@ async function auth(req, res, url, body) {
       }
       if (!u) return send(res, 404, { msg: 'User not found' })
       const user = await userObject(u.id)
-      return send(res, 200, { ...user, action_link: `http://127.0.0.1:${PORT}/local-link/${data.type}/${u.id}`, email_otp: '000000', hashed_token: 'local', redirect_to: data.redirect_to ?? null, verification_type: data.type })
+      // A one-time link, valid for an hour, that works like Supabase's /verify: it signs the
+      // person in and redirects to redirect_to with the session in the URL hash.
+      const token = crypto.randomBytes(16).toString('hex')
+      links.set(token, { userId: u.id, type: data.type, redirect: url.searchParams.get('redirect_to') ?? data.redirectTo ?? null, expires: Date.now() + 3600_000 })
+      return send(res, 200, { ...user, action_link: `http://127.0.0.1:${PORT}/local-link/${token}`, email_otp: '000000', hashed_token: 'local', redirect_to: data.redirect_to ?? null, verification_type: data.type })
     }
+    m = p.match(/^\/admin\/users\/([0-9a-f-]+)$/)
+    if (m && req.method === 'GET') { const u = await userObject(m[1]); return u ? send(res, 200, u) : send(res, 404, { msg: 'User not found' }) }
     m = p.match(/^\/admin\/users\/([0-9a-f-]+)\/factors$/)
     if (m) return send(res, 200, await json(`select id, friendly_name, 'totp' as factor_type, status, created_at from auth.mfa_factors where user_id = ${lit(m[1])}`))
     m = p.match(/^\/admin\/users\/([0-9a-f-]+)\/factors\/([0-9a-f-]+)$/)
@@ -223,7 +230,17 @@ http.createServer(async (req, res) => {
       for (const k of ['content-type', 'content-range', 'preference-applied']) if (r.headers.get(k)) h[k] = r.headers.get(k)
       res.writeHead(r.status, h); return res.end(out)
     }
-    if (url.pathname.startsWith('/local-link/')) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('Local test invite/recovery link (no email is sent locally).') }
+    if (url.pathname.startsWith('/local-link/')) {
+      const token = url.pathname.split('/')[2]
+      const l = links.get(token)
+      links.delete(token)
+      const base = l?.redirect ?? 'http://localhost:3999/reset'
+      if (!l || l.expires < Date.now()) { res.writeHead(303, { location: `${base}#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired` }); return res.end() }
+      await sql(`update auth.users set last_sign_in_at = now() where id = ${lit(l.userId)}`)
+      const s = await session(l.userId, 'aal1', ['otp'])
+      res.writeHead(303, { location: `${base}#access_token=${s.access_token}&refresh_token=${s.refresh_token}&expires_in=3600&expires_at=${s.expires_at}&token_type=bearer&type=${l.type}` })
+      return res.end()
+    }
     send(res, 404, { message: 'not found' })
   } catch (e) {
     console.error(e)

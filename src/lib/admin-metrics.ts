@@ -3,15 +3,18 @@
 // registrations); nothing is estimated. Documented for the owner in docs/admin-metrics.md.
 //
 // Enrollment outcome (records are never rewritten; the outcome is derived):
-//   withdrawn    status = 'withdrawn'
-//   completed    status = 'completed', or status = 'active' in a cohort that is Completed or Archived
-//   cancelled    status = 'active' in a cohort that was Cancelled
+//   withdrawn       status = 'withdrawn'
+//   completed       status = 'completed' (an administrator recorded completion; owner decision
+//                   2026-11-23: completion is never assumed from the cohort ending)
+//   awaiting_review status = 'active' in a cohort that is Completed or Archived: the cohort has
+//                   finished but nobody has recorded whether this person completed it
+//   cancelled       status = 'active' in a cohort that was Cancelled
 //   in_progress  status = 'active' in a cohort that is Active (running now)
 //   starting     status = 'active' in a cohort that is Upcoming or Draft (not started yet)
 //
 // Seats taken in a cohort = enrollments with status 'active' (what capacity is checked against).
 
-export type EnrollmentOutcome = 'in_progress' | 'starting' | 'completed' | 'withdrawn' | 'cancelled'
+export type EnrollmentOutcome = 'in_progress' | 'starting' | 'completed' | 'awaiting_review' | 'withdrawn' | 'cancelled'
 
 export interface MetricCohort { id: string; status: string | null; capacity?: number | null; program_id?: string | null; name?: string }
 export interface MetricEnrollment { id?: string; user_id: string; cohort_id: string; status: string | null }
@@ -23,7 +26,7 @@ export function enrollmentOutcome(enrollmentStatus: string | null, cohortStatus:
   if (enrollmentStatus === 'withdrawn') return 'withdrawn'
   if (enrollmentStatus === 'completed') return 'completed'
   switch (cohortStatus) {
-    case 'completed': case 'archived': return 'completed'
+    case 'completed': case 'archived': return 'awaiting_review'
     case 'cancelled': return 'cancelled'
     case 'active': return 'in_progress'
     default: return 'starting'
@@ -31,21 +34,21 @@ export function enrollmentOutcome(enrollmentStatus: string | null, cohortStatus:
 }
 
 export const OUTCOME_LABEL: Record<EnrollmentOutcome, string> = {
-  in_progress: 'In progress', starting: 'Starting soon', completed: 'Completed', withdrawn: 'Withdrew', cancelled: 'Cohort cancelled',
+  in_progress: 'In progress', starting: 'Starting soon', completed: 'Completed', awaiting_review: 'Finished · completion not recorded', withdrawn: 'Withdrew', cancelled: 'Cohort cancelled',
 }
 
 export function seatsTaken(cohortId: string, enrollments: MetricEnrollment[]): number {
   return enrollments.filter(e => e.cohort_id === cohortId && e.status === 'active').length
 }
 
-export interface CohortCounts { seatsTaken: number; inProgress: number; starting: number; completed: number; withdrawn: number; cancelled: number; total: number }
+export interface CohortCounts { seatsTaken: number; inProgress: number; starting: number; completed: number; awaitingReview: number; withdrawn: number; cancelled: number; total: number }
 
 export function cohortCounts(cohort: MetricCohort, enrollments: MetricEnrollment[]): CohortCounts {
   const rows = enrollments.filter(e => e.cohort_id === cohort.id)
   const by = (o: EnrollmentOutcome) => rows.filter(e => enrollmentOutcome(e.status, cohort.status) === o).length
   return {
     seatsTaken: seatsTaken(cohort.id, enrollments),
-    inProgress: by('in_progress'), starting: by('starting'), completed: by('completed'),
+    inProgress: by('in_progress'), starting: by('starting'), completed: by('completed'), awaitingReview: by('awaiting_review'),
     withdrawn: by('withdrawn'), cancelled: by('cancelled'), total: rows.length,
   }
 }
@@ -102,9 +105,9 @@ export function cohortAvailability(input: {
 }): Availability {
   const { cohortStatus, capacity, seatsTaken: taken } = input
   switch (cohortStatus) {
-    case 'draft': return { key: 'draft', label: 'Draft', detail: 'Not shown publicly. Prepare sessions, reps and prompts here.' }
+    case 'draft': return { key: 'draft', label: 'Draft', detail: 'Not public. Prepare it with the setup checklist, then set it to Upcoming.' }
     case 'active': return { key: 'in_progress', label: 'In progress', detail: 'Running now. Enrollment is managed here by you.' }
-    case 'completed': return { key: 'completed', label: 'Completed', detail: 'Finished. Records and certificates are kept.' }
+    case 'completed': return { key: 'completed', label: 'Completed', detail: 'Finished. Participants keep read-only access to their program history, materials and certificates.' }
     case 'archived': return { key: 'archived', label: 'Archived', detail: 'Hidden from lists. All history is kept.' }
     case 'cancelled': return { key: 'cancelled', label: 'Cancelled', detail: 'Will not run. Records are kept.' }
   }

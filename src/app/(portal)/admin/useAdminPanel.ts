@@ -2,16 +2,16 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { STORAGE_PREFIX } from '@/lib/resource-links'
 import { friendlyError, type DbError } from '@/lib/admin-errors'
-import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment, JournalPrompt } from '@/types'
+import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certificate, CohortEnrollment, JournalPrompt, EmailLogRow, InquiryParticipant, SessionAttendance } from '@/types'
 import { useFeedback } from './components/feedback'
 
 // Every cohorts column except zoom_link, which signed-in users cannot read directly.
-const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description, capacity'
+const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description, capacity, activity_open_until'
 
 export interface AdminIdentity { id: string; name: string; email: string | null }
 export interface AdminPanelOptions { me: AdminIdentity; checkoutEnabled: boolean }
 
-export interface InquiryLite { id: string; status: string; follow_up_on: string | null; kind: string }
+export interface InquiryLite { id: string; status: string; follow_up_on: string | null; kind: string; contact_name: string; organization: string | null; email: string; created_at: string; pathways: string[] | null }
 export interface RegistrationRow {
   id: string; full_name: string; email: string; phone: string | null; organization: string | null; why: string | null
   program_id: string | null; cohort_id: string | null; status: string; payment_status: string | null; amount_paid: number | null
@@ -26,7 +26,27 @@ export interface CommunityPostRow {
 }
 export interface CohortSession { id: string; cohort_id: string; session_number: number; title: string; session_date: string | null }
 export interface RepInput { cohort_id: string; week_number: string; title: string; instructions: string; why_it_matters: string; due_date: string }
-export interface InviteInput { email: string; full_name: string; role: string; program_id: string; cohort_id: string }
+export interface InviteInput { email: string; full_name: string; role: string; program_id: string; cohort_id: string; inquiry_id?: string; reenroll?: boolean }
+/** The server's answer to an invitation (see /api/invite). */
+export interface InviteResult {
+  ok: boolean
+  code?: string
+  outcome?: 'invited' | 'enrolled' | 'reenrolled' | 'already_enrolled' | 'account_created'
+  message: string
+  userId?: string
+  emailStatus?: 'accepted' | 'failed' | 'skipped' | 'duplicate' | null
+  emailLogId?: number | null
+  neverSignedIn?: boolean
+  warnings: string[]
+}
+/** Payment requests (organizations / manual payment links). */
+export interface PaymentRequestRow {
+  id: string; inquiry_id: string | null; registration_id: string | null; cohort_id: string | null
+  payer_name: string; payer_email: string | null; description: string; method: 'payment_link' | 'invoice' | 'offline'
+  seats: number | null; amount_cents: number; currency: string; status: string; amount_paid_cents: number; amount_refunded_cents: number
+  stripe_object_id: string | null; stripe_url: string | null; due_date: string | null; paid_at: string | null; notes: string | null; created_at: string; updated_at: string
+}
+const newKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`)
 
 export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   const { notify, confirm } = useFeedback()
@@ -48,6 +68,10 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([])
   const [inquiries, setInquiries] = useState<InquiryLite[]>([])
   const [cohortSessions, setCohortSessions] = useState<CohortSession[]>([])
+  const [emailProblems, setEmailProblems] = useState<EmailLogRow[]>([])
+  const [inquiryParticipants, setInquiryParticipants] = useState<InquiryParticipant[]>([])
+  const [attendance, setAttendance] = useState<SessionAttendance[]>([])
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestRow[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const ok = useCallback((msg: string) => notify('success', msg), [notify])
@@ -70,6 +94,7 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
     if (loadedOnce.current) setRefreshing(true)
     const [
       usersRes, programsRes, cohortsRes, repsRes, promptsRes, postsRes, annRes, resRes, certsRes, enrRes, linksRes, regRes, sessRes, inqRes, countsRes,
+      emailRes, inqPeopleRes, attendRes, payReqRes,
     ] = await Promise.all([
       // Full user records (contact details, last sign-in) come from an admin-only route.
       fetch('/api/admin/users').then(r => r.ok ? r.json() : null).then(d => ({ data: d?.users as Profile[] | undefined, error: d ? null : { message: 'Could not load people.' } })).catch(() => ({ data: undefined, error: { message: 'Could not load people.' } })),
@@ -85,8 +110,14 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
       supabase.rpc('cohort_meeting_links'),
       supabase.from('registrations').select('*, programs(name, price_label), cohorts(name)').order('created_at', { ascending: false }),
       supabase.from('cohort_sessions').select('*').order('session_number'),
-      supabase.from('inquiries').select('id, status, follow_up_on, kind'),
+      supabase.from('inquiries').select('id, status, follow_up_on, kind, contact_name, organization, email, created_at, pathways'),
       supabase.rpc('admin_rep_reflection_counts'),
+      // Emails that did not reach someone and have not been handled (last 60 days).
+      supabase.from('email_log').select('*').in('status', ['failed', 'bounced', 'complained']).is('resolved_at', null)
+        .gte('created_at', new Date(Date.now() - 60 * 86400_000).toISOString()).order('created_at', { ascending: false }).limit(100),
+      supabase.from('inquiry_participants').select('*').order('created_at'),
+      supabase.from('session_attendance').select('*'),
+      supabase.from('payment_requests').select('*').order('created_at', { ascending: false }),
     ])
     const failed = [usersRes, programsRes, cohortsRes, enrRes, regRes].find(r => r.error)
     setLoadError(failed ? friendlyError(failed.error as DbError, 'Some information could not be loaded.') : null)
@@ -113,6 +144,11 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
     if (regRes.data) setRegistrations(regRes.data as RegistrationRow[])
     if (sessRes.data) setCohortSessions(sessRes.data as CohortSession[])
     if (inqRes.data) setInquiries(inqRes.data as InquiryLite[])
+    // Tables added in 2e: an error here (older database) simply leaves these lists empty.
+    setEmailProblems(emailRes.error ? [] : (emailRes.data as EmailLogRow[]))
+    setInquiryParticipants(inqPeopleRes.error ? [] : (inqPeopleRes.data as InquiryParticipant[]))
+    setAttendance(attendRes.error ? [] : (attendRes.data as SessionAttendance[]))
+    setPaymentRequests(payReqRes.error ? [] : (payReqRes.data as PaymentRequestRow[]))
     loadedOnce.current = true
     setLoading(false)
     setRefreshing(false)
@@ -142,26 +178,85 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   }
 
   // ------------------------------------------------------------------ people
-  const handleInvite = async (input: InviteInput): Promise<string | null> => {
+  /**
+   * Invites or enrolls one person through the server, which reports exactly what happened:
+   * the enrollment result and, separately, whether the email was accepted, failed or skipped.
+   * Shows no notices itself (callers decide); see handleInvite for the standard notices.
+   */
+  const invitePerson = async (input: InviteInput, key = newKey()): Promise<InviteResult> => {
     try {
-      const res = await fetch('/api/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
+      const res = await fetch('/api/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...input, idempotency_key: key }) })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok || data.error) {
-        const msg = data.error || 'The invitation could not be sent.'
-        fail(msg)
-        return msg
+      if (!res.ok || data.ok === false) return { ok: false, code: data.code, message: data.error || 'The invitation could not be completed.', userId: data.user_id, warnings: [] }
+      return {
+        ok: true, outcome: data.outcome, message: data.message, userId: data.user_id, emailStatus: data.email?.status ?? null,
+        emailLogId: data.email?.log_id ?? null, neverSignedIn: data.never_signed_in, warnings: data.warnings ?? [],
       }
-      const warnings: string[] = data.warnings ?? []
-      if (data.returning) ok(`${input.full_name || input.email} already had an account and is now enrolled. They were emailed to sign in.`)
-      else ok(`Invitation emailed to ${input.email}. They will set their own password.`)
-      for (const w of warnings) fail(w)
+    } catch {
+      return { ok: false, code: 'network', message: 'The site could not reach the server. Check Participants before trying again so nobody is invited twice.', warnings: [] }
+    }
+  }
+
+  /** Standard notices for one invitation; asks before re-enrolling someone who withdrew. */
+  const handleInvite = async (input: InviteInput): Promise<string | null> => {
+    const key = newKey()
+    let r = await invitePerson(input, key)
+    if (!r.ok && r.code === 'withdrawn_needs_confirm') {
+      const yes = await confirm({ title: 'Re-enroll someone who withdrew?', message: r.message, consequences: ['Their earlier records stay as they are.', 'They take a seat in the cohort again.'], confirmLabel: 'Re-enroll' })
+      if (!yes) return 'Not re-enrolled.'
+      r = await invitePerson({ ...input, reenroll: true }, newKey())
+    }
+    if (!r.ok) { fail(r.message); return r.message }
+    if (r.emailStatus === 'failed') fail(`${r.message} You can resend it from the dashboard (Needs your attention) or their record.`)
+    else if (r.emailStatus === 'skipped') notify('info', r.message)
+    else ok(r.message)
+    for (const w of r.warnings) fail(w)
+    await fetchAll()
+    return null
+  }
+
+  /**
+   * "Send sign-in email": a fresh set-up link if they never signed in, otherwise a password
+   * reset. Asks before sending again within two minutes of the last one.
+   */
+  const handleSendAccessEmail = async (userId: string): Promise<string | null> => {
+    const post = async (force: boolean) => {
+      const res = await fetch('/api/admin/access-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, idempotency_key: newKey(), force }) })
+      return { res, data: await res.json().catch(() => ({})) }
+    }
+    try {
+      let { res, data } = await post(false)
+      if (res.status === 409 && data.code === 'recently_sent') {
+        const yes = await confirm({ title: 'Send another email?', message: data.error, consequences: ['The earlier link stops working once the new one is used.'], confirmLabel: 'Send another' })
+        if (!yes) return null
+        ;({ res, data } = await post(true))
+      }
+      if (!res.ok || data.ok === false) { const m = data.message || data.error || 'The email was not sent.'; fail(m); await fetchAll(); return m }
+      if (data.status === 'skipped') notify('info', data.message); else ok(data.message)
       await fetchAll()
       return null
-    } catch {
-      const msg = 'The site could not reach the server. Nothing was sent; please try again.'
-      fail(msg)
-      return msg
-    }
+    } catch { const m = 'The email was not sent: the server could not be reached.'; fail(m); return m }
+  }
+
+  /** Resends a failed account email with a fresh link (the original is marked handled). */
+  const handleResendEmail = async (logId: number): Promise<string | null> => {
+    try {
+      const res = await fetch('/api/admin/email-resend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ log_id: logId, idempotency_key: newKey() }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data.ok === false) { const m = data.message || data.error || 'The email was not resent.'; fail(m); await fetchAll(); return m }
+      if (data.status === 'skipped') notify('info', data.message); else ok(data.message)
+      await fetchAll()
+      return null
+    } catch { const m = 'The email was not resent: the server could not be reached.'; fail(m); return m }
+  }
+
+  /** Marks a failed email as handled (for example after contacting the person directly). */
+  const handleResolveEmail = async (logId: number) => {
+    const { error } = await supabase.rpc('admin_resolve_email', { p_id: logId })
+    if (error) { const m = friendlyError(error); fail(m); return m }
+    ok('Marked as handled. It no longer appears in Needs your attention.')
+    await fetchAll()
+    return null
   }
 
   const handleUpdateUserRole = async (userId: string, role: string) => run(
@@ -176,16 +271,6 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
       { action: 'person.update', entity: 'person', id: userId, label: personName(userId) })
   }
 
-  const handleSendResetEmail = async (email: string) => {
-    if (!email) return
-    try {
-      const res = await fetch('/api/request-password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || data.error) fail(`The reset email was not sent: ${data.error || 'server error'}`)
-      else ok(`Password reset email sent to ${email}.`)
-    } catch { fail('The reset email was not sent: the server could not be reached.') }
-  }
-
   const handleSendPaymentRequest = async (user: Profile, body: Record<string, unknown>): Promise<string | null> => {
     try {
       const res = await fetch('/api/create-payment-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: user.id, ...body }) })
@@ -197,16 +282,51 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   }
 
   // ------------------------------------------------------------------ enrollment
+  /**
+   * Enrolls an existing person. Impact Lab participants go through the server so they get the
+   * right email (set-up link if they never signed in, otherwise "you're enrolled"); other
+   * account types are enrolled directly and no email is sent (the notice says so).
+   */
   const handleEnrollUser = async (userId: string, cohortId: string): Promise<string | null> => {
     if (!userId || !cohortId) return 'Choose a person and a cohort.'
     const existing = enrollments.find(e => e.user_id === userId && e.cohort_id === cohortId)
     if (existing?.status === 'active') { const m = `${personName(userId)} is already enrolled in ${cohortName(cohortId)}.`; fail(m); return m }
+    const person = users.find(u => u.id === userId)
+    if (person?.role === 'impact_participant' && person.email) {
+      return handleInvite({ email: person.email, full_name: person.full_name ?? '', role: 'impact_participant', program_id: '', cohort_id: cohortId, reenroll: existing?.status === 'withdrawn' })
+    }
     return run(
       () => existing
         ? supabase.from('cohort_enrollments').update({ status: 'active' }).eq('id', existing.id)
         : supabase.from('cohort_enrollments').insert({ user_id: userId, cohort_id: cohortId, status: 'active' }),
-      { success: `${personName(userId)} ${existing ? 're-enrolled in' : 'enrolled in'} ${cohortName(cohortId)}.`, action: 'enrollment.create', entity: 'enrollment', id: existing?.id, label: `${personName(userId)} — ${cohortName(cohortId)}` },
+      { success: `${personName(userId)} ${existing ? 're-enrolled in' : 'enrolled in'} ${cohortName(cohortId)}. No email was sent (this is not an Impact Lab participant account).`, action: 'enrollment.create', entity: 'enrollment', id: existing?.id, label: `${personName(userId)} — ${cohortName(cohortId)}` },
     )
+  }
+
+  /** Program completion is Tramaine's decision: recorded with the date and the admin. */
+  const handleCompleteEnrollment = async (enrollmentId: string, note?: string) => {
+    const e = enrollments.find(x => x.id === enrollmentId)
+    return run(() => supabase.from('cohort_enrollments').update({ status: 'completed', completion_note: note?.trim() || null }).eq('id', enrollmentId),
+      { success: `${e ? personName(e.user_id) : 'The participant'} is marked as having completed ${e ? cohortName(e.cohort_id) : 'the program'}.`, action: 'enrollment.complete', entity: 'enrollment', id: enrollmentId, label: e ? `${personName(e.user_id)} — ${cohortName(e.cohort_id)}` : null })
+  }
+  const handleUndoCompletion = async (enrollmentId: string) => {
+    const e = enrollments.find(x => x.id === enrollmentId)
+    if (e && certificates.some(c => c.user_id === e.user_id && c.cohort_id === e.cohort_id && !c.revoked_at)) {
+      const m = 'A certificate has been issued for this program. Revoke the certificate first if completion was recorded by mistake.'; fail(m); return m
+    }
+    return run(() => supabase.from('cohort_enrollments').update({ status: 'active' }).eq('id', enrollmentId),
+      { success: 'Completion removed. They are listed as enrolled again.', action: 'enrollment.uncomplete', entity: 'enrollment', id: enrollmentId, label: e ? `${personName(e.user_id)} — ${cohortName(e.cohort_id)}` : null })
+  }
+
+  /** Attendance is optional and informational: it never decides completion by itself. */
+  const handleSetAttendance = async (cohortId: string, sessionNumber: number, userId: string, attended: boolean): Promise<string | null> => {
+    const { error } = await supabase.from('session_attendance').upsert({ cohort_id: cohortId, session_number: sessionNumber, user_id: userId, attended, recorded_at: new Date().toISOString() }, { onConflict: 'cohort_id,session_number,user_id' })
+    if (error) { const m = friendlyError(error); await logFailure('attendance.update', 'attendance', null, `${personName(userId)} — ${cohortName(cohortId)}`, m); return m }
+    setAttendance(prev => {
+      const rest = prev.filter(a => !(a.cohort_id === cohortId && a.session_number === sessionNumber && a.user_id === userId))
+      return [...rest, { id: 'local', cohort_id: cohortId, session_number: sessionNumber, user_id: userId, attended, recorded_at: new Date().toISOString() }]
+    })
+    return null
   }
 
   const handleWithdrawEnrollment = async (enrollmentId: string) => {
@@ -407,13 +527,27 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
     return null
   }
 
-  const handleIssueCertificate = async (userId: string, programId: string, cohortId: string | null) => {
-    if (!userId || !programId) return 'Choose a person and a pathway or program.'
-    if (certificates.some(c => c.user_id === userId && c.program_id === programId && (c.cohort_id ?? null) === (cohortId ?? null))) {
-      const m = `${personName(userId)} already has this certificate.`; fail(m); return m
+  /**
+   * Issues a certificate for a completed program. The database fills in the number, names,
+   * pathway and completion date, and refuses it unless the program was marked complete.
+   */
+  const handleIssueCertificate = async (userId: string, cohortId: string, signer?: { name: string; title: string } | null): Promise<string | null> => {
+    if (!userId || !cohortId) return 'Choose the participant and the cohort they completed.'
+    if (certificates.some(c => c.user_id === userId && c.cohort_id === cohortId)) {
+      const m = `${personName(userId)} already has a certificate for ${cohortName(cohortId)}.`; fail(m); return m
     }
-    return run(() => supabase.from('certificates').insert({ user_id: userId, program_id: programId, cohort_id: cohortId, requirements_met: {} }),
-      { success: `Certificate issued to ${personName(userId)}. They can see it in their portal.`, action: 'certificate.create', entity: 'certificate', label: personName(userId) })
+    const { data, error } = await supabase.from('certificates')
+      .insert({ user_id: userId, cohort_id: cohortId, signer_name: signer?.name || null, signer_title: signer?.title || null, requirements_met: {} })
+      .select('certificate_number').single()
+    if (error) { const m = friendlyError(error); fail(m); await logFailure('certificate.create', 'certificate', null, personName(userId), m); return m }
+    ok(`Certificate ${data?.certificate_number ?? ''} issued to ${personName(userId)}. They can view and download it under Certificates in their portal, including after the cohort ends.`)
+    await fetchAll()
+    return null
+  }
+  const handleRevokeCertificate = async (id: string, reason: string) => {
+    if (!reason.trim()) return 'Give a short reason (kept in the record).'
+    return run(() => supabase.from('certificates').update({ revoked_at: new Date().toISOString(), revoked_reason: reason.trim() }).eq('id', id),
+      { success: 'Certificate revoked. The record is kept; the participant no longer sees it.', action: 'certificate.revoke', entity: 'certificate', id })
   }
 
   // ------------------------------------------------------------------ registrations (history)
@@ -426,20 +560,14 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   /** Confirms a registration and gives the person access (invite, or enroll a returning account). */
   const handleConfirmAndInvite = async (reg: RegistrationRow) => {
     if (!reg.cohort_id) { const m = 'This registration has no cohort, so there is nothing to enroll them in.'; fail(m); return m }
-    let res: Response, data: { error?: string; returning?: boolean; warnings?: string[] }
-    try {
-      res = await fetch('/api/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: reg.email, full_name: reg.full_name, role: 'impact_participant', program_id: reg.program_id, cohort_id: reg.cohort_id }) })
-      data = await res.json().catch(() => ({}))
-    } catch { const m = 'The server could not be reached. Nothing was changed.'; fail(m); return m }
-    if (!res.ok || data.error) {
-      // Access was not given, so the registration is NOT marked confirmed.
-      const m = `Not confirmed: ${data.error || 'the invitation failed'}. Nothing was changed.`
-      fail(m); await logFailure('registration.update', 'registration', reg.id, reg.full_name, m); return m
-    }
+    const r = await invitePerson({ email: reg.email, full_name: reg.full_name, role: 'impact_participant', program_id: reg.program_id ?? '', cohort_id: reg.cohort_id })
+    // Access was not given, so the registration is NOT marked confirmed.
+    if (!r.ok) { const m = `Not confirmed: ${r.message} Nothing was changed.`; fail(m); await logFailure('registration.update', 'registration', reg.id, reg.full_name, m); return m }
+    if (r.outcome === 'account_created') { const m = `Not confirmed: ${r.message} ${r.warnings.join(' ')}`; fail(m); await fetchAll(); return m }
     const upd = await supabase.from('registrations').update({ status: 'confirmed' }).eq('id', reg.id)
     if (upd.error) { const m = `${reg.full_name} was enrolled, but the registration could not be marked confirmed: ${friendlyError(upd.error)}`; fail(m); await fetchAll(); return m }
-    ok(data.returning ? `${reg.full_name} confirmed and enrolled (existing account; sign-in email sent).` : `${reg.full_name} confirmed and invited.`)
-    for (const w of data.warnings ?? []) fail(w)
+    if (r.emailStatus === 'failed') fail(`Confirmed. ${r.message}`); else ok(`Confirmed. ${r.message}`)
+    for (const w of r.warnings) fail(w)
     await fetchAll()
     return null
   }
@@ -447,15 +575,15 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   return {
     me, checkoutEnabled, loading, refreshing, loadError,
     users, programs, cohorts, reps, reflectionCounts, journalPrompts, communityPosts, announcements, resources, certificates,
-    enrollments, registrations, inquiries, cohortSessions,
-    notify, confirm, ok, fail, fetchAll, logEvent, logFailure, personName, cohortName, scheduleDates, cohortHasHistory,
-    handleInvite, handleUpdateUserRole, handleUpdateHourlyRate, handleSendResetEmail, handleSendPaymentRequest,
-    handleEnrollUser, handleWithdrawEnrollment,
+    enrollments, registrations, inquiries, cohortSessions, emailProblems, inquiryParticipants, attendance, paymentRequests,
+    notify, confirm, ok, fail, fetchAll, logEvent, logFailure, personName, cohortName, scheduleDates, cohortHasHistory, newKey,
+    invitePerson, handleInvite, handleUpdateUserRole, handleUpdateHourlyRate, handleSendAccessEmail, handleResendEmail, handleResolveEmail, handleSendPaymentRequest,
+    handleEnrollUser, handleWithdrawEnrollment, handleCompleteEnrollment, handleUndoCompletion, handleSetAttendance,
     handleCreateCohort, handleUpdateCohortField, handleUpdateCohortStatus, handleDeleteCohort, handleDuplicateCohort,
     handleGenerateSchedule, handleAddSession, handleUpdateSession, handleDeleteSession,
     handleCreateRep, handleUpdateRep, handleRemoveRep, handleRestoreRep, handleCreatePrompt, handleDeletePrompt,
     handleCreateAnnouncement, handleDeleteAnnouncement, handleCreateCommunityPost, handleDeleteCommunityPost, handleAddComment, handleDeleteComment,
-    handleCreateResource, handleDeleteResource, handleIssueCertificate,
+    handleCreateResource, handleDeleteResource, handleIssueCertificate, handleRevokeCertificate,
     handleUpdateRegistrationStatus, handleConfirmAndInvite,
   }
 }

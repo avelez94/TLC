@@ -50,6 +50,15 @@ export function assertSafeEnvironment(env: Env): void {
  * Everywhere else (production, or anything unrecognised): the real recipient, so a
  * missing system variable can never silently stop production email.
  */
+/**
+ * Local/preview test transport: when EMAIL_SINK_DIR is set in a known non-production
+ * environment, emails are written to that folder instead of being sent. Never in production.
+ */
+export function emailSinkDir(env: Env): string | null {
+  if (isProductionDeployment(env) || guardedEnvironment(env) === null) return null
+  return env.EMAIL_SINK_DIR || null
+}
+
 export function emailRecipient(env: Env, intended: string): string | null {
   if (guardedEnvironment(env) === null) return intended
   return env.EMAIL_TEST_RECIPIENT || null

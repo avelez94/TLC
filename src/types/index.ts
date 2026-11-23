@@ -48,6 +48,8 @@ export interface Cohort {
   end_date: string | null
   zoom_link: string | null
   capacity?: number | null
+  /** Completed cohorts: participants may submit/post until this date (ET) when set. */
+  activity_open_until?: string | null
   status: CohortStatus
   created_at: string
   programs?: { name: string }
@@ -68,6 +70,10 @@ export interface CohortEnrollment {
   user_id: string
   enrolled_at: string
   status: EnrollmentStatus
+  /** Set when an administrator marks the program complete (never automatic). */
+  completed_at?: string | null
+  completed_by?: string | null
+  completion_note?: string | null
   profiles?: Profile
   cohorts?: Cohort
 }
@@ -126,6 +132,50 @@ export interface Certificate {
   program_id: string
   cohort_id: string | null
   issued_at: string
+  certificate_number?: string | null
+  participant_name?: string | null
+  pathway_name?: string | null
+  cohort_name?: string | null
+  completion_date?: string | null
+  issued_by?: string | null
+  signer_name?: string | null
+  signer_title?: string | null
+  revoked_at?: string | null
+  revoked_reason?: string | null
   profiles?: Profile
   programs?: { name: string }
 }
+
+/** One row of email_log as admins see it (never contains links or message bodies). */
+export interface EmailLogRow {
+  id: number
+  template: string
+  recipient: string
+  subject: string | null
+  status: 'sent' | 'accepted' | 'queued' | 'delivered' | 'delayed' | 'bounced' | 'complained' | 'failed' | 'skipped'
+  error: string | null
+  created_at: string
+  related_user_id?: string | null
+  related_type?: string | null
+  related_id?: string | null
+  resend_of?: number | null
+  last_event?: string | null
+  last_event_at?: string | null
+  resolved_at?: string | null
+}
+
+/** A person invited or enrolled from an inquiry (inquiry_participants). */
+export interface InquiryParticipant {
+  id: string
+  inquiry_id: string
+  user_id: string | null
+  cohort_id: string | null
+  full_name: string
+  email: string
+  result: 'pending' | 'invited' | 'setup_link_sent' | 'enrolled' | 'already_enrolled' | 'failed'
+  detail: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SessionAttendance { id: string; cohort_id: string; session_number: number; user_id: string; attended: boolean; recorded_at: string }

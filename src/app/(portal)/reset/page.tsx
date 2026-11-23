@@ -20,27 +20,32 @@ function ResetContent() {
   // tokens to the URL hash (not a query param). We need to read those and
   // call setSession() ourselves — without this, updateUser() fails with
   // "Auth session missing!" even though the page shows the right step.
+  // Invitation and set-up links arrive as type=invite or type=recovery (welcome=1 for a
+  // first-time set-up link); the type can be in the query or in the hash Supabase adds.
+  const [welcome, setWelcome] = useState(false)
   useEffect(() => {
-    const type = searchParams.get('type')
-    if (type !== 'recovery') return
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    const type = searchParams.get('type') ?? hashParams.get('type')
+    if (hashParams.get('error_code') || hashParams.get('error')) {
+      setError('This link has expired or was already used. Enter your email below and we will send you a new one.')
+      return
+    }
+    if (type !== 'recovery' && type !== 'invite') return
+    if (type === 'invite' || searchParams.get('welcome') === '1') setWelcome(true)
 
-    const hash = window.location.hash.substring(1)
-    const hashParams = new URLSearchParams(hash)
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
-
     if (accessToken && refreshToken) {
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
-        if (error) {
-          setError('This reset link has expired or already been used. Please request a new one.')
-        } else {
+        if (error) setError('This link has expired or was already used. Enter your email below and we will send you a new one.')
+        else {
           setStep('set')
+          // Remove the one-time tokens from the address bar.
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
         }
       })
     } else {
-      // Tokens not found in hash — link may have expired or been consumed already
-      setError('This reset link has expired or already been used. Please request a new one.')
-      setStep('set')
+      setError('This link has expired or was already used. Enter your email below and we will send you a new one.')
     }
   }, [searchParams])
 
@@ -139,8 +144,8 @@ function ResetContent() {
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,136,32,0.15)', border: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>✉</div>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Check your email</span>
-              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Reset link sent.</h2>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>We sent a password reset link to <strong style={{ color: 'white' }}>{email}</strong>. Check your inbox and click the link to set your new password.</p>
+              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Check your inbox.</h2>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>If <strong style={{ color: 'white' }}>{email}</strong> has an account, a password link is on its way. It can take a few minutes; check your spam folder too. The link works once and expires.</p>
             </div>
             <div style={{ textAlign: 'center' }}>
               <button onClick={handleRequestReset} disabled={loading} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer' }}>
@@ -153,9 +158,9 @@ function ResetContent() {
         {/* STEP 3 — SET NEW PASSWORD */}
         {step === 'set' && (
           <>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Set new password</span>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Choose a new password.</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>Make it strong and something you will remember.</p>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>{welcome ? 'Welcome' : 'Set new password'}</span>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>{welcome ? 'Choose your password.' : 'Choose a new password.'}</h2>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>{welcome ? 'This finishes setting up your account. Use at least 8 characters; you will sign in with your email and this password.' : 'Use at least 8 characters, and something you will remember.'}</p>
             {error && <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '3px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{error}</div>}
             <form onSubmit={handleSetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
@@ -167,7 +172,7 @@ function ResetContent() {
                 <input type="password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} required style={inputStyle} />
               </div>
               <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', background: loading ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer' }}>
-                {loading ? 'Updating...' : 'Update Password'}
+                {loading ? 'Saving...' : welcome ? 'Set password and continue' : 'Update Password'}
               </button>
             </form>
           </>
@@ -178,8 +183,8 @@ function ResetContent() {
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,136,32,0.15)', border: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>✓</div>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>All set</span>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Password updated.</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>Redirecting you to login...</p>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>{welcome ? 'Your account is ready.' : 'Password updated.'}</h2>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>Taking you to sign in…</p>
           </div>
         )}
       </div>
