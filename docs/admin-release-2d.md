@@ -1,6 +1,6 @@
 # Admin portal release (2d) — summary, tests and deployment plan
 
-Branch `feature/impact-lab-revamp`. **Not deployed.** Production today: `main` = `a66b5da`
+Branch `feature/impact-lab-revamp`. **Deployed 2026-11-23:** `main` = `91d7f23` (Vercel `dpl_AJhGEWZJvDr4ciB97SuQgq4djeE9`), migrations 2d + search-path follow-up applied, two-step mode `off`. Before: `main` = `a66b5da`
 (Vercel `dpl_CoB93KhQx89kpxBZ6ps3pucmFRg7`), migrations lockdown, 2a, 2b, 2c.
 
 ## What changed
