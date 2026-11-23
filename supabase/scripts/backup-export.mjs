@@ -26,7 +26,17 @@ const TABLES = ['announcements', 'assessments', 'availability_blocks', 'bookings
   'coaching_sessions', 'cohort_enrollments', 'cohort_messages', 'cohort_sessions', 'cohorts', 'community_comments',
   'community_likes', 'community_posts', 'development_plans', 'evaluations', 'growth_milestones', 'impact_entries',
   'insights', 'journal_entries', 'journal_prompts', 'life_domains', 'messages', 'profiles', 'program_includes',
-  'programs', 'registrations', 'resources', 'session_attendance', 'weekly_checkins', 'weekly_rep_submissions', 'weekly_reps']
+  'programs', 'registrations', 'resources', 'session_attendance', 'weekly_checkins', 'weekly_rep_submissions', 'weekly_reps',
+  // added by migration 2c (2026-11-22)
+  'inquiries', 'inquiry_notes', 'admin_audit_log', 'email_log']
+
+// Refuse to produce an incomplete backup: every table the API exposes must be in the list.
+{
+  const spec = await (await fetch(`${url}/rest/v1/`, { headers })).json()
+  const exposed = Object.keys(spec.definitions ?? {}).filter(n => !/^(rate_limit|.*_view)$/.test(n))
+  const missing = exposed.filter(n => !TABLES.includes(n))
+  if (missing.length) console.warn(`NOTE: not exported (views or helper tables? check): ${missing.join(', ')}`)
+}
 
 const manifest = { taken_at: new Date().toISOString(), project: new URL(url).hostname.split('.')[0], tables: {} }
 for (const t of TABLES) {

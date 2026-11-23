@@ -40,6 +40,8 @@ node -e '
 const u=require(process.argv[1]); process.stdout.write(u.map(x=>[x.id, JSON.stringify(x.email ?? "")].join(",")).join("\n")+"\n")' "$DIR/auth_users.json" > "$WORK/auth_users.csv"
 {
   echo "set session_replication_role = replica;"
+  # Migrations applied above may seed rows (2c adds the pathways); the backup is the truth.
+  echo "truncate public.programs cascade;"
   echo "\\copy auth.users (id, email) from '$WORK/auth_users.csv' csv"
   for f in "$DIR"/public/*.csv; do
     t="$(basename "$f" .csv)"
