@@ -41,7 +41,7 @@ for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_ad
 done
 run -d rls_test -f "$HERE/05_checks_2c.sql"
 run -d rls_test -f "$HERE/04_checks_phase2.sql" | tail -3
-MIGRATIONS_2D="20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions 20261122000000_pathways_inquiries_admin 20261123000000_admin_hardening"
+MIGRATIONS_2D="20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions 20261122000000_pathways_inquiries_admin 20261123000000_admin_hardening 20261123000001_admin_hardening_search_path"
 echo "=== 2d: admin hardening (MFA in the database, resources, reps, capacity, activity log) ==="
 setup
 for m in $MIGRATIONS_2D; do run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null; done
