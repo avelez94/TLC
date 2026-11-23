@@ -103,7 +103,7 @@ test('activity log entries read as sentences, never raw codes', () => {
   assert.equal(describeActivity({ action: 'cohort.update', entity_type: 'cohort', entity_label: 'Fall 2027', changes: { status: { from: 'draft', to: 'upcoming' } } }),
     'Changed cohort “Fall 2027” status from Draft to Upcoming')
   assert.equal(describeActivity({ action: 'person.update', entity_type: 'person', entity_label: 'Pat Two', changes: { role: { from: 'impact_participant', to: 'admin' } } }),
-    'Changed “Pat Two”’s role from Impact Lab participant to Administrator')
+    'Changed Pat Two’s role from Impact Lab participant to Administrator')
   assert.equal(describeActivity({ action: 'enrollment.update', entity_type: 'enrollment', entity_label: 'Pat — Fall', changes: { status: { from: 'active', to: 'withdrawn' } } }),
     'Withdrew “Pat — Fall”')
   assert.equal(describeActivity({ action: 'resource.delete', entity_type: 'resource', entity_label: 'Guide' }), 'Deleted resource “Guide”')

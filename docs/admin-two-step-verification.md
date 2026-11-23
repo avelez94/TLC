@@ -10,7 +10,7 @@ Nobody else can do it for you, and nobody should ever ask for your codes.
 
 ## Steps
 1. Go to **tramainecrawford.com/login** and sign in as usual.
-2. In the admin panel, open **Security** (left menu, under *Insights & security*).
+2. In the admin panel, open **Security & activity** (left menu, under *Insights & security*).
 3. Under **Two-step verification**, select **Turn on two-step verification**.
 4. Open your authenticator app, choose **Add account / Scan QR code**, and scan the code on screen.
    If you can't scan it, choose *Enter a setup key* and type the key shown under the QR code.

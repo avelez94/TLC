@@ -45,7 +45,7 @@ export default function TwoStepSetup({ redirectTo, onDone, label = 'Turn on two-
 
   return (
     <div>
-      {!enrolling && <button onClick={start} disabled={busy} className="btn btn-primary" style={{ fontSize: '0.82rem' }}>{busy ? 'Starting…' : label}</button>}
+      {!enrolling && <button onClick={start} disabled={busy} className="btn btn-primary" style={{ fontSize: '0.82rem', maxWidth: '100%', whiteSpace: 'normal', textAlign: 'center' }}>{busy ? 'Starting…' : label}</button>}
       {enrolling && (
         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

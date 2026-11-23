@@ -96,7 +96,7 @@ export default async function ImpactLabPage() {
           </div>
 
           <nav className={s.heroPathways} aria-label={`The ${countWord(pathways.length).toLowerCase()} pathways`}>
-            <span className={s.heroPathwaysLabel}>{countWord(pathways.length)} independent pathway{pathways.length === 1 ? '' : 's'}</span>
+            <span className={s.heroPathwaysLabel}>{`${countWord(pathways.length)} independent pathway${pathways.length === 1 ? '' : 's'}`}</span>
             <ul>
               {pathways.map(p => (
                 <li key={p.slug}>
@@ -121,7 +121,7 @@ export default async function ImpactLabPage() {
           <div className={s.sectionHead}>
             <div>
               <span className={s.eyebrowDark}>Leadership Development Pathways</span>
-              <h2 id="pathways-title" className={s.sectionTitle}>{countWord(pathways.length)} Pathway{pathways.length === 1 ? '' : 's'}. One Purpose.</h2>
+              <h2 id="pathways-title" className={s.sectionTitle}>{`${countWord(pathways.length)} Pathway${pathways.length === 1 ? '' : 's'}. One Purpose.`}</h2>
             </div>
             <div className={s.sectionIntro}>
               <p>Whether preparing for your first leadership position, transitioning into supervision, or strengthening your effectiveness as a manager, The Impact Lab provides practical development experiences that help you turn learning into action and create meaningful impact in the workplace.</p>

@@ -86,7 +86,7 @@ export function describeActivity(row: ActivityRow, look: ActivityLookups = {}): 
     return failed + (legacy ? (label ? `${legacy} ${label}` : legacy) : row.action.replace(/[._]/g, ' '))
   }
   if (entityKey === 'person' && changes.role) {
-    return `${failed}Changed ${label || 'a person'}’s role from ${show('role', changes.role.from, look)} to ${show('role', changes.role.to, look)}`
+    return `${failed}Changed ${row.entity_label || 'a person'}’s role from ${show('role', changes.role.from, look)} to ${show('role', changes.role.to, look)}`
   }
   if (entityKey === 'enrollment' && changes.status) {
     const to = changes.status.to

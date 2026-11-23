@@ -28,9 +28,11 @@ run -f "$ROOT/supabase/tests/rls/00_supabase_stub.sql"
 run -c "alter table auth.users add column if not exists encrypted_password text, add column if not exists created_at timestamptz default now(), add column if not exists last_sign_in_at timestamptz;
         alter table auth.mfa_factors add column if not exists friendly_name text, add column if not exists secret text;"
 run -f "$ROOT/supabase/tests/rls/01_live_replica.sql"
+run -f "$HERE/prod-foreign-keys.sql"
 for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions 20261122000000_pathways_inquiries_admin ${LOCAL_EXTRA_MIGRATIONS-20261123000000_admin_hardening}; do
   run -f "$ROOT/supabase/migrations/$m.sql"
 done
+# The 2c pathway rows exist in production; the 2c migration only inserts them when missing.
 run -f "$HERE/seed.sql"
 run -c "create role authenticator login password 'local' noinherit; grant anon, authenticated, service_role to authenticator;
         grant usage on schema public to anon, authenticated, service_role;
