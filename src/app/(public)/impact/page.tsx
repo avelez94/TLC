@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { assertSafeEnvironment } from '@/lib/env-guard'
-import { mergePathways, PATHWAY_FOR_WHOM, PATHWAY_SLUGS, type PathwayRow } from '@/lib/pathways'
+import { visiblePathwayLinks } from '@/lib/public-pathways'
+import { checkoutEnabled, countWord, mergePathways, PATHWAY_FOR_WHOM, PATHWAY_SLUGS, type PathwayRow } from '@/lib/pathways'
 import PathwaySelector from './PathwaySelector'
 import InquiryForm from './InquiryForm'
 import InquiryLink from './InquiryLink'
@@ -10,18 +11,25 @@ import s from './impact.module.css'
 
 const SITE = 'https://tramainecrawford.com'
 
-export const metadata: Metadata = {
-  title: 'The Impact Lab — Leadership Development Pathways | TLC Leadership',
-  description: 'Cohort-based leadership development for emerging leaders, new supervisors and frontline managers. Three independent pathways: Emerging Leaders, New Leaders and Practicing Leaders.',
-  alternates: { canonical: `${SITE}/impact` },
-  openGraph: {
-    title: 'The Impact Lab — Step Up. Solve Problems. Create Impact.',
-    description: 'Three independent leadership development pathways from TLC Leadership Consulting & Coaching, for individuals and organizations.',
-    url: `${SITE}/impact`,
-    siteName: 'TLC Leadership Consulting & Coaching',
-    type: 'website',
-    images: [{ url: `${SITE}/images/impact-lab-banner.png`, width: 1140, height: 326, alt: 'The Impact Lab' }],
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  // Built from the pathways visitors can see, so a hidden pathway is not advertised here either.
+  const visible = await visiblePathwayLinks()
+  const names = visible.map(p => p.name)
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? ''
+  const count = countWord(names.length)
+  return {
+    title: 'The Impact Lab — Leadership Development Pathways | TLC Leadership',
+    description: `Cohort-based leadership development for emerging leaders, new supervisors and frontline managers. ${count} independent pathway${names.length === 1 ? '' : 's'}: ${list}.`,
+    alternates: { canonical: `${SITE}/impact` },
+    openGraph: {
+      title: 'The Impact Lab — Step Up. Solve Problems. Create Impact.',
+      description: `${count} independent leadership development pathway${names.length === 1 ? '' : 's'} from TLC Leadership Consulting & Coaching, for individuals and organizations.`,
+      url: `${SITE}/impact`,
+      siteName: 'TLC Leadership Consulting & Coaching',
+      type: 'website',
+      images: [{ url: `${SITE}/images/impact-lab-banner.png`, width: 1140, height: 326, alt: 'The Impact Lab' }],
+    },
+  }
 }
 
 async function loadPathways() {
@@ -36,7 +44,7 @@ async function loadPathways() {
       .select('id, slug, pathway_number, name, tagline, opening_statement, audience, description, leadership_goal, keywords, price_label, enrollment_open, is_public')
       .in('slug', PATHWAY_SLUGS)
       .abortSignal(AbortSignal.timeout(3000))
-    return mergePathways(error ? null : (data as PathwayRow[]))
+    return mergePathways(error ? null : (data as PathwayRow[]), { checkoutEnabled: checkoutEnabled() })
   } catch {
     return mergePathways(null) // approved copy if the database is unreachable
   }
@@ -87,8 +95,8 @@ export default async function ImpactLabPage() {
             </div>
           </div>
 
-          <nav className={s.heroPathways} aria-label="The three pathways">
-            <span className={s.heroPathwaysLabel}>Three independent pathways</span>
+          <nav className={s.heroPathways} aria-label={`The ${countWord(pathways.length).toLowerCase()} pathways`}>
+            <span className={s.heroPathwaysLabel}>{countWord(pathways.length)} independent pathway{pathways.length === 1 ? '' : 's'}</span>
             <ul>
               {pathways.map(p => (
                 <li key={p.slug}>
@@ -113,14 +121,14 @@ export default async function ImpactLabPage() {
           <div className={s.sectionHead}>
             <div>
               <span className={s.eyebrowDark}>Leadership Development Pathways</span>
-              <h2 id="pathways-title" className={s.sectionTitle}>Three Pathways. One Purpose.</h2>
+              <h2 id="pathways-title" className={s.sectionTitle}>{countWord(pathways.length)} Pathway{pathways.length === 1 ? '' : 's'}. One Purpose.</h2>
             </div>
             <div className={s.sectionIntro}>
               <p>Whether preparing for your first leadership position, transitioning into supervision, or strengthening your effectiveness as a manager, The Impact Lab provides practical development experiences that help you turn learning into action and create meaningful impact in the workplace.</p>
               <p className={s.independent}><b>Independent pathways, not levels.</b> The numbers 01, 02 and 03 identify each pathway. There are no prerequisites and no required order: start with the one that fits your role today.</p>
             </div>
           </div>
-          <PathwaySelector pathways={pathways} />
+          {pathways.length > 0 && <PathwaySelector pathways={pathways} />}
         </div>
       </section>
 

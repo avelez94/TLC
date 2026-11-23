@@ -96,11 +96,35 @@ export interface PathwayRow {
   is_public: boolean | null
 }
 
-/** Merge database rows over the approved defaults; unknown or hidden rows are ignored. */
-export function mergePathways(rows: PathwayRow[] | null | undefined): Pathway[] {
-  return DEFAULT_PATHWAYS.map(def => {
-    const row = rows?.find(r => r.slug === def.slug && r.is_public !== false)
-    if (!row) return def
+/**
+ * Merge database rows over the approved defaults.
+ * - `rows` is the result of a successful query: only pathways that have a row AND are public
+ *   are returned (a hidden pathway is not readable by visitors at all, so it has no row).
+ * - `rows` is null when the database could not be reached: the approved defaults are shown
+ *   so the public page never renders empty. (A pathway hidden by the owner could briefly
+ *   reappear during such an outage; that trade-off is documented in docs/admin-metrics.md.)
+ */
+export function mergePathways(rows: PathwayRow[] | null | undefined, opts: { checkoutEnabled?: boolean } = {}): Pathway[] {
+  if (!rows) return DEFAULT_PATHWAYS
+  return DEFAULT_PATHWAYS.flatMap(def => {
+    const row = rows.find(r => r.slug === def.slug)
+    if (!row || row.is_public === false) return []
+    return [mergeRow(def, row, !!opts.checkoutEnabled)]
+  })
+}
+
+/** Online registration (Stripe checkout) is on only when explicitly enabled for the site. */
+export function checkoutEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.CHECKOUT_ENABLED === 'true'
+}
+
+/** Spelled-out count for headings ("Three Pathways"). */
+export function countWord(n: number): string {
+  return ['No', 'One', 'Two', 'Three', 'Four', 'Five'][n] ?? String(n)
+}
+
+function mergeRow(def: Pathway, row: PathwayRow, checkoutEnabled: boolean): Pathway {
+    const enrollable = !!row.enrollment_open && checkoutEnabled
     const focus = (row.keywords ?? '').split(',').map(s => s.trim()).filter(Boolean)
     return {
       id: row.id,
@@ -113,9 +137,9 @@ export function mergePathways(rows: PathwayRow[] | null | undefined): Pathway[] 
       description: row.description || def.description,
       goal: row.leadership_goal || def.goal,
       focus: focus.length ? focus : def.focus,
-      // A price is shown only when the pathway is open for enrollment and a label is set.
-      priceLabel: row.enrollment_open && row.price_label ? row.price_label : null,
-      enrollmentOpen: !!row.enrollment_open,
+      // A price is shown only while enrollment is genuinely open: the pathway is open AND
+      // online registration (checkout) is switched on for the site.
+      priceLabel: enrollable && row.price_label ? row.price_label : null,
+      enrollmentOpen: enrollable,
     }
-  })
 }

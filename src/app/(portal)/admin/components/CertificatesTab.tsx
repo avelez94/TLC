@@ -1,60 +1,73 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
 import type { AdminPanel } from '../useAdminPanel'
-import { cardStyle, inputStyle, labelStyle, thStyle, tdStyle } from './shared'
+import { formatDateTimeET } from '@/lib/business-time'
+import { cardStyle, helpStyle, inputStyle, labelStyle, pageTitleStyle, sectionTitleStyle, tdStyle, thStyle } from './shared'
+import { IssueCertificateForm } from './people/common'
 
-type CertificatesTabProps = Pick<AdminPanel,
-  'certificates' | 'users' | 'programs' | 'handleIssueCertificate' | 'actionLoading'
->
+export default function CertificatesTab(panel: AdminPanel) {
+  const { certificates, cohorts } = panel
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const rows = certificates
+    .map(c => ({
+      c,
+      person: c.profiles?.full_name || c.profiles?.email || panel.personName(c.user_id),
+      email: c.profiles?.email ?? '',
+      program: c.programs?.name ?? 'Unknown program',
+      cohort: c.cohort_id ? cohorts.find(x => x.id === c.cohort_id)?.name ?? 'Unknown cohort' : '',
+    }))
+    .filter(r => !q || [r.person, r.email, r.program, r.cohort].some(v => v.toLowerCase().includes(q)))
 
-export default function CertificatesTab({ certificates, users, programs, handleIssueCertificate, actionLoading }: CertificatesTabProps) {
   return (
     <div>
-      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Certificates</span>
-      <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }}>Certificates</h1>
-      <div style={cardStyle}>
-        <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }}>Issue a Certificate</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div>
-            <label style={labelStyle}>Participant</label>
-            <select id="cert-user" style={inputStyle}>
-              <option value="">Select participant...</option>
-              {users.filter(u => u.role === 'impact_participant').map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Program</label>
-            <select id="cert-program" style={inputStyle}>
-              <option value="">Select program...</option>
-              {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-        </div>
-        <button onClick={() => {
-          const userId = (document.getElementById('cert-user') as HTMLSelectElement)?.value
-          const programId = (document.getElementById('cert-program') as HTMLSelectElement)?.value
-          if (userId && programId) handleIssueCertificate(userId, programId)
-        }} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
-          {actionLoading ? 'Issuing...' : 'Issue Certificate'}
-        </button>
+      <span style={labelStyle}>People</span>
+      <h1 style={pageTitleStyle}>All certificates</h1>
+      <p style={helpStyle}>
+        Certificates are normally issued from a participant&apos;s record in{' '}
+        <Link href="/admin/users" style={{ color: '#8a5a10', fontWeight: 600 }}>Participants</Link>. This page lists every certificate in one place.
+      </p>
+
+      <section style={cardStyle}>
+        <h2 style={sectionTitleStyle}>Issue a certificate</h2>
+        <IssueCertificateForm panel={panel} idPrefix="allcerts" />
+      </section>
+
+      <div style={{ marginBottom: '1rem', maxWidth: '420px' }}>
+        <label htmlFor="cert-search" style={labelStyle}>Search certificates</label>
+        <input id="cert-search" type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Person, program or cohort" style={inputStyle} />
       </div>
-      {certificates.length > 0 && (
+
+      {certificates.length === 0 ? (
+        <div style={{ ...cardStyle, textAlign: 'center', color: 'var(--slate)', fontSize: '0.92rem' }}>No certificates issued yet.</div>
+      ) : (
         <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>{['Participant', 'Program', 'Issued'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+              <caption style={{ textAlign: 'left', padding: '0.75rem 1rem', color: 'var(--slate)', fontSize: '0.85rem' }}>
+                {rows.length} of {certificates.length} certificate{certificates.length === 1 ? '' : 's'}
+              </caption>
+              <thead><tr>{['Person', 'Program', 'Cohort', 'Issued (ET)'].map(h => <th key={h} scope="col" style={thStyle}>{h}</th>)}</tr></thead>
               <tbody>
-                {certificates.map(c => (
-                  <tr key={c.id}>
-                    <td style={tdStyle}><span style={{ fontWeight: 600, color: 'var(--navy)' }}>{(c.profiles as any)?.full_name || (c.profiles as any)?.email || 'Unknown'}</span></td>
-                    <td style={tdStyle}>{(c.programs as any)?.name || 'Unknown'}</td>
-                    <td style={tdStyle}><span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', color: 'var(--slate)' }}>{new Date(c.issued_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></td>
+                {rows.map(r => (
+                  <tr key={r.c.id}>
+                    <td style={tdStyle}>
+                      <span style={{ fontWeight: 600, color: 'var(--navy)' }}>{r.person}</span>
+                      {r.email && r.email !== r.person && <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.82rem' }}>{r.email}</span>}
+                    </td>
+                    <td style={tdStyle}>{r.program}</td>
+                    <td style={tdStyle}>{r.cohort || <span style={{ color: 'var(--slate)' }}>Not specified</span>}</td>
+                    <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{formatDateTimeET(r.c.issued_at)}</td>
                   </tr>
                 ))}
+                {rows.length === 0 && <tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: 'var(--slate)' }}>No certificates match this search.</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
       )}
-      {certificates.length === 0 && <div style={{ ...cardStyle, textAlign: 'center', padding: '2rem' }}><p style={{ color: 'var(--slate)', fontSize: '0.88rem' }}>No certificates issued yet.</p></div>}
     </div>
   )
 }

@@ -31,8 +31,17 @@ export default function InquiryForm({ pathways }: { pathways: Pathway[] }) {
       setDone(null)
     }
     window.addEventListener(OPEN_INQUIRY_EVENT, onOpen)
+    // Links from other pages (e.g. /register while enrollment is closed) preset the form:
+    // /impact?inquire=individual&pathway=new-leaders#inquire
+    const q = new URLSearchParams(window.location.search)
+    const k = q.get('inquire')
+    if (k === 'individual' || k === 'organization') {
+      const p = q.get('pathway')
+      window.setTimeout(() => setKind(k), 0)
+      if (p && pathways.some(x => x.slug === p)) window.setTimeout(() => setSelected([p]), 0)
+    }
     return () => window.removeEventListener(OPEN_INQUIRY_EVENT, onOpen)
-  }, [])
+  }, [pathways])
 
   const toggle = (slug: string) =>
     setSelected(prev => (prev.includes(slug) ? prev.filter(p => p !== slug) : [...prev, slug]))

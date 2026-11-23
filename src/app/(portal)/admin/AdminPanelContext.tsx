@@ -1,12 +1,12 @@
 'use client'
 
 import { createContext, useContext, type ReactNode } from 'react'
-import { useAdminPanel, type AdminPanel } from './useAdminPanel'
+import { useAdminPanel, type AdminPanel, type AdminPanelOptions } from './useAdminPanel'
 
 const AdminPanelContext = createContext<AdminPanel | null>(null)
 
-export function AdminPanelProvider({ children }: { children: ReactNode }) {
-  const panel = useAdminPanel()
+export function AdminPanelProvider({ children, ...options }: AdminPanelOptions & { children: ReactNode }) {
+  const panel = useAdminPanel(options)
   return <AdminPanelContext.Provider value={panel}>{children}</AdminPanelContext.Provider>
 }
 

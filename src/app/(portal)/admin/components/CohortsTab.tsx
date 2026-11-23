@@ -1,587 +1,276 @@
-import { sanitizeRichText } from '@/lib/sanitize-html'
-import { useState, useRef, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+// Cohorts: one run of a pathway with its own dates, participants, schedule, weekly reps,
+// journal prompts and registration-page content. Everything about a cohort is managed in
+// its card. Open cards and sections stay open while data refreshes after a save.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
+import type { Cohort, CohortStatus } from '@/types'
+import { cohortAvailability, seatsTaken } from '@/lib/admin-metrics'
+import { formatDateET } from '@/lib/business-time'
 import type { AdminPanel } from '../useAdminPanel'
-import { cardStyle, inputStyle, labelStyle, statusBadge } from './shared'
+import { InlineError } from './feedback'
+import { cardStyle, helpStyle, pageTitleStyle, secondaryButtonStyle, statusBadge } from './shared'
+import CohortDetails from './cohort/CohortDetails'
+import CohortParticipants from './cohort/CohortParticipants'
+import CohortSchedule from './cohort/CohortSchedule'
+import CohortReps from './cohort/CohortReps'
+import CohortPrompts from './cohort/CohortPrompts'
+import { CohortContent, CohortReading } from './cohort/CohortContent'
+import CreateCohortForm from './cohort/CreateCohortForm'
+import { STATUS_CONFIRM, Section, eyebrowStyle, metaStyle, plural } from './cohort/ui'
 
-type CohortsTabProps = Pick<AdminPanel,
-  'cohorts' | 'programs' | 'enrollments' | 'cohortSessions' | 'reps' |
-  'showCohortForm' | 'setShowCohortForm' | 'newCohort' | 'setNewCohort' | 'handleCreateCohort' | 'actionLoading' |
-  'expandedCohort' | 'setExpandedCohort' | 'handleUpdateCohortStatus' | 'fetchAll' |
-  'handleGenerateSchedule' | 'handleAddSession' | 'handleDeleteSession' | 'newSession' | 'setNewSession' | 'handleDeleteCohort' | 'handleDuplicateCohort' | 'handleUpdateCohortCapacity'
->
+type Filter = 'current' | 'finished' | 'archived'
+type SectionKey = 'details' | 'participants' | 'schedule' | 'reps' | 'prompts' | 'content' | 'reading'
 
-type SectionKey = 'details' | 'content' | 'reading' | 'schedule' | 'participants'
+const FILTERS: { key: Filter; label: string; statuses: CohortStatus[] }[] = [
+  { key: 'current', label: 'Current', statuses: ['active', 'upcoming', 'draft'] },
+  { key: 'finished', label: 'Finished', statuses: ['completed', 'cancelled'] },
+  { key: 'archived', label: 'Archived', statuses: ['archived'] },
+]
+const filterFor = (status: CohortStatus): Filter => FILTERS.find(f => f.statuses.includes(status))?.key ?? 'current'
+const CURRENT_GROUPS: { status: CohortStatus; title: string }[] = [
+  { status: 'active', title: 'Running now' }, { status: 'upcoming', title: 'Upcoming' }, { status: 'draft', title: 'Drafts (not public)' },
+]
 
-function SectionHeader({ title, isOpen, onClick }: { title: string; isOpen: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.85rem 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-    >
-      <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1rem', color: 'var(--navy)', letterSpacing: '0.06em' }}>{title}</span>
-      <span style={{ color: 'var(--gold)', fontSize: '0.85rem', fontWeight: 700, width: '1rem', textAlign: 'center' }}>{isOpen ? '−' : '+'}</span>
-    </button>
-  )
+const byStart = (a: Cohort, b: Cohort) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999') || a.name.localeCompare(b.name)
+const byEndDesc = (a: Cohort, b: Cohort) => (b.end_date ?? '').localeCompare(a.end_date ?? '') || a.name.localeCompare(b.name)
+
+function dateRange(c: Cohort) {
+  if (c.start_date && c.end_date) return `${formatDateET(c.start_date)} – ${formatDateET(c.end_date)}`
+  if (c.start_date) return `Starts ${formatDateET(c.start_date)}`
+  if (c.end_date) return `Ends ${formatDateET(c.end_date)}`
+  return 'No dates yet'
 }
 
-// Simple rich text editor toolbar using contentEditable + execCommand.
-// Stores its output as HTML (saved to cohorts.description), which the
-// register page renders with dangerouslySetInnerHTML.
-const RICH_TEXT_COLORS = ['#001737', '#C88820', '#1C2430', '#4A5260', '#B02A2A', '#1E6B3A']
+const menuItemStyle = { display: 'block', width: '100%', textAlign: 'left' as const, padding: '0.75rem 1rem', background: 'none', border: 'none', color: 'var(--navy)', fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }
 
-function DescriptionEditor({ cohortId, initialValue, onSave }: { cohortId: string; initialValue: string; onSave: (html: string) => void }) {
-  const editorRef = useRef<HTMLDivElement>(null)
-  const [showColorPicker, setShowColorPicker] = useState(false)
-
-  const exec = (command: string, value?: string) => {
-    editorRef.current?.focus()
-    document.execCommand(command, false, value)
-  }
-
-  const handleBlur = () => {
-    if (editorRef.current) {
-      onSave(sanitizeRichText(editorRef.current.innerHTML))
-    }
-    setShowColorPicker(false)
-  }
-
-  const btnStyle = {
-    background: 'white',
-    border: '1px solid rgba(0,23,55,0.15)',
-    borderRadius: '3px',
-    padding: '0.4rem 0.65rem',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    color: 'var(--navy)',
-    fontFamily: 'var(--font-montserrat), sans-serif',
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap', alignItems: 'center', position: 'relative' }}>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('bold')} style={{ ...btnStyle, fontWeight: 700 }}>B</button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('italic')} style={{ ...btnStyle, fontStyle: 'italic' }}>I</button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('underline')} style={{ ...btnStyle, textDecoration: 'underline' }}>U</button>
-        <div style={{ width: '1px', height: '1.5rem', background: 'rgba(0,23,55,0.15)', margin: '0 0.2rem' }} />
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowColorPicker(v => !v)} style={btnStyle}>
-          Color <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: 'var(--gold)', marginLeft: '0.3rem', verticalAlign: 'middle' }} />
-        </button>
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('removeFormat')} style={btnStyle}>Clear</button>
-        {showColorPicker && (
-          <div style={{ position: 'absolute', top: '110%', left: 0, background: 'white', border: '1px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.5rem', display: 'flex', gap: '0.4rem', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-            {RICH_TEXT_COLORS.map(color => (
-              <button
-                key={color}
-                type="button"
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => { exec('foreColor', color); setShowColorPicker(false) }}
-                style={{ width: '22px', height: '22px', borderRadius: '50%', background: color, border: '1px solid rgba(0,23,55,0.15)', cursor: 'pointer', padding: 0 }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        suppressContentEditableWarning
-        onBlur={handleBlur}
-        dangerouslySetInnerHTML={{ __html: sanitizeRichText(initialValue) }}
-        style={{
-        ...inputStyle,
-        minHeight: '100px',
-        padding: '0.75rem 1rem',
-        lineHeight: 1.6,
-        cursor: 'text',
-        whiteSpace: 'pre-wrap',
-      }}
-      />
-      <p style={{ color: 'var(--slate)', fontSize: '0.72rem', marginTop: '0.4rem' }}>Select text to apply formatting. Changes save automatically when you click away.</p>
-    </div>
-  )
-}
-
-// Type-to-confirm delete modal. Requires the admin to type the exact word
-// DELETE before the button becomes clickable, so an accidental double-click
-// on the wrong cohort can't wipe out real data.
-function DeleteCohortModal({ cohortName, onConfirm, onCancel, deleting }: { cohortName: string; onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
-  const [confirmText, setConfirmText] = useState('')
-  const canDelete = confirmText === 'DELETE'
-
-  return (
-    <div
-      onClick={onCancel}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,23,55,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1.5rem' }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: 'white', borderRadius: '6px', padding: '2rem', maxWidth: '440px', width: '100%', borderTop: '4px solid #ff6b6b' }}
-      >
-        <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.4rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>
-          Delete this cohort?
-        </h3>
-        <p style={{ color: 'var(--slate)', fontSize: '0.88rem', lineHeight: 1.65, marginBottom: '0.5rem' }}>
-          You are about to permanently delete <strong style={{ color: 'var(--navy)' }}>{cohortName}</strong>. This cannot be undone. Any sessions, enrollments, or reps tied to it may be affected.
-        </p>
-        <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-          Type <strong style={{ color: '#ff6b6b' }}>DELETE</strong> below to confirm.
-        </p>
-        <input
-          value={confirmText}
-          onChange={e => setConfirmText(e.target.value)}
-          placeholder="Type DELETE to confirm"
-          autoFocus
-          style={{ ...inputStyle, marginBottom: '1.25rem', borderColor: canDelete ? '#ff6b6b' : undefined }}
-        />
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onCancel}
-            style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--slate)', borderRadius: '3px', padding: '0.6rem 1.25rem', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!canDelete || deleting}
-            style={{
-              background: canDelete ? '#ff6b6b' : 'rgba(255,107,107,0.35)',
-              border: 'none',
-              color: 'white',
-              borderRadius: '3px',
-              padding: '0.6rem 1.25rem',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              cursor: canDelete && !deleting ? 'pointer' : 'not-allowed',
-              fontFamily: 'var(--font-montserrat), sans-serif',
-            }}
-          >
-            {deleting ? 'Deleting...' : 'Delete Permanently'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function CohortsTab({
-  cohorts, programs, enrollments, cohortSessions, reps,
-  showCohortForm, setShowCohortForm, newCohort, setNewCohort, handleCreateCohort, actionLoading,
-  expandedCohort, setExpandedCohort, handleUpdateCohortStatus, fetchAll,
-  handleGenerateSchedule, handleAddSession, handleDeleteSession, newSession, setNewSession, handleDeleteCohort, handleDuplicateCohort, handleUpdateCohortCapacity,
-}: CohortsTabProps) {
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    details: true,
-    content: false,
-    reading: false,
-    schedule: false,
-    participants: false,
-  })
-  const toggleSection = (key: SectionKey) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
-
-  // Live preview of the book cover URL as the admin types, keyed by cohort id so
-  // switching between expanded cohorts doesn't mix up previews. Separate from the
-  // actual saved value — this only drives the preview; saving still happens onBlur.
-  const [bookImagePreview, setBookImagePreview] = useState<Record<string, string>>({})
-  const [bookImageError, setBookImageError] = useState<Record<string, boolean>>({})
-  const [deleteModalCohortId, setDeleteModalCohortId] = useState<string | null>(null)
-  const [deletingCohort, setDeletingCohort] = useState(false)
-  const [openMenuCohortId, setOpenMenuCohortId] = useState<string | null>(null)
+function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSection, onCopied }: {
+  panel: AdminPanel; cohort: Cohort; open: boolean; onToggle: () => void
+  isSectionOpen: (k: SectionKey) => boolean; toggleSection: (k: SectionKey) => void; onCopied: (name: string) => void
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Close the three-dot action menu whenever the admin clicks anywhere else
-  // on the page, not just when they pick an action from it.
   useEffect(() => {
-    if (!openMenuCohortId) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuCohortId(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openMenuCohortId])
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
 
-  const saveDescription = async (cohortId: string, html: string) => {
-    await supabase.from('cohorts').update({ description: html || null }).eq('id', cohortId)
-    fetchAll()
+  const program = panel.programs.find(p => p.id === cohort.program_id)
+  const taken = seatsTaken(cohort.id, panel.enrollments)
+  const seats = cohort.capacity != null ? `${taken} of ${cohort.capacity} seats` : `${taken} enrolled, no limit`
+  const availability = cohortAvailability({
+    cohortStatus: cohort.status, capacity: cohort.capacity, seatsTaken: taken,
+    pathwayEnrollmentOpen: program?.enrollment_open ?? false, checkoutEnabled: panel.checkoutEnabled,
+  })
+  const hasHistory = panel.cohortHasHistory(cohort.id)
+
+  const sessions = panel.cohortSessions.filter(s => s.cohort_id === cohort.id).length
+  const reps = panel.reps.filter(r => r.cohort_id === cohort.id && !r.archived_at).length
+  const prompts = panel.journalPrompts.filter(p => p.program_id === null || p.program_id === cohort.program_id).length
+
+  const act = async (key: string, fn: () => Promise<string | null>) => {
+    setMenuOpen(false)
+    setBusy(key)
+    setActionError(null)
+    const err = await fn()
+    setBusy(null)
+    setActionError(err)
+    return err
   }
 
-  const confirmDeleteCohort = async () => {
-    if (!deleteModalCohortId) return
-    setDeletingCohort(true)
-    await handleDeleteCohort(deleteModalCohortId)
-    setDeletingCohort(false)
-    setDeleteModalCohortId(null)
+  const duplicate = async () => {
+    const err = await act('duplicate', () => panel.handleDuplicateCohort(cohort.id))
+    if (!err) onCopied(`${cohort.name} (Copy)`)
+  }
+  const archive = async () => {
+    setMenuOpen(false)
+    const c = STATUS_CONFIRM.archived!
+    if (!(await panel.confirm({ title: c.title, message: `“${cohort.name}”`, consequences: c.consequences, confirmLabel: c.confirmLabel, danger: true }))) return
+    await act('archive', () => panel.handleUpdateCohortStatus(cohort.id, 'archived'))
+  }
+  const remove = async () => {
+    setMenuOpen(false)
+    if (!(await panel.confirm({
+      title: 'Delete this cohort permanently?',
+      message: `“${cohort.name}” has no participants, registrations, certificates or reflections.`,
+      consequences: [
+        'The cohort, its schedule and its weekly reps are removed for good.',
+        'This cannot be undone. To hide it but keep it, archive it instead.',
+      ],
+      confirmLabel: 'Delete permanently',
+      danger: true,
+      requireText: 'DELETE',
+    }))) return
+    await act('delete', () => panel.handleDeleteCohort(cohort.id))
   }
 
-  const cohortPendingDelete = cohorts.find(c => c.id === deleteModalCohortId)
+  const sectionId = (k: SectionKey) => `cohort-${cohort.id}-section-${k}`
+  const sec = (k: SectionKey, title: string, summary: string | undefined, body: ReactNode) => (
+    <Section id={sectionId(k)} title={title} summary={summary} open={isSectionOpen(k)} onToggle={() => toggleSection(k)}>{body}</Section>
+  )
+
+  return (
+    <div style={{ ...cardStyle, padding: '1.25rem 1.25rem 0.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: '0.75rem' }}>
+        <button type="button" aria-expanded={open} onClick={onToggle}
+          style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', gap: '0.75rem', alignItems: 'flex-start', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+          <span aria-hidden="true" style={{ color: '#8a5a10', fontSize: '0.9rem', paddingTop: '0.25rem', width: '1rem' }}>{open ? '▾' : '▸'}</span>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'block', fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.35rem', color: 'var(--navy)', letterSpacing: '0.04em', lineHeight: 1.2, overflowWrap: 'anywhere' }}>{cohort.name}</span>
+            <span style={{ ...metaStyle, display: 'block' }}>{program?.name ?? cohort.programs?.name ?? 'No pathway'}</span>
+            <span style={{ ...metaStyle, display: 'block' }}>{dateRange(cohort)} · {seats}</span>
+          </span>
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}>
+          {statusBadge(availability.key, availability.label)}
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button type="button" aria-expanded={menuOpen} aria-label={`More actions for ${cohort.name}`} onClick={() => setMenuOpen(v => !v)} disabled={!!busy}
+              style={{ ...secondaryButtonStyle, minHeight: '40px' }}>
+              {busy === 'duplicate' ? 'Copying…' : busy === 'archive' ? 'Archiving…' : busy === 'delete' ? 'Deleting…' : 'More ▾'}
+            </button>
+            {menuOpen && (
+              <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid rgba(0,23,55,0.15)', borderRadius: '4px', boxShadow: '0 6px 20px rgba(0,0,0,0.14)', zIndex: 20, width: 'min(280px, 80vw)', overflow: 'hidden' }}>
+                <button type="button" onClick={() => void duplicate()} style={menuItemStyle}>
+                  Duplicate
+                  <span style={{ ...metaStyle, display: 'block', fontSize: '0.8rem' }}>Copies the details and content as a new Draft, without dates or people.</span>
+                </button>
+                {cohort.status !== 'archived' && (
+                  <button type="button" onClick={() => void archive()} style={{ ...menuItemStyle, borderTop: '1px solid var(--mist)' }}>
+                    Archive
+                    <span style={{ ...metaStyle, display: 'block', fontSize: '0.8rem' }}>Hides it from routine lists. Everything is kept.</span>
+                  </button>
+                )}
+                <button type="button" onClick={() => void remove()} disabled={hasHistory}
+                  style={{ ...menuItemStyle, borderTop: '1px solid var(--mist)', color: hasHistory ? 'var(--slate)' : '#b3261e', cursor: hasHistory ? 'not-allowed' : 'pointer' }}>
+                  Delete permanently
+                  <span style={{ ...metaStyle, display: 'block', fontSize: '0.8rem' }}>
+                    {hasHistory
+                      ? 'Not available: this cohort has participants, registrations, certificates or reflections. Archive it instead to keep its history.'
+                      : 'Only for cohorts nobody has used. Cannot be undone.'}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <InlineError message={actionError} />
+
+      {open && (
+        <div>
+          <p style={{ ...metaStyle, margin: '0 0 0.75rem', padding: '0.6rem 0.8rem', background: 'var(--paper)', borderRadius: '4px' }}>
+            <strong style={{ color: 'var(--navy)' }}>{availability.label}:</strong> {availability.detail}
+          </p>
+          {sec('details', 'Details', undefined, <CohortDetails panel={panel} cohort={cohort} />)}
+          {sec('participants', 'Participants', seats, <CohortParticipants panel={panel} cohort={cohort} />)}
+          {sec('schedule', 'Schedule', plural(sessions, 'session'), <CohortSchedule panel={panel} cohort={cohort} />)}
+          {sec('reps', 'Weekly reps', plural(reps, 'rep'), <CohortReps panel={panel} cohort={cohort} />)}
+          {sec('prompts', 'Journal prompts', plural(prompts, 'prompt'), <CohortPrompts panel={panel} cohort={cohort} />)}
+          {sec('content', 'Registration page content', undefined, <CohortContent panel={panel} cohort={cohort} />)}
+          {sec('reading', 'Reading', cohort.book_title || 'No book', <CohortReading panel={panel} cohort={cohort} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function CohortsTab(panel: AdminPanel) {
+  const [filter, setFilter] = useState<Filter>('current')
+  const [showForm, setShowForm] = useState(false)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [sections, setSections] = useState<Record<string, Partial<Record<SectionKey, boolean>>>>({})
+  const [justCreated, setJustCreated] = useState<string | null>(null)
+
+  // The newest cohort with the name just created or copied opens automatically.
+  const justCreatedId = useMemo(() => justCreated
+    ? panel.cohorts.filter(c => c.name === justCreated).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.id ?? null
+    : null, [justCreated, panel.cohorts])
+
+  const isOpen = (id: string) => expanded[id] ?? id === justCreatedId
+  const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !isOpen(id) }))
+  const isSectionOpen = (id: string, k: SectionKey) => sections[id]?.[k] ?? k === 'details'
+  const toggleSection = (id: string, k: SectionKey) => setSections(prev => ({ ...prev, [id]: { ...prev[id], [k]: !isSectionOpen(id, k) } }))
+
+  const counts = Object.fromEntries(FILTERS.map(f => [f.key, panel.cohorts.filter(c => f.statuses.includes(c.status)).length])) as Record<Filter, number>
+  const card = (c: Cohort) => (
+    <CohortCard key={c.id} panel={panel} cohort={c} open={isOpen(c.id)} onToggle={() => toggle(c.id)}
+      isSectionOpen={k => isSectionOpen(c.id, k)} toggleSection={k => toggleSection(c.id, k)}
+      onCopied={name => { setJustCreated(name); setFilter('current') }} />
+  )
+
+  const groupTitle = { fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.2rem', color: 'var(--navy)', letterSpacing: '0.05em', margin: '1.5rem 0 0.75rem' }
+  const filtered = panel.cohorts.filter(c => FILTERS.find(f => f.key === filter)!.statuses.includes(c.status))
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Cohorts</span>
-          <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem' }}>All Cohorts</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ flex: '1 1 320px' }}>
+          <span style={eyebrowStyle}>Programs</span>
+          <h1 style={pageTitleStyle}>Cohorts</h1>
+          <p style={helpStyle}>
+            A cohort is one run of a pathway, with its own dates, participants, schedule and weekly reps. Open a cohort to manage everything about it.
+            New cohorts start as <strong>Draft</strong>: nothing is public until you set the status to Upcoming.
+          </p>
+          <p style={{ ...metaStyle, margin: '0 0 1rem' }}>
+            Lists across all cohorts: <Link href="/admin/reps" style={{ color: '#8a5a10', fontWeight: 600 }}>All weekly reps</Link>
+            {' · '}<Link href="/admin/prompts" style={{ color: '#8a5a10', fontWeight: 600 }}>All journal prompts</Link>
+          </p>
         </div>
-        <button onClick={() => setShowCohortForm(!showCohortForm)} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>
-          {showCohortForm ? 'Cancel' : '+ New Cohort'}
-        </button>
+        {!showForm && (
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)} style={{ fontSize: '0.85rem', padding: '0.7rem 1.25rem' }}>+ New cohort</button>
+        )}
       </div>
-      {showCohortForm && (
-        <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)', marginBottom: '1.5rem' }}>
-          <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1.25rem' }}>Create a Cohort</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={labelStyle}>Cohort Name</label>
-              <input value={newCohort.name} onChange={e => setNewCohort({ ...newCohort, name: e.target.value })} placeholder="e.g. New Leaders — Spring 2027" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Program</label>
-              <select value={newCohort.program_id} onChange={e => setNewCohort({ ...newCohort, program_id: e.target.value })} style={inputStyle} required>
-                <option value="">Select a program...</option>
-                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Start Date</label>
-              <input type="date" value={newCohort.start_date} onChange={e => setNewCohort({ ...newCohort, start_date: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>End Date</label>
-              <input type="date" value={newCohort.end_date} onChange={e => setNewCohort({ ...newCohort, end_date: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Status</label>
-              <select value={newCohort.status} onChange={e => setNewCohort({ ...newCohort, status: e.target.value })} style={inputStyle}>
-                <option value="draft">Draft (not shown publicly)</option>
-                <option value="upcoming">Upcoming (open for registration)</option>
-                <option value="active">Active (in progress)</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Zoom Link</label>
-              <input value={newCohort.zoom_link} onChange={e => setNewCohort({ ...newCohort, zoom_link: e.target.value })} placeholder="https://zoom.us/j/..." style={inputStyle} />
-            </div>
-          </div>
-          <button onClick={handleCreateCohort} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>
-            {actionLoading ? 'Creating...' : 'Create Cohort'}
-          </button>
-        </div>
+
+      {showForm && (
+        <CreateCohortForm panel={panel} onCancel={() => setShowForm(false)}
+          onCreated={(name, status) => { setShowForm(false); setJustCreated(name); setFilter(filterFor(status)) }} />
       )}
-      {cohorts.length === 0 && !showCohortForm && (
-        <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
-          <p style={{ color: 'var(--slate)', fontSize: '0.88rem', marginBottom: '1rem' }}>No cohorts yet. Create your first one.</p>
-          <button onClick={() => setShowCohortForm(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>+ Create Cohort</button>
-        </div>
-      )}
-      {cohorts.map(c => (
-        <div key={c.id} style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }} onClick={() => setExpandedCohort(expandedCohort === c.id ? null : c.id)}>
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.15rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '0.35rem' }}>{c.name}</h3>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{(c.programs as any)?.name || 'No program'}</span>
-                {c.start_date && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{c.start_date} to {c.end_date}</span>}
-                <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--slate)' }}>{enrollments.filter(e => e.cohort_id === c.id && e.status === 'active').length} enrolled</span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              {statusBadge(c.status)}
-              <span style={{ color: 'var(--slate)', fontSize: '0.8rem' }}>{expandedCohort === c.id ? '▲' : '▼'}</span>
-            </div>
-          </div>
-          {expandedCohort === c.id && (
-            <div style={{ marginTop: '1.25rem', paddingTop: '0.25rem', borderTop: '1px solid var(--mist)' }}>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative' }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setOpenMenuCohortId(openMenuCohortId === c.id ? null : c.id) }}
-                  aria-label="Cohort actions"
-                  style={{ background: 'none', border: '1px solid rgba(0,23,55,0.15)', color: 'var(--navy)', borderRadius: '4px', width: '32px', height: '32px', fontSize: '1rem', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  &#8942;
-                </button>
-                {openMenuCohortId === c.id && (
-                  <div
-                    ref={menuRef}
-                    onClick={e => e.stopPropagation()}
-                    style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid rgba(0,23,55,0.12)', borderRadius: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 10, minWidth: '160px', overflow: 'hidden' }}
-                  >
-                    <button
-                      onClick={async () => { setOpenMenuCohortId(null); await handleDuplicateCohort(c.id) }}
-                      disabled={actionLoading}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.65rem 1rem', background: 'none', border: 'none', color: 'var(--navy)', fontSize: '0.82rem', cursor: 'pointer' }}
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      onClick={async () => { setOpenMenuCohortId(null); await handleUpdateCohortStatus(c.id, 'archived') }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', background: 'none', border: 'none', fontSize: '0.82rem', color: 'var(--navy)', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}
-                    >
-                      Archive
-                    </button>
-                    <button
-                      onClick={() => { setOpenMenuCohortId(null); setDeleteModalCohortId(c.id) }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.65rem 1rem', background: 'none', border: 'none', borderTop: '1px solid var(--mist)', color: 'rgba(255,59,48,0.85)', fontSize: '0.82rem', cursor: 'pointer' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
+      <div role="group" aria-label="Show cohorts" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '0.5rem 0 1rem' }}>
+        {FILTERS.map(f => {
+          const active = filter === f.key
+          return (
+            <button key={f.key} type="button" aria-pressed={active} onClick={() => setFilter(f.key)}
+              style={{ ...secondaryButtonStyle, minHeight: '40px', fontSize: '0.88rem', background: active ? 'var(--navy)' : 'white', color: active ? 'white' : 'var(--navy)', borderColor: active ? 'var(--navy)' : 'rgba(0,23,55,0.2)' }}>
+              {f.label} ({counts[f.key]})
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ ...metaStyle, margin: '0 0 1rem' }}>
+        {filter === 'current' ? 'Running now, upcoming and draft cohorts.' : filter === 'finished' ? 'Completed and cancelled cohorts. Their records are kept.' : 'Archived cohorts are hidden from routine lists. Everything is kept; change the status in Details to bring one back.'}
+      </p>
 
-              {/* DETAILS */}
-              <div style={{ borderBottom: '1px solid var(--mist)' }}>
-                <SectionHeader title="Details" isOpen={openSections.details} onClick={() => toggleSection('details')} />
-                {openSections.details && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', paddingBottom: '1.25rem' }}>
-                    <div>
-                      <label style={labelStyle}>Cohort Name</label>
-                      <input defaultValue={c.name} style={inputStyle} onBlur={async e => { if (e.target.value !== c.name) { await supabase.from('cohorts').update({ name: e.target.value }).eq('id', c.id); fetchAll() } }} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Program</label>
-                      <select defaultValue={c.program_id} style={inputStyle} onChange={async e => { await supabase.from('cohorts').update({ program_id: e.target.value }).eq('id', c.id); fetchAll() }}>
-                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Status</label>
-                      <select value={c.status} onChange={e => handleUpdateCohortStatus(c.id, e.target.value)} style={inputStyle}>
-                        <option value="draft">Draft (not shown publicly)</option>
-                        <option value="upcoming">Upcoming (open for registration)</option>
-                        <option value="active">Active (in progress)</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle} htmlFor={`capacity-${c.id}`}>Capacity <span style={{ textTransform: 'none', letterSpacing: 0 }}>(empty = no limit)</span></label>
-                      <input id={`capacity-${c.id}`} type="number" min={1} max={500} defaultValue={c.capacity ?? ''} placeholder="e.g. 20" style={inputStyle} onBlur={e => { if (e.target.value !== String(c.capacity ?? '')) handleUpdateCohortCapacity(c.id, e.target.value) }} />
-                      <span style={{ fontSize: '0.72rem', color: 'var(--slate)' }}>{enrollments.filter(en => en.cohort_id === c.id && en.status === 'active').length} active enrolled</span>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Start Date</label>
-                      <input type="date" defaultValue={c.start_date || ''} style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ start_date: e.target.value || null }).eq('id', c.id); fetchAll() }} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>End Date</label>
-                      <input type="date" defaultValue={c.end_date || ''} style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ end_date: e.target.value || null }).eq('id', c.id); fetchAll() }} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Session Day</label>
-                      <select defaultValue={(c as any).session_day || ''} style={inputStyle} onChange={async e => { await supabase.from('cohorts').update({ session_day: e.target.value || null }).eq('id', c.id); fetchAll() }}>
-                        <option value="">Select a day...</option>
-                        {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Session Time</label>
-                      <input type="time" defaultValue={(c as any).session_time || ''} style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ session_time: e.target.value || null }).eq('id', c.id); fetchAll() }} />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={labelStyle}>Zoom Link</label>
-                      <input defaultValue={c.zoom_link || ''} placeholder="https://zoom.us/j/..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ zoom_link: e.target.value || null }).eq('id', c.id); fetchAll() }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* CONTENT */}
-              <div style={{ borderBottom: '1px solid var(--mist)' }}>
-                <SectionHeader title="Content" isOpen={openSections.content} onClick={() => toggleSection('content')} />
-                {openSections.content && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '1.25rem' }}>
-                    <div>
-                      <label style={labelStyle}>Course Description <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— shown on the Register page above What's Included</span></label>
-                      <DescriptionEditor
-                        cohortId={c.id}
-                        initialValue={(c as any).description || ''}
-                        onSave={html => saveDescription(c.id, html)}
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>What Is Included <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— one item per line, shown on the Register page for this specific cohort.</span></label>
-                      <textarea
-                        defaultValue={(c as any).includes || 'Six live Zoom cohort sessions\nGuided discussion and facilitation\nWeekly reflection and application guide\nPractical action commitments between sessions\nCohort discussion community\nSession recordings (optional)\nCertificate of Completion'}
-                        rows={7}
-                        style={{ ...inputStyle, resize: 'vertical' }}
-                        onBlur={async e => { await supabase.from('cohorts').update({ includes: e.target.value || null }).eq('id', c.id); fetchAll() }}
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Expectations <span style={{ fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.65rem', color: 'var(--slate)', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>— one item per line, shown on the Register page for this specific cohort.</span></label>
-                      <textarea
-                        defaultValue={(c as any).expectations || 'Read assigned chapters each week\nAttend live sessions\nParticipate in discussion\nComplete weekly reflection\nApply one idea between sessions'}
-                        rows={5}
-                        style={{ ...inputStyle, resize: 'vertical' }}
-                        onBlur={async e => { await supabase.from('cohorts').update({ expectations: e.target.value || null }).eq('id', c.id); fetchAll() }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* READING */}
-              <div style={{ borderBottom: '1px solid var(--mist)' }}>
-                <SectionHeader title="Reading" isOpen={openSections.reading} onClick={() => toggleSection('reading')} />
-                {openSections.reading && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', paddingBottom: '1.25rem' }}>
-                    <div>
-                      <label style={labelStyle}>Book Title</label>
-                      <input defaultValue={(c as any).book_title || ''} placeholder="e.g. Atomic Habits" style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ book_title: e.target.value || null }).eq('id', c.id); fetchAll() }} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Book Cover Image URL</label>
-                      <input
-                        defaultValue={(c as any).book_image_url || ''}
-                        placeholder="https://..."
-                        style={inputStyle}
-                        onChange={e => {
-                          setBookImagePreview(prev => ({ ...prev, [c.id]: e.target.value }))
-                          setBookImageError(prev => ({ ...prev, [c.id]: false }))
-                        }}
-                        onBlur={async e => { await supabase.from('cohorts').update({ book_image_url: e.target.value || null }).eq('id', c.id); fetchAll() }}
-                      />
-                      {(() => {
-                        const previewUrl = bookImagePreview[c.id] !== undefined ? bookImagePreview[c.id] : ((c as any).book_image_url || '')
-                        if (!previewUrl.trim()) return null
-                        if (bookImageError[c.id]) {
-                          return (
-                            <p style={{ color: '#ff6b6b', fontSize: '0.75rem', marginTop: '0.5rem' }}>Image failed to load. Check the URL.</p>
-                          )
-                        }
-                        return (
-                          <div style={{ marginTop: '0.5rem', width: '90px', aspectRatio: '2/3', borderRadius: '3px', overflow: 'hidden', background: 'var(--mist)', border: '1px solid rgba(0,23,55,0.1)' }}>
-                            <img
-                              src={previewUrl}
-                              alt="Book cover preview"
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                              onError={() => setBookImageError(prev => ({ ...prev, [c.id]: true }))}
-                            />
-                          </div>
-                        )
-                      })()}
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={labelStyle}>Purchase Link</label>
-                      <input defaultValue={(c as any).book_purchase_url || ''} placeholder="https://amazon.com/..." style={inputStyle} onBlur={async e => { await supabase.from('cohorts').update({ book_purchase_url: e.target.value || null }).eq('id', c.id); fetchAll() }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* SCHEDULE */}
-              <div style={{ borderBottom: '1px solid var(--mist)' }}>
-                <SectionHeader title="Schedule" isOpen={openSections.schedule} onClick={() => toggleSection('schedule')} />
-                {openSections.schedule && (
-                  <div style={{ paddingBottom: '1.25rem' }}>
-                    {cohortSessions.filter(s => s.cohort_id === c.id).length === 0 ? (
-                      <p style={{ color: 'var(--slate)', fontSize: '0.85rem', marginBottom: '1rem' }}>No sessions added yet.</p>
-                    ) : cohortSessions.filter(s => s.cohort_id === c.id).map(s => (
-                      <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', display: 'block', marginBottom: '0.25rem' }}>
-                            Session {s.session_number}{s.session_date ? ' · ' + new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}
-                          </span>
-                          <input
-                            defaultValue={s.title}
-                            style={{ ...inputStyle, padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: '100%' }}
-                            onBlur={async e => {
-                              if (e.target.value !== s.title) {
-                                await supabase.from('cohort_sessions').update({ title: e.target.value }).eq('id', s.id)
-                                fetchAll()
-                              }
-                            }}
-                          />
-                        </div>
-                        <button onClick={() => handleDeleteSession(s.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,59,48,0.5)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>Remove</button>
-                      </div>
-                    ))}
-                    <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(200,136,32,0.05)', borderRadius: '4px', border: '1px solid rgba(200,136,32,0.2)', marginBottom: '0.75rem' }}>
-                      <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.4rem' }}>Schedule Generator</p>
-                      <p style={{ color: 'var(--slate)', fontSize: '0.8rem', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                      Automatically generates one session per {(c as any).session_day || programs.find(p => p.id === c.program_id) && (programs.find(p => p.id === c.program_id) as any)?.session_day || 'session day'} between the start and end dates. Make sure the program has a session day set under Programs.
-                    </p>
-                      <button onClick={() => handleGenerateSchedule(c.id)} disabled={actionLoading} style={{ background: 'var(--gold)', border: 'none', color: 'var(--navy)', borderRadius: '2px', padding: '0.55rem 1.1rem', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }}>
-                        {actionLoading ? 'Generating...' : 'Generate Schedule'}
-                      </button>
-                      <p style={{ color: 'var(--slate)', fontSize: '0.72rem', marginTop: '0.5rem' }}>Note: this will replace any existing sessions for this cohort.</p>
-                    </div>
-                    <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--paper)', borderRadius: '4px', border: '1px solid var(--mist)' }}>
-                      <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem' }}>Add a Session</p>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                        <div>
-                          <label style={labelStyle}>Session Number</label>
-                          <input type="number" value={newSession.cohort_id === c.id ? newSession.session_number : ''} onChange={e => setNewSession({ cohort_id: c.id, session_number: e.target.value, title: newSession.cohort_id === c.id ? newSession.title : '', session_date: newSession.cohort_id === c.id ? newSession.session_date : '' })} placeholder={String(cohortSessions.filter(s => s.cohort_id === c.id).length + 1)} min="1" style={inputStyle} />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Date (optional)</label>
-                          <input type="date" value={newSession.cohort_id === c.id ? newSession.session_date : ''} onChange={e => setNewSession({ cohort_id: c.id, session_number: newSession.cohort_id === c.id ? newSession.session_number : '', title: newSession.cohort_id === c.id ? newSession.title : '', session_date: e.target.value })} style={inputStyle} />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Session Title</label>
-                          <input value={newSession.cohort_id === c.id ? newSession.title : ''} onChange={e => setNewSession({ cohort_id: c.id, session_number: newSession.cohort_id === c.id ? newSession.session_number : '', title: e.target.value, session_date: newSession.cohort_id === c.id ? newSession.session_date : '' })} placeholder="e.g. Where do you want your impact?" style={inputStyle} />
-                        </div>
-                      </div>
-                      <button onClick={() => { setNewSession(prev => ({ ...prev, cohort_id: c.id })); handleAddSession() }} disabled={actionLoading} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}>
-                        {actionLoading ? 'Adding...' : '+ Add Session'}
-                      </button>
-                    </div>
-                    <div style={{ marginTop: '1.5rem' }}>
-                      <span style={labelStyle}>Weekly Reps in this cohort</span>
-                      {reps.filter(r => r.cohort_id === c.id).length === 0 ? (
-                        <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No reps yet.</p>
-                      ) : reps.filter(r => r.cohort_id === c.id).map(r => (
-                        <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--mist)' }}>
-                          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--gold)', textTransform: 'uppercase' }}>Week {r.week_number}</span>
-                          <p style={{ color: 'var(--ink)', fontSize: '0.85rem', fontWeight: 500 }}>{r.title}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* PARTICIPANTS */}
-              <div>
-                <SectionHeader title="Participants" isOpen={openSections.participants} onClick={() => toggleSection('participants')} />
-                {openSections.participants && (
-                  <div style={{ paddingBottom: '0.5rem' }}>
-                    {enrollments.filter(e => e.cohort_id === c.id).length === 0 ? (
-                      <p style={{ color: 'var(--slate)', fontSize: '0.85rem' }}>No participants enrolled yet. Invite someone and assign them to this cohort.</p>
-                    ) : enrollments.filter(e => e.cohort_id === c.id).map(e => (
-                      <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        <div>
-                          <span style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.85rem' }}>{(e.profiles as any)?.full_name || 'Unknown'}</span>
-                          <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.75rem' }}>{(e.profiles as any)?.email}</span>
-                        </div>
-                        {statusBadge(e.status)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
+      {panel.loading ? (
+        <p style={metaStyle}>Loading cohorts…</p>
+      ) : filtered.length === 0 ? (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+          <p style={{ ...metaStyle, margin: '0 0 1rem' }}>
+            {filter === 'current' ? 'No current cohorts. Create one to get started.' : filter === 'finished' ? 'No finished cohorts yet.' : 'No archived cohorts.'}
+          </p>
+          {filter === 'current' && !showForm && (
+            <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)} style={{ fontSize: '0.85rem' }}>+ New cohort</button>
           )}
         </div>
-      ))}
-
-      {deleteModalCohortId && cohortPendingDelete && (
-        <DeleteCohortModal
-          cohortName={cohortPendingDelete.name}
-          onConfirm={confirmDeleteCohort}
-          onCancel={() => setDeleteModalCohortId(null)}
-          deleting={deletingCohort}
-        />
+      ) : filter === 'current' ? (
+        CURRENT_GROUPS.map(g => {
+          const list = filtered.filter(c => c.status === g.status).sort(byStart)
+          if (!list.length) return null
+          return (
+            <section key={g.status} aria-label={g.title}>
+              <h2 style={groupTitle}>{g.title} ({list.length})</h2>
+              {list.map(card)}
+            </section>
+          )
+        })
+      ) : (
+        [...filtered].sort(byEndDesc).map(card)
       )}
     </div>
   )

@@ -163,7 +163,8 @@ test('pathways fall back to approved copy and never show price unless enrollment
   assert.deepEqual(nl.focus, ['A', 'B'])
   assert.equal(nl.openingStatement, DEFAULT_PATHWAYS[1].openingStatement, 'empty fields keep approved copy')
   assert.equal(nl.priceLabel, null, 'closed enrollment hides price')
-  assert.equal(mergePathways([{ ...row, enrollment_open: true }]).find(p => p.slug === 'new-leaders')!.priceLabel, '$450')
-  assert.equal(mergePathways([{ ...row, is_public: false, tagline: 'Hidden' }]).find(p => p.slug === 'new-leaders')!.tagline, DEFAULT_PATHWAYS[1].tagline)
+  assert.equal(mergePathways([{ ...row, enrollment_open: true }], { checkoutEnabled: true }).find(p => p.slug === 'new-leaders')!.priceLabel, '$450')
+  // 2026-11-23: a hidden pathway is removed, not replaced by the approved default copy.
+  assert.equal(mergePathways([{ ...row, is_public: false, tagline: 'Hidden' }]).find(p => p.slug === 'new-leaders'), undefined)
   assert.equal(LEGACY_ANCHORS.makers, 'new-leaders')
 })

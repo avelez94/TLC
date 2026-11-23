@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { AdminPanelProvider, useAdminPanelContext } from './AdminPanelContext'
-import { navItems } from './components/shared'
+import { navItems, navParent } from './components/shared'
+import { FeedbackProvider } from './components/feedback'
+import type { AdminIdentity } from './useAdminPanel'
 
 function Sidebar({ activeId, onSignOut }: { activeId: string; onSignOut: () => void }) {
   return (
@@ -40,7 +42,9 @@ function AdminShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const panel = useAdminPanelContext()
 
-  const activeId = pathname.split('/')[2] || 'dashboard'
+  const segment = pathname.split('/')[2] || 'dashboard'
+  const activeId = navParent[segment] ?? segment
+  const initials = panel.me.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || 'A'
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -67,7 +71,9 @@ function AdminShell({ children }: { children: ReactNode }) {
           <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>Admin</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem' }}>TC</div>
+          {panel.refreshing && <span role="status" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}>Updating…</span>}
+          <span className="admin-who" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.8rem' }}>Signed in as {panel.me.name}</span>
+          <div title={`Signed in as ${panel.me.name}`} aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem' }}>{initials}</div>
           <button className="mobile-hamburger" onClick={() => setMobileNavOpen(!mobileNavOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'white', flexDirection: 'column', gap: '5px' }}>
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', transition: 'transform 0.2s', transform: mobileNavOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', opacity: mobileNavOpen ? 0 : 1, transition: 'opacity 0.2s' }} />
@@ -99,10 +105,10 @@ function AdminShell({ children }: { children: ReactNode }) {
 
         <div style={{ flex: 1, padding: 'clamp(1.25rem, 3vw, 2rem)', minWidth: 0 }}>
 
-          {/* GLOBAL SUCCESS */}
-          {panel.successMsg && (
-            <div style={{ background: 'rgba(200,136,32,0.1)', border: '1px solid rgba(200,136,32,0.3)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: 'var(--gold)', fontSize: '0.85rem' }}>
-              {panel.successMsg}
+          {panel.loadError && (
+            <div role="alert" style={{ background: '#fdecea', border: '1px solid #f3b7b1', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: '#8c1d18', fontSize: '0.9rem', display: 'flex', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span>{panel.loadError} Numbers on this page may be incomplete.</span>
+              <button onClick={() => panel.fetchAll()} style={{ background: 'white', border: '1px solid #f3b7b1', borderRadius: '3px', padding: '0.4rem 0.8rem', cursor: 'pointer', color: '#8c1d18', fontWeight: 600 }}>Try again</button>
             </div>
           )}
 
@@ -117,6 +123,7 @@ function AdminShell({ children }: { children: ReactNode }) {
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
           .mobile-hamburger { display: flex !important; }
+          .admin-who { display: none; }
           .stat-grid { grid-template-columns: 1fr 1fr !important; }
           .two-col-grid { grid-template-columns: 1fr !important; }
         }
@@ -130,10 +137,12 @@ function AdminShell({ children }: { children: ReactNode }) {
   )
 }
 
-export default function AdminClientLayout({ children }: { children: ReactNode }) {
+export default function AdminClientLayout({ children, me, checkoutEnabled }: { children: ReactNode; me: AdminIdentity; checkoutEnabled: boolean }) {
   return (
-    <AdminPanelProvider>
-      <AdminShell>{children}</AdminShell>
-    </AdminPanelProvider>
+    <FeedbackProvider>
+      <AdminPanelProvider me={me} checkoutEnabled={checkoutEnabled}>
+        <AdminShell>{children}</AdminShell>
+      </AdminPanelProvider>
+    </FeedbackProvider>
   )
 }

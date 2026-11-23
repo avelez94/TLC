@@ -87,7 +87,7 @@
 .selector { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 .selectorLabel { margin-bottom: 0.75rem; font-family: var(--font-jetbrains), monospace; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--slate); }
 
-.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.tabs { display: grid; grid-template-columns: repeat(var(--tab-count, 3), minmax(0, 1fr)); gap: 0.5rem; }
 .tab { appearance: none; font: inherit; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 0.9rem; min-height: 84px; padding: 1rem 1.25rem; background: #fff; color: var(--ink); border: 1px solid var(--rule); border-radius: 2px; position: relative; transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
 .tab:hover { border-color: rgba(0, 23, 55, 0.35); }
 .tab[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }

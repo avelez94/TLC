@@ -23,6 +23,21 @@ export interface Program {
   description: string | null
   type: string
   created_at: string
+  slug?: string | null
+  pathway_number?: number | null
+  tagline?: string | null
+  opening_statement?: string | null
+  audience?: string | null
+  leadership_goal?: string | null
+  keywords?: string | null
+  is_public?: boolean
+  enrollment_open?: boolean
+  price?: number | null
+  price_label?: string | null
+  session_day?: string | null
+  session_time?: string | null
+  duration_weeks?: number | null
+  sort_order?: number | null
 }
 
 export interface Cohort {
@@ -37,6 +52,14 @@ export interface Cohort {
   created_at: string
   programs?: { name: string }
   cohort_enrollments?: { count: number }[]
+  session_day?: string | null
+  session_time?: string | null
+  description?: string | null
+  includes?: string | null
+  expectations?: string | null
+  book_title?: string | null
+  book_image_url?: string | null
+  book_purchase_url?: string | null
 }
 
 export interface CohortEnrollment {
@@ -58,6 +81,7 @@ export interface WeeklyRep {
   why_it_matters: string | null
   due_date: string | null
   created_at: string
+  archived_at?: string | null
   cohorts?: { name: string }
   weekly_rep_submissions?: { count: number }[]
 }

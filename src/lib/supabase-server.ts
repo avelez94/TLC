@@ -34,20 +34,47 @@ export const supabaseAdmin = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 )
 
-/** The signed-in user and their role from `profiles` (never from user-editable metadata). */
+export type AdminMfaMode = 'off' | 'enrolled' | 'required'
+
+/** The site-wide two-step setting for administrators (database setting `admin_mfa_mode`). */
+export async function getAdminMfaMode(): Promise<AdminMfaMode> {
+  try {
+    const { data, error } = await supabaseAdmin.rpc('admin_mfa_mode')
+    if (error) return 'off' // before migration 2d
+    return data === 'required' || data === 'enrolled' ? data : 'off'
+  } catch {
+    return 'off'
+  }
+}
+
+/**
+ * The signed-in user and their role from `profiles` (never from user-editable metadata).
+ * Two-step verification:
+ *  - an account with a verified authenticator must have used it this session (aal2), always;
+ *  - when the site setting is 'required', an admin without an authenticator must set one up
+ *    before using the admin area (`mfaEnrollRequired`).
+ */
 export async function getSessionUserWithRole() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('role')
+    .select('role, full_name, email')
     .eq('id', user.id)
     .single()
-  // If the account has an authenticator app, this session must have used it (aal2).
+  const role = normalizeRole(profile?.role)
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-  const mfaSatisfied = !aal || aal.nextLevel !== 'aal2' || aal.currentLevel === 'aal2'
-  return { user, role: normalizeRole(profile?.role), mfaSatisfied }
+  const mfaEnrolled = aal?.nextLevel === 'aal2'
+  const mfaVerified = aal?.currentLevel === 'aal2'
+  const mfaSatisfied = !aal || !mfaEnrolled || mfaVerified
+  const mfaMode = role === 'admin' ? await getAdminMfaMode() : 'off'
+  const mfaEnrollRequired = role === 'admin' && mfaMode === 'required' && !mfaEnrolled
+  return {
+    user, role, mfaSatisfied, mfaEnrolled, mfaVerified, mfaMode, mfaEnrollRequired,
+    name: (profile?.full_name as string | null) || user.email || 'Administrator',
+    email: (profile?.email as string | null) ?? user.email ?? null,
+  }
 }
 
 // Verifies the request's session belongs to a user with role 'admin'.
@@ -55,6 +82,6 @@ export async function getSessionUserWithRole() {
 // Use in API routes that perform admin-only actions.
 export async function requireAdmin() {
   const session = await getSessionUserWithRole()
-  if (!session || session.role !== 'admin' || !session.mfaSatisfied) return null
+  if (!session || session.role !== 'admin' || !session.mfaSatisfied || session.mfaEnrollRequired) return null
   return session.user
 }

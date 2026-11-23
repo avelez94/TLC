@@ -41,7 +41,7 @@ export default function PathwaySelector({ pathways }: { pathways: Pathway[] }) {
   return (
     <div className={s.selector} id="pathway-selector">
       <p className={s.selectorLabel} id="selector-label">Which describes you right now?</p>
-      <div className={s.tabs} role="tablist" aria-labelledby="selector-label">
+      <div className={s.tabs} role="tablist" aria-labelledby="selector-label" style={{ ['--tab-count' as string]: pathways.length }}>
         {pathways.map((p, i) => (
           <button
             key={p.slug}

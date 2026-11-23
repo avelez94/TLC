@@ -26,21 +26,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'A valid email and role are required' }, { status: 400 })
     }
 
+    // Never create an account for a cohort that has no free seat (the database enforces the
+    // limit too; checking first avoids leaving an account without an enrollment).
+    const warnings: string[] = []
+    if (cohort_id) {
+      const { data: cohort } = await supabaseAdmin.from('cohorts').select('name, capacity').eq('id', cohort_id).maybeSingle()
+      if (!cohort) return NextResponse.json({ error: 'That cohort no longer exists.' }, { status: 400 })
+      if (cohort.capacity != null) {
+        const { count } = await supabaseAdmin.from('cohort_enrollments').select('id', { count: 'exact', head: true }).eq('cohort_id', cohort_id).eq('status', 'active')
+        if ((count ?? 0) >= cohort.capacity) {
+          return NextResponse.json({ error: `${cohort.name} is full (${count} of ${cohort.capacity} seats taken). Raise the capacity in Cohorts first.` }, { status: 409 })
+        }
+      }
+    }
+
     // Returning participant: the account already exists, so enroll them instead of inviting.
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles').select('id, full_name, role').ilike('email', email).maybeSingle()
     if (existingProfile) {
       if (role !== 'impact_participant' || !cohort_id) {
-        return NextResponse.json({ error: 'This email already has an account. To give them a new cohort, choose Impact Lab and a cohort, or use Users → Enroll in a cohort.' }, { status: 409 })
+        return NextResponse.json({ error: 'This email already has an account. To add them to a cohort, choose Impact Lab participant and a cohort, or open them in Participants and use “Enroll in a cohort”.' }, { status: 409 })
       }
       const { error: enrollError } = await supabaseAdmin
         .from('cohort_enrollments')
         .upsert({ user_id: existingProfile.id, cohort_id, status: 'active' }, { onConflict: 'cohort_id,user_id' })
       if (enrollError) {
         console.error('Invite: returning enrollment failed', enrollError.code)
-        return NextResponse.json({ error: 'Could not enroll the returning participant.' }, { status: 500 })
+        const full = enrollError.details === 'cohort_full'
+        return NextResponse.json({ error: full ? enrollError.message : 'Could not enroll the returning participant.' }, { status: full ? 409 : 500 })
       }
-      await audit(admin.id, 'enrollment.returning', 'profile', existingProfile.id, { cohort_id })
+      await audit(admin.id, 'enrollment.returning', 'enrollment', existingProfile.id, { cohort_id }, { label: existingProfile.full_name || email })
       const { data: cohort } = await supabaseAdmin.from('cohorts').select('name').eq('id', cohort_id).maybeSingle()
       try {
         await sendEmail({
@@ -61,8 +76,9 @@ export async function POST(request: Request) {
         })
       } catch (emailErr) {
         console.error('Invite: returning email failed', emailErr instanceof Error ? emailErr.message : emailErr)
+        warnings.push('They are enrolled, but the "you are enrolled" email could not be sent. Let them know directly.')
       }
-      return NextResponse.json({ success: true, returning: true, user: { id: existingProfile.id, email } })
+      return NextResponse.json({ success: true, returning: true, warnings, user: { id: existingProfile.id, email } })
     }
 
     // Generate the invite link ourselves (does NOT send Supabase's default email —
@@ -89,13 +105,19 @@ export async function POST(request: Request) {
       .from('profiles')
       .update({ full_name: full_name || null, role })
       .eq('id', userId)
-    if (profileError) console.error('Invite: profile update failed', profileError.code)
+    if (profileError) {
+      console.error('Invite: profile update failed', profileError.code)
+      warnings.push(`The account was created, but its role could not be set to ${role}. Check it in Participants & Users.`)
+    }
 
     if (role === 'impact_participant' && cohort_id) {
       const { error: enrollError } = await supabaseAdmin
         .from('cohort_enrollments')
         .insert({ user_id: userId, cohort_id, status: 'active' })
-      if (enrollError) console.error('Invite: enrollment failed', enrollError.code)
+      if (enrollError) {
+        console.error('Invite: enrollment failed', enrollError.code)
+        warnings.push(`The account was created, but enrolling them in the cohort failed${enrollError.details === 'cohort_full' ? ' (the cohort is full)' : ''}. Enroll them from the cohort's Participants section.`)
+      }
     }
 
     // Coaching clients start with a placeholder session owned by the inviting admin.
@@ -136,11 +158,14 @@ export async function POST(request: Request) {
         })
       } catch (emailErr) {
         console.error('Invite email error:', emailErr instanceof Error ? emailErr.message : emailErr)
+        warnings.push('The account was created, but the invitation email could not be sent. Use "Send password email" on their record.')
       }
+    } else {
+      warnings.push('The account was created, but no invitation link was produced. Use "Send password email" on their record.')
     }
 
-    await audit(admin.id, 'user.invite', 'profile', userId, { role, cohort_id })
-    return NextResponse.json({ success: true, user: { id: userId, email } })
+    await audit(admin.id, 'user.invite', 'person', userId, { role, cohort_id, warnings: warnings.length }, { label: full_name || email })
+    return NextResponse.json({ success: true, warnings, user: { id: userId, email } })
   } catch (err) {
     console.error('Invite error:', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

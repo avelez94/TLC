@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from 'react'
 
+const DEFAULT_PATHWAY_OPTIONS = [
+  { slug: 'emerging-leaders', name: 'Emerging Leaders' }, { slug: 'new-leaders', name: 'New Leaders' }, { slug: 'practicing-leaders', name: 'Practicing Leaders' },
+]
+
 export default function Contact() {
+  // Only pathways currently shown publicly are offered (hidden ones are removed).
+  const [pathways, setPathways] = useState(DEFAULT_PATHWAY_OPTIONS)
+  useEffect(() => {
+    fetch('/api/public-pathways').then(r => r.ok ? r.json() : null).then(d => { if (d?.pathways) setPathways(d.pathways) }).catch(() => {})
+  }, [])
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -127,9 +136,7 @@ export default function Contact() {
                       <option value="" disabled>Select an area</option>
                       <option value="consulting">Leadership Consulting</option>
                       <option value="coaching">Performance & Success Coaching</option>
-                      <option value="emerging-leaders">The Impact Lab — Emerging Leaders</option>
-                      <option value="new-leaders">The Impact Lab — New Leaders</option>
-                      <option value="practicing-leaders">The Impact Lab — Practicing Leaders</option>
+                      {pathways.map(p => <option key={p.slug} value={p.slug}>The Impact Lab — {p.name}</option>)}
                       <option value="impact-org">The Impact Lab — Organizational programs</option>
                       <option value="speaking">Speaking</option>
                       <option value="other">Other</option>

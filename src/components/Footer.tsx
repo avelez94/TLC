@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { visiblePathwayLinks } from '@/lib/public-pathways'
 
-export default function Footer() {
+export default async function Footer() {
+  const pathways = await visiblePathwayLinks()
   return (
     <footer role="contentinfo" style={{ background: 'var(--navy3)', borderTop: '3px solid var(--gold)', padding: 'clamp(3.5rem, 7vw, 5.5rem) 0 2rem' }}>
       <div className="container">
@@ -24,9 +26,9 @@ export default function Footer() {
               <li><Link href="/coaching" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.92rem' }}>Leadership &amp; Professional Coaching</Link></li>
               <li><Link href="/parent-coaching" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.92rem' }}>Coaching for Parents</Link></li>
               <li><Link href="/impact" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.92rem' }}>The Impact Lab</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#emerging-leaders" style={{ color: 'rgba(255,255,255,0.66)', fontSize: '0.86rem' }}>Emerging Leaders</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#new-leaders" style={{ color: 'rgba(255,255,255,0.66)', fontSize: '0.86rem' }}>New Leaders</Link></li>
-              <li style={{ paddingLeft: '0.75rem' }}><Link href="/impact#practicing-leaders" style={{ color: 'rgba(255,255,255,0.66)', fontSize: '0.86rem' }}>Practicing Leaders</Link></li>
+              {pathways.map(p => (
+                <li key={p.slug} style={{ paddingLeft: '0.75rem' }}><Link href={`/impact#${p.slug}`} style={{ color: 'rgba(255,255,255,0.66)', fontSize: '0.86rem' }}>{p.name}</Link></li>
+              ))}
             </ul>
           </div>
           <div>
