@@ -29,6 +29,6 @@ From now on, each time you sign in you'll be asked for the current 6-digit code 
 ## First things to check once you're in
 - **Inquiries:** a record named "TEST - Deployment check" was submitted on 22 Nov 2026 to test
   the form. Open it, confirm you received its notification email, then set its status to **Closed**.
-- **Pathways & Programs:** review the three pathway descriptions. Enrollment is closed and no
+- **Pathways:** review the three pathway descriptions. Enrollment is closed and no
   prices are shown publicly; leave them that way until pricing is decided.
-- **Security → Email delivery:** shows every email the site has sent, and whether it succeeded.
+- **Security & activity → Email delivery:** shows every email the site has sent, and whether it succeeded.

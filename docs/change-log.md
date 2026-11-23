@@ -24,3 +24,8 @@ Vercel deployment `dpl_7AL9X3wQbvAZo1phFQvgWC6ToN4o` (previous production).
 
 Not changed: prices, payment records, refunds, accounts, backups (in-database `security_backup` copies and `~/TLC-Backups` kept) (including the two 2026-06-26 test
 accounts), paid services. Online checkout is closed (`CHECKOUT_ENABLED` unset).
+
+| When (2026-11-23 UTC; evening of 11-22 ET) | Change | Approved | Verification | Recovery |
+|---|---|---|---|---|
+| 01:04–01:13 | Live admin audit, signed in as the second administrator (no MFA bypass). Synthetic records created through the admin screens and removed: status/follow-up/notes on the existing TEST inquiry; cohort "TEST - Admin audit cohort (delete me)" (Draft→Active, capacity, 6 generated + 1 manual session); "Impact Test User" enrolled then withdrawn; one weekly rep, one journal prompt, one announcement (TEST cohort only), one link resource | Owner (audit request) | Every write checked in the database; all TEST records removed (enrollment row and the two TEST notes removed directly; cohort deleted through the screen, its sessions cascaded); TEST inquiry back to New with no follow-up; real records untouched (4 cohorts, 25 sessions, 6 enrollments, 2 announcements) | Not needed |
+| — | 11 activity-log entries from the audit kept (append-only history) | — | Visible in Security | — |
