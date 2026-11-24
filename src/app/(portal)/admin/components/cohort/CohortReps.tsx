@@ -6,7 +6,10 @@ import type { WeeklyRep } from '@/types'
 import type { RepInput } from '../../useAdminPanel'
 import { InlineError } from '../feedback'
 import { inputStyle, linkButtonStyle, dangerLinkStyle, secondaryButtonStyle, statusBadge } from '../shared'
-import { FieldLabel, fullWidth, gridStyle, metaStyle, panelBoxStyle, plural, rowStyle, smallButtonStyle, subheadStyle, type CohortSectionProps } from './ui'
+import Link from 'next/link'
+import { FieldLabel, fullWidth, gridStyle, inlineLinkStyle, metaStyle, panelBoxStyle, plural, rowStyle, smallButtonStyle, subheadStyle, type CohortSectionProps } from './ui'
+import { assignedParticipants } from './participation'
+import { useCohortParticipation } from './useParticipation'
 
 const emptyRep = (cohortId: string, week = ''): RepInput => ({ cohort_id: cohortId, week_number: week, title: '', instructions: '', why_it_matters: '', due_date: '' })
 const repToInput = (r: WeeklyRep): RepInput => ({
@@ -66,8 +69,21 @@ function RepForm({ idPrefix, initial, submitLabel, busyLabel, onSubmit, onCancel
   )
 }
 
-export default function CohortReps({ panel, cohort }: CohortSectionProps) {
+/**
+ * `onShowParticipation` (inside a cohort card) or `participationHref` (other pages) adds a
+ * link to the cohort's Participation section.
+ */
+export default function CohortReps({ panel, cohort, onShowParticipation, participationHref }: CohortSectionProps & { onShowParticipation?: () => void; participationHref?: string }) {
   const [editingId, setEditingId] = useState<string | null>(null)
+  const participation = useCohortParticipation(cohort.id)
+  const assigned = assignedParticipants(cohort.id, panel.enrollments, panel.users)
+  const assignedIds = new Set(assigned.map(p => p.userId))
+  /** "3 of 8 submitted" from the participation data; null until it has loaded. */
+  const submittedLine = (repId: string) => {
+    if (!participation.rows) return null
+    const x = participation.rows.filter(r => r.rep_id === repId && assignedIds.has(r.user_id)).length
+    return `${x} of ${plural(assigned.length, 'participant')} submitted`
+  }
   const [busyId, setBusyId] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({})
 
@@ -115,6 +131,15 @@ export default function CohortReps({ panel, cohort }: CohortSectionProps) {
   return (
     <div>
       {cohort.status === 'draft' && <p style={{ ...metaStyle, margin: '0 0 0.5rem' }}>This cohort is a draft: you can prepare its weekly reps now. Participants see them once they are enrolled.</p>}
+      {current.length > 0 && (onShowParticipation || participationHref) && (
+        <p style={{ ...metaStyle, margin: '0 0 0.5rem' }}>
+          {onShowParticipation
+            ? <button type="button" onClick={onShowParticipation} style={{ ...linkButtonStyle, fontSize: '0.85rem' }}>See who has submitted each rep</button>
+            : <Link href={participationHref!} style={inlineLinkStyle}>See who has submitted each rep</Link>}
+          {' '}(Participation). Reflection text stays private to each participant.
+        </p>
+      )}
+      {participation.error && <p style={{ ...metaStyle, margin: '0 0 0.5rem' }}>Submission counts could not be loaded ({participation.error}). Totals below include everyone who ever submitted.</p>}
       {reps.length === 0 ? (
         <p style={{ ...metaStyle, margin: '0 0 0.75rem' }}>No weekly reps yet.</p>
       ) : (
@@ -140,7 +165,7 @@ export default function CohortReps({ panel, cohort }: CohortSectionProps) {
                   </span>
                   <span style={{ display: 'block', fontWeight: 600, color: 'var(--navy)', fontSize: '0.95rem' }}>{rep.title}</span>
                   <span style={{ ...metaStyle, display: 'block', fontSize: '0.82rem' }}>
-                    {rep.archived_at ? `Archived — ${plural(n, 'reflection')} kept` : n ? `${plural(n, 'reflection')} written` : 'No reflections yet'}
+                    {rep.archived_at ? `Archived — ${plural(n, 'reflection')} kept` : submittedLine(rep.id) ?? (n ? `${n} submitted` : 'Nobody has submitted it yet')}
                   </span>
                   <InlineError message={rowErrors[rep.id]} />
                 </div>

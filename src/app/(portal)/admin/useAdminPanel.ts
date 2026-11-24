@@ -304,8 +304,13 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
   }
 
   /** Program completion is Tramaine's decision: recorded with the date and the admin. */
-  const handleCompleteEnrollment = async (enrollmentId: string, note?: string) => {
+  const handleCompleteEnrollment = async (enrollmentId: string, note?: string, opts: { quiet?: boolean } = {}) => {
     const e = enrollments.find(x => x.id === enrollmentId)
+    if (opts.quiet) {
+      const { error } = await supabase.from('cohort_enrollments').update({ status: 'completed', completion_note: note?.trim() || null }).eq('id', enrollmentId)
+      if (error) { const m = friendlyError(error); await logFailure('enrollment.complete', 'enrollment', enrollmentId, e ? `${personName(e.user_id)} — ${cohortName(e.cohort_id)}` : null, m); return m }
+      return null
+    }
     return run(() => supabase.from('cohort_enrollments').update({ status: 'completed', completion_note: note?.trim() || null }).eq('id', enrollmentId),
       { success: `${e ? personName(e.user_id) : 'The participant'} is marked as having completed ${e ? cohortName(e.cohort_id) : 'the program'}.`, action: 'enrollment.complete', entity: 'enrollment', id: enrollmentId, label: e ? `${personName(e.user_id)} — ${cohortName(e.cohort_id)}` : null })
   }
@@ -531,15 +536,16 @@ export function useAdminPanel({ me, checkoutEnabled }: AdminPanelOptions) {
    * Issues a certificate for a completed program. The database fills in the number, names,
    * pathway and completion date, and refuses it unless the program was marked complete.
    */
-  const handleIssueCertificate = async (userId: string, cohortId: string, signer?: { name: string; title: string } | null): Promise<string | null> => {
+  const handleIssueCertificate = async (userId: string, cohortId: string, signer?: { name: string; title: string } | null, opts: { quiet?: boolean } = {}): Promise<string | null> => {
     if (!userId || !cohortId) return 'Choose the participant and the cohort they completed.'
-    if (certificates.some(c => c.user_id === userId && c.cohort_id === cohortId)) {
-      const m = `${personName(userId)} already has a certificate for ${cohortName(cohortId)}.`; fail(m); return m
+    if (certificates.some(c => c.user_id === userId && c.cohort_id === cohortId && !c.revoked_at)) {
+      const m = `${personName(userId)} already has a certificate for ${cohortName(cohortId)}.`; if (!opts.quiet) fail(m); return m
     }
     const { data, error } = await supabase.from('certificates')
       .insert({ user_id: userId, cohort_id: cohortId, signer_name: signer?.name || null, signer_title: signer?.title || null, requirements_met: {} })
       .select('certificate_number').single()
-    if (error) { const m = friendlyError(error); fail(m); await logFailure('certificate.create', 'certificate', null, personName(userId), m); return m }
+    if (error) { const m = friendlyError(error); if (!opts.quiet) fail(m); await logFailure('certificate.create', 'certificate', null, personName(userId), m); return m }
+    if (opts.quiet) return null
     ok(`Certificate ${data?.certificate_number ?? ''} issued to ${personName(userId)}. They can view and download it under Certificates in their portal, including after the cohort ends.`)
     await fetchAll()
     return null

@@ -478,7 +478,7 @@ function RegisterContent() {
                 <p role="alert" style={{ color: '#B3261E', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center', lineHeight: 1.5 }}>{submitError}</p>
               )}
               <p style={{ color: 'var(--slate)', fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.6 }}>
-                After payment you will receive a confirmation email with your registration details. Your Learning Hub invitation and program information will follow shortly.
+                After payment you will receive a confirmation email with your registration details (Stripe emails your receipt separately). Tramaine will then confirm your place and send your Learning Hub access.
               </p>
             </form>
           </div>

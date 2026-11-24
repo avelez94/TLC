@@ -101,7 +101,7 @@ export default function CohortSchedule({ panel, cohort }: CohortSectionProps) {
         <p style={{ ...metaStyle, color: preview ? 'var(--ink)' : '#8c1d18', fontWeight: 600, margin: '0 0 0.75rem' }}>
           {preview ?? problem}
         </p>
-        <button type="button" className="btn btn-primary" onClick={() => void generate()} disabled={generating || !!problem} style={smallButtonStyle}>
+        <button id={`session-${cohort.id}-generate`} type="button" className="btn btn-primary" onClick={() => void generate()} disabled={generating || !!problem} style={smallButtonStyle}>
           {generating ? 'Generating…' : sessions.length ? 'Replace with weekly schedule' : 'Generate schedule'}
         </button>
         <InlineError message={generateError} />

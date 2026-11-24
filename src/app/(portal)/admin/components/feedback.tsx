@@ -81,15 +81,17 @@ function ConfirmDialog({ title, message, consequences, confirmLabel = 'Confirm',
   const ready = !requireText || typed.trim().toUpperCase() === requireText.toUpperCase()
   return (
     <div onClick={() => onDone(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,23,55,0.55)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" onClick={e => e.stopPropagation()}
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body" onClick={e => e.stopPropagation()}
         style={{ background: 'white', borderRadius: '8px', maxWidth: '480px', width: '100%', padding: '1.5rem', borderTop: `4px solid ${danger ? '#b3261e' : 'var(--gold)'}`, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <h2 id="confirm-title" style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', letterSpacing: '0.04em', color: 'var(--navy)', margin: '0 0 0.75rem' }}>{title}</h2>
+        <div id="confirm-body">
         {message && <p style={{ color: 'var(--ink)', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 0.75rem' }}>{message}</p>}
         {consequences && consequences.length > 0 && (
           <ul style={{ margin: '0 0 1rem', paddingLeft: '1.2rem', color: 'var(--ink)', fontSize: '0.92rem', lineHeight: 1.6 }}>
             {consequences.map(c => <li key={c}>{c}</li>)}
           </ul>
         )}
+        </div>
         {requireText && (
           <label style={{ display: 'block', fontSize: '0.88rem', color: 'var(--slate)', marginBottom: '1rem' }}>
             Type <strong style={{ color: '#b3261e' }}>{requireText}</strong> to confirm

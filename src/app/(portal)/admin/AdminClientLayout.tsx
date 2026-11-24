@@ -74,7 +74,7 @@ function AdminShell({ children }: { children: ReactNode }) {
           {panel.refreshing && <span role="status" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}>Updating…</span>}
           <span className="admin-who" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.8rem' }}>Signed in as {panel.me.name}</span>
           <div title={`Signed in as ${panel.me.name}`} aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)', fontWeight: 700, fontSize: '0.8rem' }}>{initials}</div>
-          <button className="mobile-hamburger" onClick={() => setMobileNavOpen(!mobileNavOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'white', flexDirection: 'column', gap: '5px' }}>
+          <button type="button" className="mobile-hamburger" aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileNavOpen} aria-controls="admin-mobile-nav" onClick={() => setMobileNavOpen(!mobileNavOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.6rem', minWidth: '44px', minHeight: '44px', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column', gap: '5px' }}>
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', transition: 'transform 0.2s', transform: mobileNavOpen ? 'translateY(7px) rotate(45deg)' : 'none' }} />
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', opacity: mobileNavOpen ? 0 : 1, transition: 'opacity 0.2s' }} />
             <span style={{ display: 'block', width: '22px', height: '2px', background: 'currentColor', borderRadius: '1px', transition: 'transform 0.2s', transform: mobileNavOpen ? 'translateY(-7px) rotate(-45deg)' : 'none' }} />
@@ -83,7 +83,7 @@ function AdminShell({ children }: { children: ReactNode }) {
       </div>
 
       {mobileNavOpen && (
-        <div style={{ position: 'fixed', top: '64px', left: 0, right: 0, bottom: 0, background: 'var(--navy3)', zIndex: 199, overflowY: 'auto', borderTop: '2px solid var(--gold)' }}>
+        <div id="admin-mobile-nav" role="navigation" aria-label="Admin menu" style={{ position: 'fixed', top: '64px', left: 0, right: 0, bottom: 0, background: 'var(--navy3)', zIndex: 199, overflowY: 'auto', borderTop: '2px solid var(--gold)' }}>
           <div style={{ padding: '1rem 0' }}>
             {navItems.map(({ id, label, icon, group }, i) => (
               <Fragment key={id}>

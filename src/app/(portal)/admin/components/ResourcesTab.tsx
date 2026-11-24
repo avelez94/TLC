@@ -75,6 +75,17 @@ export default function ResourcesTab(panel: AdminPanel) {
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
+
+  // /admin/resources?cohort=<id> (from a cohort's checklist) opens the form for that cohort.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (prefilled.current || panel.loading) return
+    const id = new URLSearchParams(window.location.search).get('cohort')
+    const c = id ? panel.cohorts.find(x => x.id === id) : undefined
+    if (!c) return
+    prefilled.current = true
+    void Promise.resolve().then(() => { setDraft({ ...EMPTY, program_id: c.program_id, cohort_id: c.id }); setShowForm(true) })
+  }, [panel.loading, panel.cohorts])
   const fileInput = useRef<HTMLInputElement>(null)
   const orphan = useRef<string | null>(null) // uploaded but not yet saved as a resource
 

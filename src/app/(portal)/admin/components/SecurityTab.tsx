@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { friendlyError } from '@/lib/admin-errors'
 import { describeActivity, describeChanges, type ActivityRow } from '@/lib/activity-log'
+import { emailState, PROBLEM_STATUSES, RESENDABLE, templateLabel } from '@/lib/email-status'
+import type { EmailLogRow } from '@/types'
 import { formatDateTimeET } from '@/lib/business-time'
 import type { AdminPanel } from '../useAdminPanel'
 import { InlineError } from './feedback'
@@ -12,10 +14,10 @@ import { cardStyle, dangerLinkStyle, helpStyle, labelStyle, pageTitleStyle, seco
 
 interface Factor { id: string; friendly_name?: string | null; status: string; created_at: string }
 interface AuditRow extends ActivityRow { id: number; actor_id: string | null; entity_id: string | null; created_at: string }
-interface EmailRow { id: number; template: string; recipient: string; subject: string | null; status: string; error: string | null; created_at: string }
+type EmailRow = EmailLogRow
 interface SecurityStatus { mode: string; admins: { id: string; name: string | null; enrolled: boolean }[] }
 
-const FULL_COLUMNS = 'id, actor_id, action, entity_type, entity_id, entity_label, outcome, changes, details, created_at'
+const FULL_COLUMNS = 'id, actor_id, actor_type, action, entity_type, entity_id, entity_label, outcome, changes, details, created_at'
 const OLD_COLUMNS = 'id, actor_id, action, entity_type, entity_id, details, created_at'
 
 const errorBox = { ...cardStyle, borderLeft: '3px solid #b3261e', color: '#7a1a14', padding: '0.85rem 1rem', fontSize: '0.9rem', marginBottom: '0.75rem' } as const
@@ -28,7 +30,7 @@ const MODE_TEXT: Record<string, string> = {
 }
 
 export default function SecurityTab(panel: AdminPanel) {
-  const { me, users, programs, cohorts, checkoutEnabled } = panel
+  const { me, users, programs, cohorts } = panel
 
   const [factors, setFactors] = useState<Factor[]>([])
   const [factorsLoaded, setFactorsLoaded] = useState(false)
@@ -85,8 +87,16 @@ export default function SecurityTab(panel: AdminPanel) {
     setActivityLoaded(true)
   }, [])
 
+  const [emailFilter, setEmailFilter] = useState<'all' | 'problems'>('all')
+  const [highlightEmail, setHighlightEmail] = useState<number | null>(null)
+  const [emailBusy, setEmailBusy] = useState<number | null>(null)
+  // /admin/security?email=<id> opens the delivery list with that email highlighted.
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('email'))
+    if (Number.isInteger(id) && id > 0) void Promise.resolve().then(() => { setHighlightEmail(id); setEmailFilter('problems') })
+  }, [])
   const loadEmails = useCallback(async () => {
-    const { data, error } = await supabase.from('email_log').select('id, template, recipient, subject, status, error, created_at').order('created_at', { ascending: false }).limit(50)
+    const { data, error } = await supabase.from('email_log').select('*').order('created_at', { ascending: false }).limit(200)
     if (error) setEmailsError(`The email log could not be loaded: ${friendlyError(error)}`)
     else { setEmailsError(null); setEmails((data ?? []) as EmailRow[]) }
     setEmailsLoaded(true)
@@ -172,7 +182,8 @@ export default function SecurityTab(panel: AdminPanel) {
     cohort: (id: string) => cohorts.find(c => c.id === id)?.name,
     person: (id: string) => { const u = users.find(x => x.id === id); return u ? (u.full_name || u.email || undefined) : undefined },
   }
-  const who = (id: string | null) => {
+  const who = (id: string | null, type?: string | null) => {
+    if (type === 'system') return 'System (automatic)'
     if (!id) return 'System'
     return users.some(u => u.id === id) ? panel.personName(id) : 'A removed account'
   }
@@ -316,7 +327,7 @@ export default function SecurityTab(panel: AdminPanel) {
                 return (
                   <tr key={a.id} style={bad ? { background: '#fdf3f2' } : undefined}>
                     <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{formatDateTimeET(a.created_at)}</td>
-                    <td style={tdStyle}>{who(a.actor_id)}</td>
+                    <td style={tdStyle}>{who(a.actor_id, a.actor_type)}</td>
                     <td style={{ ...tdStyle, fontWeight: bad ? 700 : 400, color: bad ? '#8c1d18' : 'var(--ink)' }}>{describeActivity(a, lookups)}</td>
                     <td style={{ ...tdStyle, color: 'var(--slate)', overflowWrap: 'anywhere', maxWidth: '22rem' }}>{detailsOf(a)}</td>
                     <td style={tdStyle}>{outcomeBadge(a.outcome)}</td>
@@ -330,10 +341,18 @@ export default function SecurityTab(panel: AdminPanel) {
 
       {/* ------------------------------------------------ email delivery */}
       <section style={cardStyle} aria-labelledby="sec-email">
-        <h2 id="sec-email" style={sectionTitleStyle}>Email delivery</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+          <h2 id="sec-email" style={{ ...sectionTitleStyle, margin: 0 }}>Email delivery</h2>
+          <div role="group" aria-label="Show emails" style={{ display: 'flex', gap: '0.4rem' }}>
+            {([['all', 'All'], ['problems', `Problems (${emails.filter(e => PROBLEM_STATUSES.has(e.status) && !e.resolved_at).length})`]] as const).map(([v, l]) => (
+              <button key={v} type="button" aria-pressed={emailFilter === v} onClick={() => setEmailFilter(v)}
+                style={{ ...secondaryButtonStyle, background: emailFilter === v ? 'var(--navy)' : 'white', color: emailFilter === v ? 'white' : 'var(--navy)' }}>{l}</button>
+            ))}
+          </div>
+        </div>
         <p style={{ ...helpStyle, fontSize: '0.85rem' }}>
-          The last 50 emails the site tried to send (invitations, notifications, confirmations).
-          {checkoutEnabled ? ' A failed payment confirmation email is retried automatically.' : ''}
+          The last 200 emails the site tried to send. <strong>Accepted</strong> means the email service took it for delivery; <strong>Delivered</strong> appears only when delivery tracking is switched on.
+          Failed account emails (invitations, set-up links, password resets) can be resent with a fresh link. Links and message text are never stored here.
         </p>
         {emailsError && (
           <div role="alert" style={errorBox}>
@@ -341,27 +360,45 @@ export default function SecurityTab(panel: AdminPanel) {
             <button type="button" onClick={() => void loadEmails()} style={{ ...secondaryButtonStyle, marginLeft: '0.5rem' }}>Try again</button>
           </div>
         )}
-        {!emailsError && emailsLoaded && emails.length === 0 && <p style={emptyStyle}>No emails recorded yet.</p>}
-        {!emailsError && emails.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
-              <thead><tr>{['When', 'Email subject', 'To', 'Result'].map(h => <th key={h} scope="col" style={thStyle}>{h}</th>)}</tr></thead>
-              <tbody>{emails.map(e => (
-                <tr key={e.id} style={e.status === 'failed' ? { background: '#fdf3f2' } : undefined}>
-                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{formatDateTimeET(e.created_at)}</td>
-                  <td style={tdStyle}>{e.subject || 'Email (no subject recorded)'}</td>
-                  <td style={{ ...tdStyle, overflowWrap: 'anywhere' }}>{e.recipient}</td>
-                  <td style={tdStyle}>
-                    {e.status === 'sent' ? statusBadge('open', 'Sent') : e.status === 'failed' ? statusBadge('full', 'Failed') : statusBadge('completed', 'Skipped')}
-                    {e.error && (
-                      <span style={{ display: 'block', marginTop: '0.3rem', fontSize: '0.8rem', color: e.status === 'failed' ? '#8c1d18' : 'var(--slate)', overflowWrap: 'anywhere' }}>{e.error}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        )}
+        {(() => {
+          const shown = emails.filter(e => emailFilter === 'all' || (PROBLEM_STATUSES.has(e.status) && !e.resolved_at) || e.id === highlightEmail)
+          if (emailsError || !emailsLoaded) return null
+          if (shown.length === 0) return <p style={emptyStyle}>{emailFilter === 'problems' ? 'No delivery problems. Every recent email was accepted or intentionally skipped.' : 'No emails recorded yet.'}</p>
+          const act = async (id: number, fn: () => Promise<unknown>) => { setEmailBusy(id); await fn(); setEmailBusy(null); await loadEmails() }
+          return (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
+                <thead><tr>{['When', 'Email', 'To', 'Result', ''].map((h, i) => <th key={i} scope="col" style={thStyle}>{h || <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Actions</span>}</th>)}</tr></thead>
+                <tbody>{shown.map(e => {
+                  const st = emailState(e)
+                  const problem = PROBLEM_STATUSES.has(e.status) && !e.resolved_at
+                  return (
+                    <tr key={e.id} id={`email-row-${e.id}`} style={{ background: problem ? '#fdf3f2' : undefined, outline: e.id === highlightEmail ? '2px solid #b3261e' : undefined }}>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{formatDateTimeET(e.created_at)}</td>
+                      <td style={tdStyle}><strong>{templateLabel(e.template)}</strong>{e.subject ? <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.8rem' }}>{e.subject}</span> : null}</td>
+                      <td style={{ ...tdStyle, overflowWrap: 'anywhere' }}>{e.recipient}</td>
+                      <td style={tdStyle}>
+                        {statusBadge(st.badge, st.label)}
+                        {e.resend_of ? <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--slate)', marginTop: '0.25rem' }}>Resend of an earlier email</span> : null}
+                        {e.error && <span style={{ display: 'block', marginTop: '0.3rem', fontSize: '0.8rem', color: problem ? '#8c1d18' : 'var(--slate)', overflowWrap: 'anywhere' }}>{e.error}</span>}
+                      </td>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                        {problem && RESENDABLE.has(e.template) && e.related_user_id && (
+                          <button type="button" disabled={emailBusy !== null} onClick={() => void act(e.id, () => panel.handleResendEmail(e.id))} style={{ ...secondaryButtonStyle, marginRight: '0.5rem' }}>
+                            {emailBusy === e.id ? 'Sending…' : 'Resend'}
+                          </button>
+                        )}
+                        {problem && (
+                          <button type="button" disabled={emailBusy !== null} onClick={() => void act(e.id, () => panel.handleResolveEmail(e.id))} style={{ ...secondaryButtonStyle }}>Mark handled</button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}</tbody>
+              </table>
+            </div>
+          )
+        })()}
       </section>
     </div>
   )

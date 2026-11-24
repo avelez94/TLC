@@ -2,9 +2,11 @@
 import { useState } from 'react'
 import type { CohortStatus } from '@/types'
 import { seatsTaken } from '@/lib/admin-metrics'
+import { formatDateET, todayET } from '@/lib/business-time'
 import { useSaveStates } from '../feedback'
-import { inputStyle, programChoices } from '../shared'
-import { FieldLabel, STATUS_CONFIRM, STATUS_OPTIONS, WEEKDAYS, fullWidth, gridStyle, linkProblem, metaStyle, type CohortSectionProps } from './ui'
+import { inputStyle, linkButtonStyle, programChoices } from '../shared'
+import { FieldLabel, LIFECYCLE_LABEL, STATUS_CONFIRM, STATUS_OPTIONS, WEEKDAYS, fullWidth, gridStyle, linkProblem, metaStyle, statusHelp, type CohortSectionProps } from './ui'
+import { readinessFor } from './CohortReadiness'
 
 export default function CohortDetails({ panel, cohort }: CohortSectionProps) {
   const { get, track } = useSaveStates()
@@ -22,14 +24,38 @@ export default function CohortDetails({ panel, cohort }: CohortSectionProps) {
   const pathways = programChoices(panel.programs, showHistorical)
   const current = panel.programs.find(p => p.id === cohort.program_id)
   const pathwayOptions = current && !pathways.some(p => p.id === current.id) ? [...pathways, current] : pathways
-  const statusHelp = STATUS_OPTIONS.find(o => o.value === cohort.status)?.help
+  const help = statusHelp(cohort.status, panel.checkoutEnabled)
 
   const changeStatus = async (next: CohortStatus) => {
     if (next === cohort.status) return
     const c = STATUS_CONFIRM[next]
-    if (c && !(await panel.confirm({ title: c.title, message: `“${cohort.name}”`, consequences: c.consequences, confirmLabel: c.confirmLabel, danger: next !== 'completed' }))) return
+    let yes = true
+    if (c) {
+      yes = await panel.confirm({ title: c.title, message: `“${cohort.name}”`, consequences: c.consequences, confirmLabel: c.confirmLabel, danger: next !== 'completed' })
+    } else if (next === 'upcoming' || next === 'active') {
+      // The checklist never blocks a status change; it is only mentioned here.
+      const r = readinessFor(panel, cohort)
+      const missing = r.essentials.filter(i => !i.done)
+      if (missing.length) {
+        yes = await panel.confirm({
+          title: `Set to ${LIFECYCLE_LABEL[next]} with setup still missing?`,
+          message: `“${cohort.name}” still needs: ${missing.map(i => i.label.toLowerCase()).join(', ')}.`,
+          consequences: [
+            'You can change the status anyway and finish the setup afterwards.',
+            next === 'upcoming' && !panel.checkoutEnabled
+              ? 'Online registration is off, so it is not listed on the registration page. Nothing else changes automatically.'
+              : 'Nothing else changes automatically.',
+          ],
+          confirmLabel: `Set to ${LIFECYCLE_LABEL[next]}`,
+        })
+      }
+    }
+    if (!yes) return
     void track('status', () => panel.handleUpdateCohortStatus(id, next))
   }
+
+  const openUntil = cohort.activity_open_until ?? null
+  const reopenedNow = !!openUntil && openUntil >= todayET()
 
   const capacityNote = cohort.capacity != null && taken > cohort.capacity
     ? `${taken} people are enrolled, more than this limit. Nobody is removed, but no one new can join until the limit is raised.`
@@ -43,8 +69,29 @@ export default function CohortDetails({ panel, cohort }: CohortSectionProps) {
           onChange={e => void changeStatus(e.target.value as CohortStatus)} style={inputStyle}>
           {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {statusHelp && <p style={{ ...metaStyle, margin: '0.4rem 0 0' }}>{statusHelp}</p>}
+        {help && <p style={{ ...metaStyle, margin: '0.4rem 0 0' }}>{help}</p>}
       </div>
+
+      {cohort.status === 'completed' && (
+        <div style={fullWidth}>
+          <FieldLabel htmlFor={fid('activity_open_until')} state={get('activity_open_until')} hint="(optional)">Reopen participant activity until</FieldLabel>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input key={openUntil ?? 'none'} id={fid('activity_open_until')} type="date" defaultValue={openUntil ?? ''} min={todayET()} style={{ ...inputStyle, flex: '0 1 220px', width: 'auto' }}
+              onBlur={e => save('activity_open_until', e.target.value || null, openUntil)} />
+            {openUntil && (
+              <button type="button" onClick={() => save('activity_open_until', null, openUntil)} style={{ ...linkButtonStyle, padding: '0.5rem 0' }}>
+                Clear (close activity)
+              </button>
+            )}
+          </div>
+          <p style={{ ...metaStyle, margin: '0.4rem 0 0' }}>
+            Lets participants submit late weekly reps and post in the community until this date (Eastern Time). Clear it to close activity again.
+            {' '}{openUntil
+              ? (reopenedNow ? `Activity is open until ${formatDateET(openUntil)}.` : `The date has passed (${formatDateET(openUntil)}), so activity is closed.`)
+              : 'Activity is closed: participants have read-only access.'}
+          </p>
+        </div>
+      )}
 
       <div style={fullWidth}>
         <FieldLabel htmlFor={fid('name')} state={get('name')}>Cohort name</FieldLabel>

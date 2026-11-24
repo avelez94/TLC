@@ -28,7 +28,11 @@ const TABLES = ['announcements', 'assessments', 'availability_blocks', 'bookings
   'insights', 'journal_entries', 'journal_prompts', 'life_domains', 'messages', 'profiles', 'program_includes',
   'programs', 'registrations', 'resources', 'session_attendance', 'weekly_checkins', 'weekly_rep_submissions', 'weekly_reps',
   // added by migration 2c (2026-11-22)
-  'inquiries', 'inquiry_notes', 'admin_audit_log', 'email_log']
+  'inquiries', 'inquiry_notes', 'admin_audit_log', 'email_log',
+  // 2e (workflow integration)
+  'inquiry_participants', 'payment_requests', 'stripe_events']
+// Tables that only exist once migration 2e is applied: recorded as absent (not an error) before.
+const ADDED_BY_2E = new Set(['inquiry_participants', 'payment_requests', 'stripe_events'])
 
 // Refuse to produce an incomplete backup: every table the API exposes must be in the list.
 {
@@ -42,6 +46,7 @@ const manifest = { taken_at: new Date().toISOString(), project: new URL(url).hos
 for (const t of TABLES) {
   // count first, then fetch everything in one CSV (tables are small; fail if truncated)
   const head = await fetch(`${url}/rest/v1/${t}?select=*`, { method: 'HEAD', headers: { ...headers, Prefer: 'count=exact' } })
+  if (head.status === 404 && ADDED_BY_2E.has(t)) { manifest.tables[t] = 'absent (before migration 2e)'; console.log(`${t.padEnd(24)} absent (before 2e)`); continue }
   const total = Number((head.headers.get('content-range') || '*/0').split('/')[1])
   const res = await fetch(`${url}/rest/v1/${t}?select=*`, { headers: { ...headers, Accept: 'text/csv', Range: `0-${Math.max(total - 1, 0)}` } })
   if (!res.ok) { console.error(`FAILED ${t}: HTTP ${res.status}`); process.exit(1) }

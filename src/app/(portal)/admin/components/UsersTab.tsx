@@ -18,10 +18,18 @@ export default function UsersTab(panel: AdminPanel) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [invite, setInvite] = useState<{ open: boolean; cohortId?: string; key: number }>({ open: false, key: 0 })
 
-  // A link such as /admin/users?invite=1&cohort=<id> opens the invite form for that cohort.
+  // /admin/users?invite=1&cohort=<id> opens the invite form for that cohort;
+  // /admin/users?person=<id> opens that person's record.
   useEffect(() => {
     void Promise.resolve().then(() => {
       const params = new URLSearchParams(window.location.search)
+      const f = params.get('filter')
+      if (f && ['impact_participant', 'coaching_client', 'admin', 'not_signed_in'].includes(f)) setFilter(f)
+      const person = params.get('person')
+      if (person && UUID_RE.test(person)) {
+        setExpanded(person)
+        setTimeout(() => document.getElementById(`person-row-${person}`)?.scrollIntoView({ block: 'start' }), 50)
+      }
       if (params.get('invite') !== '1') return
       const cohort = params.get('cohort')
       setInvite(i => ({ open: true, cohortId: cohort && UUID_RE.test(cohort) ? cohort : undefined, key: i.key + 1 }))
@@ -33,11 +41,12 @@ export default function UsersTab(panel: AdminPanel) {
     impact_participant: users.filter(u => u.role === 'impact_participant').length,
     coaching_client: users.filter(u => u.role === 'coaching_client').length,
     admin: users.filter(u => u.role === 'admin').length,
+    not_signed_in: users.filter(u => u.role !== 'admin' && !u.last_sign_in_at).length,
   }), [users])
 
   const q = search.trim().toLowerCase()
   const visible = users
-    .filter(u => filter === 'all' || u.role === filter)
+    .filter(u => filter === 'all' || (filter === 'not_signed_in' ? u.role !== 'admin' && !u.last_sign_in_at : u.role === filter))
     .filter(u => !q || (u.full_name ?? '').toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q))
     .sort((a, b) => personLabel(a).localeCompare(personLabel(b)))
 
@@ -67,7 +76,7 @@ export default function UsersTab(panel: AdminPanel) {
         )}
       </div>
       <p style={helpStyle}>
-        Everyone with an account: Impact Lab participants, coaching clients and administrators. Select a person to manage their cohorts, certificates, role and sign-in.{' '}
+        Everyone with an account: Impact Lab participants, coaching clients and administrators. Select a person to see their programs, completion, certificates and sign-in, and to enroll them in a cohort.{' '}
         <Link href="/admin/certificates" style={{ color: '#8a5a10', fontWeight: 600 }}>All certificates →</Link>
       </p>
 
@@ -78,6 +87,7 @@ export default function UsersTab(panel: AdminPanel) {
         { value: 'impact_participant', label: `Impact Lab (${counts.impact_participant})` },
         { value: 'coaching_client', label: `Coaching (${counts.coaching_client})` },
         { value: 'admin', label: `Admins (${counts.admin})` },
+        { value: 'not_signed_in', label: `Not signed in yet (${counts.not_signed_in})` },
       ]} />
       <div style={{ marginBottom: '1.25rem', maxWidth: '420px' }}>
         <label htmlFor="people-search" style={labelStyle}>Search by name or email</label>
@@ -93,7 +103,7 @@ export default function UsersTab(panel: AdminPanel) {
           const open = expanded === user.id
           const line = summary(user.id)
           return (
-            <div key={user.id}>
+            <div key={user.id} id={`person-row-${user.id}`} style={{ scrollMarginTop: '80px' }}>
               <button type="button" aria-expanded={open} aria-controls={`person-${user.id}`} onClick={() => setExpanded(open ? null : user.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', padding: '1rem 1.25rem', background: open ? 'var(--paper)' : 'white', border: 'none', borderBottom: '1px solid var(--mist)', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-montserrat), sans-serif' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: '1 1 220px' }}>
@@ -106,6 +116,11 @@ export default function UsersTab(panel: AdminPanel) {
                     </span>
                     <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.85rem', overflowWrap: 'anywhere' }}>{user.email}</span>
                     {line && <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.82rem', marginTop: '0.15rem' }}>{line}</span>}
+                    {user.role !== 'admin' && !user.last_sign_in_at && (
+                      <span style={{ display: 'block', color: panel.emailProblems.some(e => e.related_user_id === user.id) ? '#8c1d18' : '#8a5a10', fontSize: '0.8rem', marginTop: '0.15rem', fontWeight: 600 }}>
+                        {panel.emailProblems.some(e => e.related_user_id === user.id) ? 'Not signed in yet · an email to them failed' : 'Not signed in yet'}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <span style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>

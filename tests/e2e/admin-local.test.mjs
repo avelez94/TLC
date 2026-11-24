@@ -166,11 +166,13 @@ test('capacity is enforced for admins, invites and returning participants', asyn
   psql(`update cohorts set capacity = 6 where id = '${ID.spring}'`)
   const returning = await a.post('/api/invite', { email: 'p2@example.test', full_name: 'Casey Diaz', role: 'impact_participant', cohort_id: ID.spring })
   const body = await returning.json()
-  assert.equal(returning.status, 200); assert.equal(body.returning, true); assert.deepEqual(body.warnings, [])
+  assert.equal(returning.status, 200); assert.equal(body.outcome, 'enrolled'); assert.deepEqual(body.warnings, [])
   const fresh = await a.post('/api/invite', { email: 'invitee@example.test', full_name: 'Invited Person', role: 'impact_participant', cohort_id: ID.spring })
   assert.equal(fresh.status, 200)
   assert.equal(psql(`select count(*) from cohort_enrollments e join auth.users u on u.id = e.user_id where u.email = 'invitee@example.test' and e.cohort_id = '${ID.spring}'`), '1')
-  assert.equal(psql(`select status from email_log order by id desc limit 1`), 'skipped', 'no real email is sent locally')
+  // No real email is sent locally: skipped, or (server started with EMAIL_SINK_DIR) written to the local folder.
+  const last = psql(`select status || '|' || coalesce(provider_id, '') from email_log order by id desc limit 1`)
+  assert.match(last, /^skipped\|$|^accepted\|sink_/, 'no real email is sent locally')
 })
 
 // ---------------------------------------------------------------- reflections

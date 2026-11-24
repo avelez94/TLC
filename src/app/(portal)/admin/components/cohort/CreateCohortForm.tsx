@@ -4,7 +4,7 @@ import type { CohortStatus } from '@/types'
 import type { AdminPanel } from '../../useAdminPanel'
 import { InlineError } from '../feedback'
 import { cardStyle, inputStyle, programChoices, secondaryButtonStyle, sectionTitleStyle } from '../shared'
-import { FieldLabel, STATUS_OPTIONS, fullWidth, gridStyle, linkProblem, metaStyle } from './ui'
+import { FieldLabel, STATUS_OPTIONS, fullWidth, gridStyle, linkProblem, metaStyle, statusHelp } from './ui'
 
 const EMPTY = { name: '', program_id: '', start_date: '', end_date: '', status: 'draft' as CohortStatus, capacity: '', zoom_link: '' }
 
@@ -28,12 +28,12 @@ export default function CreateCohortForm({ panel, onCreated, onCancel }: { panel
     onCreated(name, form.status)
   }
 
-  const help = STATUS_OPTIONS.find(o => o.value === form.status)?.help
+  const help = statusHelp(form.status, panel.checkoutEnabled)
   const f = (x: string) => `new-cohort-${x}`
   return (
     <div style={{ ...cardStyle, borderTop: '3px solid var(--gold)' }}>
       <h2 style={sectionTitleStyle}>Create a cohort</h2>
-      <p style={{ ...metaStyle, margin: '0 0 1rem' }}>You can change all of this later. After creating it, open the cohort to add its schedule, weekly reps and content.</p>
+      <p style={{ ...metaStyle, margin: '0 0 1rem' }}>You can change all of this later. After creating it, the cohort’s setup checklist shows what is left: schedule, meeting link, weekly reps and content.</p>
       <div style={gridStyle}>
         <div style={fullWidth}>
           <FieldLabel htmlFor={f('name')}>Cohort name</FieldLabel>

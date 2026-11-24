@@ -8,13 +8,17 @@ import { formatDateET, formatDateTimeET } from '@/lib/business-time'
 import { InlineError } from '../feedback'
 import { helpStyle, inputStyle, labelStyle, linkButtonStyle, dangerLinkStyle, secondaryButtonStyle, statusBadge } from '../shared'
 import CoachingBilling from './CoachingBilling'
-import { Detail, detailGrid, enrollableCohortChoices, ENROLLABLE_STATUSES, IssueCertificateForm, personLabel, primaryButton, ROLE_LABEL } from './common'
+import Link from 'next/link'
+import { Detail, detailGrid, enrollableCohortChoices, ENROLLABLE_STATUSES, personLabel, primaryButton, ROLE_LABEL } from './common'
+import EmailProblems from './EmailProblems'
 
 const subTitle = { fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.15rem', color: 'var(--navy)', letterSpacing: '0.04em', margin: '0 0 0.6rem' }
 const block = { background: 'white', border: '1px solid var(--mist)', borderRadius: '6px', padding: '1.25rem', marginBottom: '1.25rem' }
 
 export default function PersonDetail({ panel, user }: { panel: AdminPanel; user: Profile }) {
   const name = personLabel(user)
+  const inquiryIds = new Set(panel.inquiryParticipants.filter(p => p.user_id === user.id).map(p => p.inquiry_id))
+  const fromInquiries = panel.inquiries.filter(i => inquiryIds.has(i.id))
   return (
     <div style={{ padding: '1.25rem', background: 'var(--paper)', borderBottom: '1px solid var(--mist)' }}>
       <div style={detailGrid}>
@@ -22,9 +26,15 @@ export default function PersonDetail({ panel, user }: { panel: AdminPanel; user:
         {user.phone && <Detail label="Phone">{user.phone}</Detail>}
         {user.organization && <Detail label="Organization">{user.organization}</Detail>}
         <Detail label="Joined">{formatDateET(user.created_at, 'long') || 'Unknown'}</Detail>
-        <Detail label="Last sign-in">{user.last_sign_in_at ? formatDateTimeET(user.last_sign_in_at) : 'Has not signed in yet'}</Detail>
+        <Detail label="Last sign-in">{user.last_sign_in_at ? formatDateTimeET(user.last_sign_in_at) : 'Has not signed in yet (no password chosen)'}</Detail>
         <Detail label="Time zone">{user.timezone || 'Not set'}</Detail>
+        {fromInquiries.length > 0 && (
+          <Detail label="Came from">
+            {fromInquiries.map(i => <Link key={i.id} href={`/admin/inquiries?id=${i.id}`} style={{ color: '#8a5a10', display: 'block' }}>{i.organization || i.contact_name} inquiry →</Link>)}
+          </Detail>
+        )}
       </div>
+      <EmailProblems panel={panel} userId={user.id} />
 
       <Enrollments panel={panel} user={user} name={name} />
       {user.role === 'coaching_client' && <CoachingBilling panel={panel} user={user} />}
@@ -90,7 +100,13 @@ function Enrollments({ panel, user, name }: { panel: AdminPanel; user: Profile; 
                   {cohortName}
                   {cohort?.programs?.name && <span style={{ fontWeight: 400, color: 'var(--slate)' }}> · {cohort.programs.name}</span>}
                 </span>
-                {statusBadge(outcome, OUTCOME_LABEL[outcome])}
+                {statusBadge(outcome === 'awaiting_review' ? 'pending' : outcome, OUTCOME_LABEL[outcome])}
+                {e.status === 'completed' && e.completed_at && <span style={{ fontSize: '0.82rem', color: 'var(--slate)' }}>on {formatDateET(e.completed_at)}</span>}
+                {(outcome === 'awaiting_review' || outcome === 'in_progress' || e.status === 'completed') && (
+                  <Link href={`/admin/cohorts?cohort=${e.cohort_id}&section=completion`} style={{ fontSize: '0.85rem', fontWeight: 600, color: '#8a5a10' }}>
+                    {e.status === 'completed' ? 'Certificate →' : 'Completion review →'}
+                  </Link>
+                )}
                 {canWithdraw && (
                   <button type="button" onClick={() => withdraw(e.id, cohortName)} disabled={busyId !== null} style={{ ...dangerLinkStyle, minHeight: '36px' }}>
                     {busyId === e.id ? 'Withdrawing…' : 'Withdraw'}
@@ -129,34 +145,32 @@ function Enrollments({ panel, user, name }: { panel: AdminPanel; user: Profile; 
 }
 
 function Certificates({ panel, user }: { panel: AdminPanel; user: Profile }) {
-  const [open, setOpen] = useState(false)
   const mine = panel.certificates.filter(c => c.user_id === user.id)
   return (
     <section style={block}>
       <h3 style={subTitle}>Certificates</h3>
       {mine.length === 0 ? (
-        <p style={{ ...helpStyle, margin: '0 0 0.75rem' }}>No certificates yet.</p>
+        <p style={{ ...helpStyle, margin: 0 }}>No certificates yet. Certificates are issued from the cohort&apos;s <strong>Completion &amp; certificates</strong> section after you record that the program was completed.</p>
       ) : (
-        <ul style={{ listStyle: 'none', margin: '0 0 0.75rem', padding: 0 }}>
-          {mine.map(c => {
-            const cohort = c.cohort_id ? panel.cohorts.find(x => x.id === c.cohort_id)?.name : null
-            return (
-              <li key={c.id} style={{ padding: '0.55rem 0', borderBottom: '1px solid var(--mist)', fontSize: '0.92rem', color: 'var(--ink)' }}>
-                <strong style={{ color: 'var(--navy)' }}>{c.programs?.name ?? 'Program'}</strong>
-                {cohort && <span> · {cohort}</span>}
-                <span style={{ color: 'var(--slate)' }}> · issued {formatDateET(c.issued_at)}</span>
-              </li>
-            )
-          })}
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {mine.map(c => (
+            <li key={c.id} style={{ display: 'flex', gap: '0.5rem 1rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.55rem 0', borderBottom: '1px solid var(--mist)', fontSize: '0.92rem', color: 'var(--ink)' }}>
+              <span style={{ flex: '1 1 220px' }}>
+                <strong style={{ color: 'var(--navy)' }}>{c.pathway_name ?? c.programs?.name ?? 'Program'}</strong>
+                {(c.cohort_name ?? (c.cohort_id ? panel.cohorts.find(x => x.id === c.cohort_id)?.name : null)) && <span> · {c.cohort_name ?? panel.cohorts.find(x => x.id === c.cohort_id)?.name}</span>}
+                <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.82rem' }}>
+                  {c.certificate_number ? `${c.certificate_number} · ` : ''}issued {formatDateET(c.issued_at)}{c.revoked_at ? ` · revoked ${formatDateET(c.revoked_at)}` : ''}
+                </span>
+              </span>
+              {c.revoked_at ? statusBadge('cancelled', 'Revoked') : (
+                <span style={{ display: 'flex', gap: '0.75rem' }}>
+                  <a href={`/api/certificates/${c.id}/pdf?inline=1`} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontWeight: 600, fontSize: '0.85rem' }}>View</a>
+                  <a href={`/api/certificates/${c.id}/pdf`} style={{ color: '#8a5a10', fontWeight: 600, fontSize: '0.85rem' }}>Download</a>
+                </span>
+              )}
+            </li>
+          ))}
         </ul>
-      )}
-      {open ? (
-        <div style={{ borderTop: '1px solid var(--mist)', paddingTop: '1rem' }}>
-          <IssueCertificateForm panel={panel} userId={user.id} idPrefix={`cert-${user.id}`} />
-          <button type="button" onClick={() => setOpen(false)} style={{ ...linkButtonStyle, marginTop: '0.75rem', minHeight: '36px' }}>Close</button>
-        </div>
-      ) : (
-        <button type="button" onClick={() => setOpen(true)} style={secondaryButtonStyle}>Issue certificate</button>
       )}
     </section>
   )
@@ -207,17 +221,20 @@ function RoleAndAccess({ panel, user, name }: { panel: AdminPanel; user: Profile
     if (msg) setError(msg)
   }
 
-  const sendReset = async () => {
+  const neverSignedIn = !user.last_sign_in_at
+  const sendAccess = async () => {
     if (!user.email) return
     const yes = await panel.confirm({
-      title: 'Send password email?',
-      message: `Send a password-reset email to ${user.email}?`,
-      consequences: ['They get a link to choose a new password.', 'Their current password keeps working until they change it.'],
+      title: neverSignedIn ? 'Send a new account set-up link?' : 'Send a password reset email?',
+      message: `To ${user.email}`,
+      consequences: neverSignedIn
+        ? ['They have not chosen a password yet, so they get a fresh link to set one up.', 'Earlier links stop working once this one is used.']
+        : ['They get a link to choose a new password.', 'Their current password keeps working until they change it.'],
       confirmLabel: 'Send email',
     })
     if (!yes) return
     setSending(true)
-    await panel.handleSendResetEmail(user.email)
+    await panel.handleSendAccessEmail(user.id)
     setSending(false)
   }
 
@@ -240,10 +257,14 @@ function RoleAndAccess({ panel, user, name }: { panel: AdminPanel; user: Profile
       <InlineError message={error} />
 
       <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--mist)' }}>
-        <button type="button" onClick={sendReset} disabled={sending || !user.email} style={{ ...secondaryButtonStyle, fontSize: '0.85rem', minHeight: '44px' }}>
-          {sending ? 'Sending…' : 'Send password email'}
+        <button type="button" onClick={sendAccess} disabled={sending || !user.email} style={{ ...secondaryButtonStyle, fontSize: '0.85rem', minHeight: '44px' }}>
+          {sending ? 'Sending…' : 'Send sign-in email'}
         </button>
-        <p style={{ ...helpStyle, fontSize: '0.85rem', margin: '0.5rem 0 0' }}>Use this if they forgot their password or never set one.</p>
+        <p style={{ ...helpStyle, fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
+          {neverSignedIn
+            ? 'They have not signed in yet, so this sends a fresh link to set up their password (not a "sign in" email).'
+            : 'Sends a link to choose a new password, for when they forgot it.'} The result (accepted or failed) is shown right away.
+        </p>
       </div>
     </section>
   )

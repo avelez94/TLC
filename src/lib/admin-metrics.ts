@@ -112,7 +112,7 @@ export function cohortAvailability(input: {
     case 'cancelled': return { key: 'cancelled', label: 'Cancelled', detail: 'Will not run. Records are kept.' }
   }
   if (capacity != null && taken >= capacity) return { key: 'full', label: 'Full', detail: `${taken} of ${capacity} seats taken. Raise the capacity to add people.` }
-  if (!input.checkoutEnabled) return { key: 'closed', label: 'Enrollment closed', detail: 'Online registration is off for the site. Visitors are sent to the inquiry form; you can enroll people here.' }
-  if (!input.pathwayEnrollmentOpen) return { key: 'closed', label: 'Enrollment closed', detail: 'The pathway is not open for enrollment. Visitors are sent to the inquiry form.' }
+  if (!input.checkoutEnabled) return { key: 'closed', label: 'Online registration off', detail: 'Online registration is off for the site. Visitors are sent to the inquiry form; you can enroll people here.' }
+  if (!input.pathwayEnrollmentOpen) return { key: 'closed', label: 'Not open online', detail: 'The pathway is not open for enrollment. Visitors are sent to the inquiry form.' }
   return { key: 'open', label: 'Open for registration', detail: capacity != null ? `${capacity - taken} of ${capacity} seats left.` : 'No seat limit set.' }
 }

@@ -5,7 +5,7 @@ import { enrollmentOutcome, OUTCOME_LABEL, seatsTaken } from '@/lib/admin-metric
 import { formatDateET } from '@/lib/business-time'
 import { InlineError } from '../feedback'
 import { inputStyle, labelStyle, linkButtonStyle, dangerLinkStyle, statusBadge } from '../shared'
-import { metaStyle, panelBoxStyle, rowStyle, smallButtonStyle, subheadStyle, type CohortSectionProps } from './ui'
+import { inlineLinkStyle, metaStyle, panelBoxStyle, rowStyle, smallButtonStyle, subheadStyle, type CohortSectionProps } from './ui'
 
 const ORDER: Record<string, number> = { active: 0, completed: 1, withdrawn: 2 }
 
@@ -49,6 +49,16 @@ export default function CohortParticipants({ panel, cohort }: CohortSectionProps
     setBusyId(null)
   }
 
+  const sendAccess = async (enrollmentId: string, userId: string) => {
+    setBusyId(enrollmentId)
+    const err = await panel.handleSendAccessEmail(userId)
+    setRowErrors(prev => ({ ...prev, [enrollmentId]: err }))
+    setBusyId(null)
+  }
+  const undelivered = new Set(panel.emailProblems
+    .filter(m => (m.status === 'failed' || m.status === 'bounced') && !m.resolved_at && m.related_user_id)
+    .map(m => m.related_user_id as string))
+
   const reenroll = async (enrollmentId: string, userId: string) => {
     setBusyId(enrollmentId)
     const err = await panel.handleEnrollUser(userId, cohort.id)
@@ -87,6 +97,18 @@ export default function CohortParticipants({ panel, cohort }: CohortSectionProps
                   <span style={{ display: 'block', fontWeight: 600, color: 'var(--navy)', fontSize: '0.92rem' }}>{name}</span>
                   {email && <span style={{ ...metaStyle, display: 'block', overflowWrap: 'anywhere' }}>{email}</span>}
                   {e.enrolled_at && <span style={{ ...metaStyle, fontSize: '0.8rem', display: 'block' }}>Enrolled {formatDateET(e.enrolled_at)}</span>}
+                  {e.status !== 'withdrawn' && (() => {
+                    const person = panel.users.find(u => u.id === e.user_id)
+                    if (!person || person.role === 'admin' || person.last_sign_in_at) return null
+                    return (
+                      <span style={{ ...metaStyle, fontSize: '0.8rem', display: 'block', color: undelivered.has(e.user_id) ? '#8c1d18' : 'var(--slate)' }}>
+                        {undelivered.has(e.user_id) ? 'Not signed in yet · their last email did not arrive. ' : 'Not signed in yet. '}
+                        <button type="button" onClick={() => void sendAccess(e.id, e.user_id)} disabled={busy} style={{ ...linkButtonStyle, fontSize: '0.8rem' }}>
+                          {busy ? 'Sending…' : 'Send sign-in email'}
+                        </button>
+                      </span>
+                    )
+                  })()}
                   <InlineError message={rowErrors[e.id]} />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -124,10 +146,24 @@ export default function CohortParticipants({ panel, cohort }: CohortSectionProps
         <InlineError message={enrollError} />
         <p style={{ ...metaStyle, margin: '0.75rem 0 0' }}>
           Someone without an account yet?{' '}
-          <Link href={`/admin/users?invite=1&cohort=${cohort.id}`} style={{ color: '#8a5a10', fontWeight: 600 }}>Invite someone new</Link>
+          <Link id={`cohort-${cohort.id}-link-invite`} href={`/admin/users?invite=1&cohort=${cohort.id}`} style={inlineLinkStyle}>Invite someone new</Link>
           {' '}— opens the invitation form for this cohort. They get an email and set their own password.
         </p>
         <p style={{ ...metaStyle, fontSize: '0.82rem', margin: '0.4rem 0 0' }}>People who withdrew are listed above with a Re-enroll button.</p>
+      </div>
+
+      <div style={panelBoxStyle}>
+        <h4 style={subheadStyle}>For this cohort’s participants</h4>
+        <ul style={{ ...metaStyle, margin: 0, paddingLeft: '1.1rem' }}>
+          <li style={{ marginBottom: '0.35rem' }}>
+            <Link id={`cohort-${cohort.id}-link-resource`} href={`/admin/resources?cohort=${cohort.id}`} style={inlineLinkStyle}>Add a resource for this cohort</Link>
+            {' '}— materials they see in their portal.
+          </li>
+          <li>
+            <Link id={`cohort-${cohort.id}-link-announcement`} href={`/admin/announcements?cohort=${cohort.id}`} style={inlineLinkStyle}>Post a welcome announcement</Link>
+            {' '}— shown in their portal (no email is sent).
+          </li>
+        </ul>
       </div>
     </div>
   )

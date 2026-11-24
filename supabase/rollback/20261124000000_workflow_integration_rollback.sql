@@ -5,6 +5,8 @@
 -- stripe_events, completion and certificate fields, email delivery fields): they are unused by
 -- the 2d app and removing them would lose records. Run with the 2d app deployed (Vercel
 -- Instant Rollback to dpl_AJhGEWZJvDr4ciB97SuQgq4djeE9) or before rolling the app back.
+-- Deliberately kept: the expanded activity-log function (app_private.audit_admin_change) and its
+-- triggers on the kept 2e tables, so any change to those records is still recorded.
 -- Note: after this, past participants can again post or submit in finished cohorts at the
 -- database level (as in 2d); the 2d portal does not offer it.
 begin;
@@ -92,6 +94,7 @@ drop function if exists public.system_update_cohort_statuses();
 drop function if exists public.admin_cohort_participation(uuid);
 drop function if exists public.admin_resolve_email(bigint);
 drop function if exists public.enroll_on_payment_mode();
+drop function if exists public.system_enroll_on_payment_mode();
 drop function if exists app_private.can_participate(uuid);
 drop function if exists app_private.cohort_accepts_activity(uuid);
 drop function if exists app_private.is_cohort_participant(uuid);

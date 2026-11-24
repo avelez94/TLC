@@ -6,10 +6,10 @@ import type { CohortStatus } from '@/types'
 import type { AdminPanel } from '../useAdminPanel'
 import { cardStyle, helpStyle, inputStyle, labelStyle, pageTitleStyle, sectionTitleStyle, statusBadge } from './shared'
 import CohortReps from './cohort/CohortReps'
-import { eyebrowStyle, metaStyle } from './cohort/ui'
+import { LIFECYCLE_BADGE, LIFECYCLE_LABEL, cohortSectionHref, eyebrowStyle, inlineLinkStyle, metaStyle } from './cohort/ui'
 
 const GROUPS: { status: CohortStatus; label: string }[] = [
-  { status: 'active', label: 'Running now' }, { status: 'upcoming', label: 'Upcoming' }, { status: 'draft', label: 'Draft (not public)' },
+  { status: 'active', label: 'In progress (running now)' }, { status: 'upcoming', label: 'Upcoming' }, { status: 'draft', label: 'Draft (not public)' },
   { status: 'completed', label: 'Completed' }, { status: 'cancelled', label: 'Cancelled' }, { status: 'archived', label: 'Archived' },
 ]
 
@@ -49,11 +49,15 @@ export default function WeeklyRepsTab(panel: AdminPanel) {
           </div>
           {cohort && (
             <div style={cardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                <h2 style={{ ...sectionTitleStyle, margin: 0 }}>{cohort.name}</h2>
-                {statusBadge(cohort.status)}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                <h2 style={{ ...sectionTitleStyle, margin: 0, overflowWrap: 'anywhere' }}>{cohort.name}</h2>
+                {statusBadge(LIFECYCLE_BADGE[cohort.status], LIFECYCLE_LABEL[cohort.status])}
               </div>
-              <CohortReps key={cohort.id} panel={panel} cohort={cohort} />
+              <p style={{ ...metaStyle, margin: '0 0 0.75rem' }}>
+                <Link href={cohortSectionHref(cohort.id, 'reps')} style={inlineLinkStyle}>Open this cohort</Link>
+              </p>
+              <CohortReps key={cohort.id} panel={panel} cohort={cohort}
+                participationHref={['active', 'completed', 'archived', 'upcoming'].includes(cohort.status) ? cohortSectionHref(cohort.id, 'participation') : undefined} />
             </div>
           )}
         </>

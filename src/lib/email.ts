@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Resend } from 'resend'
 import { emailRecipient, emailSinkDir } from './env-guard'
@@ -83,10 +83,16 @@ async function updateLog(id: number | undefined, patch: Record<string, unknown>)
 }
 
 let sinkCounter = 0
-/** Local test transport: writes the message to a folder; "+fail" addresses simulate a failure. */
+/**
+ * Local test transport: writes the message to a folder. Failures can be simulated for tests:
+ * any "+fail@" address, or an address listed in <dir>/fail-addresses.txt (one per line).
+ */
 async function sinkSend(dir: string, msg: OutgoingEmail, subject: string): Promise<{ id?: string; error?: string }> {
-  if (/\+fail@/i.test(msg.to)) return { error: 'Simulated delivery failure (local test address)' }
   await mkdir(dir, { recursive: true })
+  const failing = await readFile(path.join(dir, 'fail-addresses.txt'), 'utf8').catch(() => '')
+  if (/\+fail@/i.test(msg.to) || failing.split(/\s+/).some(a => a && a.toLowerCase() === msg.to.toLowerCase())) {
+    return { error: 'Simulated delivery failure (local test)' }
+  }
   const id = `sink_${Date.now()}_${++sinkCounter}`
   await writeFile(path.join(dir, `${id}.json`), JSON.stringify({ id, to: msg.to, subject, template: msg.template, html: msg.html, at: new Date().toISOString() }, null, 2))
   return { id }

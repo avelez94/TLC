@@ -24,29 +24,25 @@ function ResetContent() {
   // first-time set-up link); the type can be in the query or in the hash Supabase adds.
   const [welcome, setWelcome] = useState(false)
   useEffect(() => {
+    const expired = 'This link has expired or was already used. Enter your email below and we will send you a new one.'
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
     const type = searchParams.get('type') ?? hashParams.get('type')
-    if (hashParams.get('error_code') || hashParams.get('error')) {
-      setError('This link has expired or was already used. Enter your email below and we will send you a new one.')
-      return
-    }
-    if (type !== 'recovery' && type !== 'invite') return
-    if (type === 'invite' || searchParams.get('welcome') === '1') setWelcome(true)
-
+    const linkError = Boolean(hashParams.get('error_code') || hashParams.get('error'))
+    if (!linkError && type !== 'recovery' && type !== 'invite') return
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
-    if (accessToken && refreshToken) {
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
-        if (error) setError('This link has expired or was already used. Enter your email below and we will send you a new one.')
-        else {
-          setStep('set')
-          // Remove the one-time tokens from the address bar.
-          window.history.replaceState(null, '', window.location.pathname + window.location.search)
-        }
-      })
-    } else {
-      setError('This link has expired or was already used. Enter your email below and we will send you a new one.')
-    }
+    let cancelled = false
+    void (async () => {
+      if (linkError || !accessToken || !refreshToken) { if (!cancelled) setError(expired); return }
+      const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      if (cancelled) return
+      if (error) { setError(expired); return }
+      setWelcome(type === 'invite' || searchParams.get('welcome') === '1')
+      setStep('set')
+      // Remove the one-time tokens from the address bar.
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    })()
+    return () => { cancelled = true }
   }, [searchParams])
 
   const inputStyle = {

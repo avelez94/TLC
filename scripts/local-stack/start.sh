@@ -16,6 +16,9 @@ stop() {
   [ -d "$WORK/data" ] && pg_ctl -D "$WORK/data" stop -m fast >/dev/null 2>&1 || true
 }
 if [ "${1:-}" = "stop" ]; then stop; rm -rf "$WORK"; echo "stopped"; exit 0; fi
+# Keep the previous local signing secret so a restart does not invalidate a running local build
+# (NEXT_PUBLIC_* keys are baked in at build time). Local only; never used outside this machine.
+PREV_SECRET="$(sed -n 's/^JWT_SECRET=//p' "$WORK/secret.env" 2>/dev/null || true)"
 stop; rm -rf "$WORK"; mkdir -p "$WORK/storage"
 
 initdb -D "$WORK/data" -U postgres --auth=trust >/dev/null
@@ -40,7 +43,7 @@ run -c "create role authenticator login password 'local' noinherit; grant anon, 
         grant execute on all functions in schema public to service_role;
         notify pgrst, 'reload schema';"
 
-SECRET="$(openssl rand -hex 32)"
+SECRET="${PREV_SECRET:-$(openssl rand -hex 32)}"
 sign() { JWT_SECRET="$SECRET" node -e "import('$HERE/sign.mjs').then(m => process.stdout.write(m.sign({ role: '$1', iss: 'local', iat: 1700000000, exp: 4100000000 })))"; }
 ANON="$(sign anon)"; SERVICE="$(sign service_role)"
 

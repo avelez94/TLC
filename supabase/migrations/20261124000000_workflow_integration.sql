@@ -121,7 +121,7 @@ $$;
 -- Program completion is a manual decision by an administrator (owner decision 2026-11-23).
 alter table public.cohort_enrollments
   add column if not exists completed_at timestamptz,
-  add column if not exists completed_by uuid references public.profiles(id) on delete set null,
+  add column if not exists completed_by uuid references auth.users(id) on delete set null,
   add column if not exists completion_note text check (length(completion_note) <= 500);
 
 create or replace function app_private.track_completion() returns trigger
@@ -153,13 +153,15 @@ alter table public.certificates
   add column if not exists pathway_name text,
   add column if not exists cohort_name text,
   add column if not exists completion_date date,
-  add column if not exists issued_by uuid references public.profiles(id) on delete set null,
+  add column if not exists issued_by uuid references auth.users(id) on delete set null,
   add column if not exists signer_name text check (length(signer_name) <= 120),
   add column if not exists signer_title text check (length(signer_title) <= 160),
   add column if not exists revoked_at timestamptz,
   add column if not exists revoked_reason text check (length(revoked_reason) <= 300);
 create unique index if not exists certificates_number_key on public.certificates (certificate_number) where certificate_number is not null;
-create unique index if not exists certificates_user_cohort_key on public.certificates (user_id, cohort_id) where cohort_id is not null;
+-- One valid certificate per person per cohort; a revoked one stays on record and a corrected one
+-- can then be issued.
+create unique index if not exists certificates_user_cohort_key on public.certificates (user_id, cohort_id) where cohort_id is not null and revoked_at is null;
 create sequence if not exists app_private.certificate_seq;
 
 -- New certificates need a completed enrollment in the cohort; the names on the certificate
@@ -244,15 +246,16 @@ create table if not exists public.inquiry_participants (
   user_id uuid references public.profiles(id) on delete set null,
   cohort_id uuid references public.cohorts(id) on delete set null,
   full_name text not null check (length(full_name) between 1 and 120),
-  email text not null check (length(email) <= 254),
+  -- Stored lower-case so one plain unique key (inquiry_id, email) works with upserts.
+  email text not null check (length(email) <= 254 and email = lower(email)),
   result text not null default 'pending'
     check (result in ('pending', 'invited', 'setup_link_sent', 'enrolled', 'already_enrolled', 'failed')),
   detail text check (length(detail) <= 500),
-  created_by uuid references public.profiles(id) on delete set null default auth.uid(),
+  created_by uuid references auth.users(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create unique index if not exists inquiry_participants_email_key on public.inquiry_participants (inquiry_id, lower(email));
+create unique index if not exists inquiry_participants_email_key on public.inquiry_participants (inquiry_id, email);
 create index if not exists inquiry_participants_user_idx on public.inquiry_participants (user_id);
 alter table public.inquiry_participants enable row level security;
 drop policy if exists "admin_all" on public.inquiry_participants;
@@ -273,7 +276,7 @@ alter table public.email_log
   add column if not exists last_event text check (length(last_event) <= 40),
   add column if not exists last_event_at timestamptz,
   add column if not exists resolved_at timestamptz,
-  add column if not exists resolved_by uuid references public.profiles(id) on delete set null;
+  add column if not exists resolved_by uuid references auth.users(id) on delete set null;
 create unique index if not exists email_log_idempotency_key on public.email_log (idempotency_key) where idempotency_key is not null;
 create index if not exists email_log_provider_idx on public.email_log (provider_id) where provider_id is not null;
 create index if not exists email_log_attention_idx on public.email_log (created_at) where status in ('failed', 'bounced', 'complained') and resolved_at is null;
@@ -307,7 +310,7 @@ alter table public.registrations
     check (enrollment_issue in ('cohort_full', 'enrollment_failed', 'cohort_unavailable', 'amount_mismatch', 'refund_review')),
   add column if not exists enrollment_issue_at timestamptz,
   add column if not exists complimentary_reason text check (length(complimentary_reason) <= 300),
-  add column if not exists complimentary_approved_by uuid references public.profiles(id) on delete set null,
+  add column if not exists complimentary_approved_by uuid references auth.users(id) on delete set null,
   add column if not exists inquiry_id uuid references public.inquiries(id) on delete set null;
 alter table public.registrations drop constraint if exists registrations_payment_status_check;
 alter table public.registrations add constraint registrations_payment_status_check check (payment_status in
@@ -336,7 +339,7 @@ create table if not exists public.payment_requests (
   due_date date,
   paid_at timestamptz,
   notes text check (length(notes) <= 2000),
-  created_by uuid references public.profiles(id) on delete set null default auth.uid(),
+  created_by uuid references auth.users(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -370,6 +373,17 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function public.enroll_on_payment_mode() from public, anon;
 grant execute on function public.enroll_on_payment_mode() to authenticated, service_role;
+-- The webhook runs as the service role (no admin session), so it reads the setting here.
+create or replace function public.system_enroll_on_payment_mode() returns text
+language sql stable security definer set search_path = '' as $$
+  select case when (select value #>> '{}' from app_private.settings where key = 'enroll_on_payment') = 'automatic'
+    then 'automatic' else 'review' end
+$$;
+revoke all on function public.system_enroll_on_payment_mode() from public, anon, authenticated;
+grant execute on function public.system_enroll_on_payment_mode() to service_role;
+-- The server (service role) writes the new tables. Supabase grants this by default; stated
+-- explicitly so a project with tightened defaults still works.
+grant select, insert, update, delete on public.inquiry_participants, public.payment_requests, public.stripe_events to service_role;
 
 -- ======================================================================= 8. system actions
 alter table public.admin_audit_log add column if not exists actor_type text not null default 'admin'

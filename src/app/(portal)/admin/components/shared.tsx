@@ -58,7 +58,7 @@ export const roleBadge = (role: string) => {
 const STATUS_LABEL: Record<string, string> = {
   active: 'Active', completed: 'Completed', upcoming: 'Upcoming', pending: 'Pending', withdrawn: 'Withdrawn', draft: 'Draft',
   archived: 'Archived', cancelled: 'Cancelled', confirmed: 'Confirmed', waitlist: 'Waitlist', declined: 'Declined',
-  open: 'Open for registration', closed: 'Enrollment closed', full: 'Full', in_progress: 'In progress', starting: 'Starting soon',
+  open: 'Open for registration', closed: 'Online registration off', full: 'Full', in_progress: 'In progress', starting: 'Starting soon',
 }
 
 export const statusBadge = (status: string, label?: string) => {

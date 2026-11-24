@@ -4,6 +4,7 @@
 
 export interface ActivityRow {
   action: string
+  actor_type?: string | null
   entity_type: string | null
   entity_label?: string | null
   outcome?: string | null
@@ -22,6 +23,7 @@ const ENTITY: Record<string, string> = {
   journal_prompt: 'journal prompt', announcement: 'announcement', resource: 'resource', certificate: 'certificate',
   registration: 'registration', inquiry: 'inquiry', inquiry_note: 'note on inquiry', person: 'person',
   community_post: 'community post', community_comment: 'community comment', chat_message: 'chat message',
+  attendance: 'attendance', inquiry_participant: 'person on inquiry', payment_request: 'payment request', email: 'email',
 }
 
 const FIELD: Record<string, string> = {
@@ -34,7 +36,12 @@ const FIELD: Record<string, string> = {
   expectations: 'expectations', book_title: 'book', book_image_url: 'book image', book_purchase_url: 'book link',
   opening_statement: 'opening statement', audience: 'who it is for', leadership_goal: 'development goal', keywords: 'focus areas',
   instructions: 'instructions', why_it_matters: 'why it matters', body: 'message', url: 'link or file', payment_status: 'checkout status',
-  amount_paid: 'amount recorded', user_id: 'person',
+  amount_paid: 'amount recorded', user_id: 'person', attended: 'attended', activity_open_until: 'activity reopened until',
+  certificate_number: 'certificate number', participant_name: 'name on certificate', pathway_name: 'pathway on certificate',
+  cohort_name: 'cohort on certificate', completion_date: 'completion date', revoked_at: 'revoked', signer_name: 'signer',
+  revoked_reason: 'revocation reason', completion_note: 'completion note', result: 'result', enrollment_issue: 'enrollment issue',
+  amount_cents: 'amount', seats: 'seats', method: 'payment method', notes: 'notes', stripe_url: 'payment link', amount_paid_cents: 'amount paid',
+  complimentary_reason: 'complimentary reason',
 }
 
 const VALUE: Record<string, string> = {
@@ -42,6 +49,9 @@ const VALUE: Record<string, string> = {
   withdrawn: 'Withdrawn', admin: 'Administrator', impact_participant: 'Impact Lab participant', coaching_client: 'Coaching client',
   new: 'New', contacted: 'Contacted', qualified: 'Qualified', follow_up: 'Follow-up needed', converted: 'Converted', closed: 'Closed',
   pending: 'Pending', confirmed: 'Confirmed', declined: 'Declined', waitlist: 'Waitlist', impact: 'Impact Lab', coaching: 'Coaching', both: 'Both portals',
+  paid: 'Paid', unpaid: 'Not paid', failed: 'Failed', expired: 'Expired', refunded: 'Refunded', partially_refunded: 'Partly refunded',
+  complimentary: 'Complimentary', invited: 'Invited', setup_link_sent: 'Set-up link sent', enrolled: 'Enrolled', already_enrolled: 'Already enrolled',
+  cohort_full: 'Cohort full', refund_review: 'Refund to review', open: 'Open', void: 'Void',
 }
 
 // Entries written before the activity log was recorded by the database.
@@ -50,6 +60,8 @@ const LEGACY: Record<string, string> = {
   'enrollment.withdraw': 'Withdrew an enrollment', 'enrollment.returning': 'Enrolled a returning participant',
   'cohort.status': 'Changed a cohort status', 'payment_link.create': 'Sent a payment link', 'mfa.enroll': 'Turned on two-step verification',
   'mfa.remove': 'Removed an authenticator', 'mfa.reset': 'Reset another administrator’s two-step verification',
+  'enrollment.reenroll': 'Re-enrolled', 'person.send_setup_link': 'Sent an account set-up link to',
+  'person.send_password_reset': 'Sent a password reset email to', 'email.resend': 'Resent an email to', 'email.resolve': 'Marked a failed email as handled',
 }
 
 function show(field: string, v: unknown, look: ActivityLookups): string {
@@ -85,6 +97,16 @@ export function describeActivity(row: ActivityRow, look: ActivityLookups = {}): 
     const legacy = LEGACY[row.action]
     return failed + (legacy ? (label ? `${legacy} ${label}` : legacy) : row.action.replace(/[._]/g, ' '))
   }
+  // The daily status job (system actor).
+  if (row.action === 'cohort.status_auto') {
+    const reason = typeof row.details?.reason === 'string' ? ` (${row.details.reason})` : ''
+    if (row.outcome === 'failed') return 'Failed: the daily cohort status job did not run'
+    return `Automatically changed cohort ${label} from ${show('status', changes.status?.from, look)} to ${show('status', changes.status?.to, look)}${reason}`
+  }
+  if (row.action === 'enrollment.complete') return `${failed}Recorded program completion: ${label}`.trim()
+  if (row.action === 'enrollment.uncomplete') return `${failed}Removed recorded completion: ${label}`.trim()
+  if (row.action === 'certificate.revoke') return `${failed}Revoked a certificate: ${label}`.trim()
+  if (entityKey === 'attendance') return `${failed}Updated attendance: ${label}`.trim()
   if (entityKey === 'person' && changes.role) {
     return `${failed}Changed ${row.entity_label || 'a person'}’s role from ${show('role', changes.role.from, look)} to ${show('role', changes.role.to, look)}`
   }

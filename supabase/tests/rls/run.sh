@@ -115,3 +115,43 @@ run -d rls_test -c "select
   (select count(*) from admin_audit_log where action = 'test.entry') as activity_log_kept,
   (select count(*) from weekly_rep_submissions) as reflections_kept,
   (select count(*) from pg_trigger where tgname in ('audit_admin_change','enforce_cohort_capacity','guard_admin_role')) as triggers_left"
+
+MIGRATIONS_2E="$MIGRATIONS_2D 20261124000000_workflow_integration"
+echo "--- 2d checks with 2e applied (expected differences are listed in docs/admin-release-2e.md) ---"
+setup
+for m in $MIGRATIONS_2E; do run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null; done
+run -d rls_test -f "$HERE/06_checks_2d.sql" | tail -3
+setup
+for m in $MIGRATIONS_2E; do run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null; done
+OUT_05="$(run -d rls_test -f "$HERE/05_checks_2c.sql")"; echo "$OUT_05" | grep FAIL || true; echo "$OUT_05" | tail -3
+setup
+for m in $MIGRATIONS_2E; do run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null; done
+run -d rls_test -f "$HERE/04_checks_phase2.sql" | tail -3
+
+echo "=== ROLLBACK 2e: restores the 2d rules; 2e records kept ==="
+setup
+for m in $MIGRATIONS_2D; do run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null; done
+run -d rls_test -c "create table public._policies_2d as select tablename, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public' and tablename <> '_policies_2d'" \
+  -c "create table public._fns_2d as select p.oid::regprocedure::text sig, pg_get_functiondef(p.oid) d from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public','app_private') and p.prokind = 'f'" \
+  -c "create table public._trg_2d as select tgrelid::regclass::text rel, tgname from pg_trigger where not tgisinternal" >/dev/null
+run -d rls_test -f "$ROOT/supabase/migrations/20261124000000_workflow_integration.sql" >/dev/null
+run -d rls_test -c "update cohort_enrollments set status = 'completed', completion_note = 'rollback test' where ctid = (select ctid from cohort_enrollments where status = 'active' limit 1)" >/dev/null
+run -d rls_test -f "$ROOT/supabase/rollback/20261124000000_workflow_integration_rollback.sql" >/dev/null
+run -d rls_test -c "select
+  (select count(*) from (select tablename, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public' and tablename not like '\_%' and tablename not in ('inquiry_participants','payment_requests','stripe_events')
+                          except select * from _policies_2d) d) as policy_differences,
+  (select count(*) from (select * from _policies_2d except select tablename, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public') d) as policies_missing,
+  (select count(*) from _fns_2d f where f.sig <> 'app_private.audit_admin_change()' and f.d is distinct from (select pg_get_functiondef(p.oid) from pg_proc p where p.oid::regprocedure::text = f.sig)) as functions_changed,
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public','app_private') and p.prokind = 'f' and p.oid::regprocedure::text not in (select sig from _fns_2d)) as functions_left,
+  (select string_agg(rel, ',' order by rel) from (select tgrelid::regclass::text rel, tgname from pg_trigger where not tgisinternal except select * from _trg_2d) t) as kept_audit_triggers,
+  (select count(*) from cohort_enrollments where completion_note = 'rollback test') as completion_records_kept,
+  to_regclass('public.inquiry_participants') is not null and to_regclass('public.payment_requests') is not null as new_tables_kept"
+
+echo "=== 2e: no new ambiguous links to profiles (the API cannot join a table with two links; the deployed app would break) ==="
+AMBIG="select coalesce(string_agg(t, ',' order by t), '') from (select conrelid::regclass::text t from pg_constraint where contype = 'f' and confrelid = 'public.profiles'::regclass group by 1 having count(*) > 1) x"
+setup
+for m in $MIGRATIONS_2D; do run -d rls_test -f "$ROOT/supabase/migrations/$m.sql" >/dev/null; done
+BEFORE_2E="$(run -d rls_test -Atc "$AMBIG")"
+run -d rls_test -f "$ROOT/supabase/migrations/20261124000000_workflow_integration.sql" >/dev/null
+AFTER_2E="$(run -d rls_test -Atc "$AMBIG")"
+echo "tables with two links to profiles: 2d [$BEFORE_2E]  2e [$AFTER_2E]  $([ "$BEFORE_2E" = "$AFTER_2E" ] && echo PASS || echo FAIL)"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatDateTimeET } from '@/lib/business-time'
 import type { Announcement } from '@/types'
 import type { AdminPanel } from '../useAdminPanel'
@@ -19,6 +19,17 @@ export default function AnnouncementsTab(panel: AdminPanel) {
   const [formError, setFormError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
+
+  // /admin/announcements?cohort=<id> (from a cohort's checklist) starts a welcome announcement.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (prefilled.current || panel.loading) return
+    const id = new URLSearchParams(window.location.search).get('cohort')
+    const c = id ? cohorts.find(x => x.id === id) : undefined
+    if (!c) return
+    prefilled.current = true
+    void Promise.resolve().then(() => { setDraft({ audience: c.id, title: `Welcome to ${c.name}`, body: '' }); setShowForm(true) })
+  }, [panel.loading, cohorts])
 
   const audienceCohorts = cohorts.filter(c => c.status !== 'archived' && c.status !== 'cancelled')
   const audienceLabel = (a: Announcement) => a.cohort_id ? `${a.cohorts?.name ?? panel.cohortName(a.cohort_id)} only` : 'Everyone in the Impact Lab portal'

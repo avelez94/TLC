@@ -1,11 +1,21 @@
 // Cohorts: one run of a pathway with its own dates, participants, schedule, weekly reps,
 // journal prompts and registration-page content. Everything about a cohort is managed in
 // its card. Open cards and sections stay open while data refreshes after a save.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+//
+// Three separate indicators in each card header:
+//  - lifecycle status (official, set by an administrator): Draft, Upcoming, In progress, …
+//  - availability for Upcoming cohorts: Open for enrollment / Enrollment closed / Full
+//  - setup readiness for Draft, Upcoming and In progress cohorts: Ready / Needs setup · N items
+// Readiness is a guide only: it never changes the status or opens enrollment.
+//
+// Links: /admin/cohorts?cohort=<id>&section=<key> opens that cohort (switching to the right
+// list), expands the section and scrolls to it. Section keys: see SECTION_KEYS in cohort/ui.
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import type { Cohort, CohortStatus } from '@/types'
 import { cohortAvailability, seatsTaken } from '@/lib/admin-metrics'
 import { formatDateET } from '@/lib/business-time'
+import { readinessLabel, showsReadiness } from '@/lib/cohort-readiness'
 import type { AdminPanel } from '../useAdminPanel'
 import { InlineError } from './feedback'
 import { cardStyle, helpStyle, pageTitleStyle, secondaryButtonStyle, statusBadge } from './shared'
@@ -15,11 +25,30 @@ import CohortSchedule from './cohort/CohortSchedule'
 import CohortReps from './cohort/CohortReps'
 import CohortPrompts from './cohort/CohortPrompts'
 import { CohortContent, CohortReading } from './cohort/CohortContent'
+import CohortReadinessChecklist, { focusTarget, readinessFor } from './cohort/CohortReadiness'
+import CohortParticipation from './cohort/CohortParticipation'
+import CohortAttendance from './cohort/CohortAttendance'
+import CohortCompletion from './cohort/CohortCompletion'
 import CreateCohortForm from './cohort/CreateCohortForm'
-import { STATUS_CONFIRM, Section, eyebrowStyle, metaStyle, plural } from './cohort/ui'
+import { assignedParticipants, currentReps, recordedSessions } from './cohort/participation'
+import {
+  LIFECYCLE_BADGE, LIFECYCLE_LABEL, SECTION_KEYS, STATUS_CONFIRM, Section, eyebrowStyle, metaStyle, plural, smallButtonStyle,
+  type OpenSection, type SectionKey,
+} from './cohort/ui'
 
 type Filter = 'current' | 'finished' | 'archived'
-type SectionKey = 'details' | 'participants' | 'schedule' | 'reps' | 'prompts' | 'content' | 'reading'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** The section a cohort opens with, matching its primary action. */
+function defaultSection(c: Cohort): SectionKey {
+  switch (c.status) {
+    case 'draft': case 'upcoming': return 'readiness'
+    case 'active': return 'participation'
+    case 'completed': case 'archived': return 'completion'
+    default: return 'details'
+  }
+}
+const srOnly = 'sr-only'
 
 const FILTERS: { key: Filter; label: string; statuses: CohortStatus[] }[] = [
   { key: 'current', label: 'Current', statuses: ['active', 'upcoming', 'draft'] },
@@ -28,7 +57,7 @@ const FILTERS: { key: Filter; label: string; statuses: CohortStatus[] }[] = [
 ]
 const filterFor = (status: CohortStatus): Filter => FILTERS.find(f => f.statuses.includes(status))?.key ?? 'current'
 const CURRENT_GROUPS: { status: CohortStatus; title: string }[] = [
-  { status: 'active', title: 'Running now' }, { status: 'upcoming', title: 'Upcoming' }, { status: 'draft', title: 'Drafts (not public)' },
+  { status: 'active', title: 'In progress (running now)' }, { status: 'upcoming', title: 'Upcoming' }, { status: 'draft', title: 'Drafts (not public)' },
 ]
 
 const byStart = (a: Cohort, b: Cohort) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999') || a.name.localeCompare(b.name)
@@ -43,9 +72,9 @@ function dateRange(c: Cohort) {
 
 const menuItemStyle = { display: 'block', width: '100%', textAlign: 'left' as const, padding: '0.75rem 1rem', background: 'none', border: 'none', color: 'var(--navy)', fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }
 
-function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSection, onCopied }: {
+function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSection, openSection, onCopied }: {
   panel: AdminPanel; cohort: Cohort; open: boolean; onToggle: () => void
-  isSectionOpen: (k: SectionKey) => boolean; toggleSection: (k: SectionKey) => void; onCopied: (name: string) => void
+  isSectionOpen: (k: SectionKey) => boolean; toggleSection: (k: SectionKey) => void; openSection: OpenSection; onCopied: (name: string) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
@@ -71,8 +100,35 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
   const hasHistory = panel.cohortHasHistory(cohort.id)
 
   const sessions = panel.cohortSessions.filter(s => s.cohort_id === cohort.id).length
-  const reps = panel.reps.filter(r => r.cohort_id === cohort.id && !r.archived_at).length
+  const reps = currentReps(cohort.id, panel.reps).length
   const prompts = panel.journalPrompts.filter(p => p.program_id === null || p.program_id === cohort.program_id).length
+  const participants = assignedParticipants(cohort.id, panel.enrollments, panel.users)
+  const completedCount = participants.filter(p => p.status === 'completed').length
+  const recorded = recordedSessions(cohort.id, panel.attendance).size
+
+  const status = cohort.status
+  const readiness = showsReadiness(status) ? readinessFor(panel, cohort) : null
+  const showParticipation = status === 'active' || status === 'completed' || status === 'archived' || (status === 'upcoming' && reps > 0)
+  const showAttendance = status === 'active' || status === 'completed' || status === 'archived'
+  const showCompletion = status === 'active' || status === 'completed' || status === 'archived'
+
+  // One clear primary action per state.
+  let primary: ReactNode = null
+  if ((status === 'draft' || status === 'upcoming') && readiness) {
+    const next = readiness.essentials.find(i => !i.done)
+    primary = next
+      ? (
+        <button type="button" className="btn btn-primary" onClick={() => openSection(next.section, focusTarget(cohort, next, participants.length))} style={smallButtonStyle}>
+          Next: {next.action.charAt(0).toUpperCase() + next.action.slice(1)}
+        </button>
+      )
+      : <Link href={`/admin/users?invite=1&cohort=${cohort.id}`} className="btn btn-primary" style={smallButtonStyle}>Invite participants</Link>
+  } else if (status === 'active') {
+    primary = <button type="button" className="btn btn-primary" onClick={() => openSection('participation')} style={smallButtonStyle}>Review participation</button>
+  } else if (status === 'completed') {
+    primary = <button type="button" className="btn btn-primary" onClick={() => openSection('completion')} style={smallButtonStyle}>Review completion</button>
+  }
+  const availabilityLabel = availability.key === 'open' ? 'Open for enrollment' : availability.label
 
   const act = async (key: string, fn: () => Promise<string | null>) => {
     setMenuOpen(false)
@@ -116,9 +172,9 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
   )
 
   return (
-    <div style={{ ...cardStyle, padding: '1.25rem 1.25rem 0.5rem' }}>
-      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: '0.75rem' }}>
-        <button type="button" aria-expanded={open} onClick={onToggle}
+    <div id={`cohort-card-${cohort.id}`} style={{ ...cardStyle, padding: '1.25rem 1.25rem 0.5rem', scrollMarginTop: '80px' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap', paddingBottom: '0.6rem' }}>
+        <button type="button" id={`cohort-card-${cohort.id}-toggle`} aria-expanded={open} onClick={onToggle}
           style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', gap: '0.75rem', alignItems: 'flex-start', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
           <span aria-hidden="true" style={{ color: '#8a5a10', fontSize: '0.9rem', paddingTop: '0.25rem', width: '1rem' }}>{open ? '▾' : '▸'}</span>
           <span style={{ minWidth: 0 }}>
@@ -128,7 +184,6 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
           </span>
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}>
-          {statusBadge(availability.key, availability.label)}
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button type="button" aria-expanded={menuOpen} aria-label={`More actions for ${cohort.name}`} onClick={() => setMenuOpen(v => !v)} disabled={!!busy}
               style={{ ...secondaryButtonStyle, minHeight: '40px' }}>
@@ -147,7 +202,7 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
                   </button>
                 )}
                 <button type="button" onClick={() => void remove()} disabled={hasHistory}
-                  style={{ ...menuItemStyle, borderTop: '1px solid var(--mist)', color: hasHistory ? 'var(--slate)' : '#b3261e', cursor: hasHistory ? 'not-allowed' : 'pointer' }}>
+                  style={{ ...menuItemStyle, borderTop: '3px solid var(--mist)', marginTop: '0.25rem', color: hasHistory ? 'var(--slate)' : '#b3261e', cursor: hasHistory ? 'not-allowed' : 'pointer' }}>
                   Delete permanently
                   <span style={{ ...metaStyle, display: 'block', fontSize: '0.8rem' }}>
                     {hasHistory
@@ -160,18 +215,35 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
           </div>
         </div>
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem 0.75rem', flexWrap: 'wrap', paddingBottom: '0.85rem' }}>
+        <span style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span><span className={srOnly}>Status: </span>{statusBadge(LIFECYCLE_BADGE[status], LIFECYCLE_LABEL[status])}</span>
+          {status === 'upcoming' && <span><span className={srOnly}>Enrollment: </span>{statusBadge(availability.key, availabilityLabel)}</span>}
+          {readiness && (
+            <span><span className={srOnly}>Setup: </span>{statusBadge(readiness.ready ? 'open' : 'pending', `${readiness.ready ? '✓ ' : ''}${readinessLabel(readiness)}`)}</span>
+          )}
+        </span>
+        {primary && <span style={{ marginLeft: 'auto' }}>{primary}</span>}
+      </div>
       <InlineError message={actionError} />
 
       {open && (
         <div>
           <p style={{ ...metaStyle, margin: '0 0 0.75rem', padding: '0.6rem 0.8rem', background: 'var(--paper)', borderRadius: '4px' }}>
-            <strong style={{ color: 'var(--navy)' }}>{availability.label}:</strong> {availability.detail}
+            <strong style={{ color: 'var(--navy)' }}>{status === 'upcoming' ? availabilityLabel : LIFECYCLE_LABEL[status]}:</strong> {availability.detail}
           </p>
+          {readiness && sec('readiness', 'Setup checklist', readinessLabel(readiness),
+            <CohortReadinessChecklist cohort={cohort} readiness={readiness} enrolledCount={participants.length} onOpen={openSection} />)}
           {sec('details', 'Details', undefined, <CohortDetails panel={panel} cohort={cohort} />)}
           {sec('participants', 'Participants', seats, <CohortParticipants panel={panel} cohort={cohort} />)}
           {sec('schedule', 'Schedule', plural(sessions, 'session'), <CohortSchedule panel={panel} cohort={cohort} />)}
-          {sec('reps', 'Weekly reps', plural(reps, 'rep'), <CohortReps panel={panel} cohort={cohort} />)}
+          {sec('reps', 'Weekly reps', plural(reps, 'rep'),
+            <CohortReps panel={panel} cohort={cohort} onShowParticipation={showParticipation ? () => openSection('participation') : undefined} />)}
           {sec('prompts', 'Journal prompts', plural(prompts, 'prompt'), <CohortPrompts panel={panel} cohort={cohort} />)}
+          {showParticipation && sec('participation', 'Participation', plural(reps, 'weekly rep'), <CohortParticipation panel={panel} cohort={cohort} onOpen={openSection} />)}
+          {showAttendance && sec('attendance', 'Attendance (optional)', sessions ? `${recorded} of ${plural(sessions, 'session')} recorded` : 'No sessions',
+            <CohortAttendance panel={panel} cohort={cohort} onOpen={openSection} />)}
+          {showCompletion && sec('completion', 'Completion & certificates', `${completedCount} of ${participants.length} completed`, <CohortCompletion panel={panel} cohort={cohort} />)}
           {sec('content', 'Registration page content', undefined, <CohortContent panel={panel} cohort={cohort} />)}
           {sec('reading', 'Reading', cohort.book_title || 'No book', <CohortReading panel={panel} cohort={cohort} />)}
         </div>
@@ -194,13 +266,60 @@ export default function CohortsTab(panel: AdminPanel) {
 
   const isOpen = (id: string) => expanded[id] ?? id === justCreatedId
   const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !isOpen(id) }))
-  const isSectionOpen = (id: string, k: SectionKey) => sections[id]?.[k] ?? k === 'details'
-  const toggleSection = (id: string, k: SectionKey) => setSections(prev => ({ ...prev, [id]: { ...prev[id], [k]: !isSectionOpen(id, k) } }))
+  const isSectionOpen = (c: Cohort, k: SectionKey) => sections[c.id]?.[k] ?? k === defaultSection(c)
+  const toggleSection = (c: Cohort, k: SectionKey) => setSections(prev => ({ ...prev, [c.id]: { ...prev[c.id], [k]: !isSectionOpen(c, k) } }))
+
+  // Opening a section from a checklist item, a primary action or a link: expand the card and
+  // the section, then (after it renders) scroll to it and focus the field that fixes it.
+  const scrollTarget = useRef<{ cohortId: string; section: SectionKey | null; focusId?: string } | null>(null)
+  const [scrollTick, setScrollTick] = useState(0)
+  const openSection = useCallback((cohortId: string, section: SectionKey | null, focusId?: string) => {
+    setExpanded(prev => ({ ...prev, [cohortId]: true }))
+    if (section) setSections(prev => ({ ...prev, [cohortId]: { ...prev[cohortId], [section]: true } }))
+    scrollTarget.current = { cohortId, section, focusId }
+    setScrollTick(t => t + 1)
+  }, [])
+  useEffect(() => {
+    const target = scrollTarget.current
+    if (!target) return
+    scrollTarget.current = null
+    const frame = requestAnimationFrame(() => {
+      const byId = (id: string) => document.getElementById(id)
+      const sectionBase = target.section ? `cohort-${target.cohortId}-section-${target.section}` : null
+      const field = target.focusId ? byId(target.focusId) : null
+      const usable = field && !(field as HTMLButtonElement).disabled ? field : null
+      const wrap = (sectionBase && byId(`${sectionBase}-wrap`)) || byId(`cohort-card-${target.cohortId}`)
+      if (usable) usable.scrollIntoView({ block: 'center' })
+      else wrap?.scrollIntoView({ block: 'start' })
+      const focusEl = usable ?? (sectionBase ? byId(`${sectionBase}-toggle`) : null) ?? byId(`cohort-card-${target.cohortId}-toggle`)
+      focusEl?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [scrollTick])
+
+  // A link such as /admin/cohorts?cohort=<id>&section=completion opens that place.
+  const deepLink = useRef<{ cohortId: string; section: SectionKey | null } | null>(null)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('cohort')
+    if (!id || !UUID_RE.test(id)) return
+    const section = params.get('section')
+    deepLink.current = { cohortId: id, section: section && (SECTION_KEYS as readonly string[]).includes(section) ? section as SectionKey : null }
+  }, [])
+  useEffect(() => {
+    const link = deepLink.current
+    if (panel.loading || !link) return
+    const c = panel.cohorts.find(x => x.id === link.cohortId)
+    if (!c) return
+    deepLink.current = null
+    void Promise.resolve().then(() => { setFilter(filterFor(c.status)); openSection(c.id, link.section) })
+  }, [panel.loading, panel.cohorts, openSection])
 
   const counts = Object.fromEntries(FILTERS.map(f => [f.key, panel.cohorts.filter(c => f.statuses.includes(c.status)).length])) as Record<Filter, number>
   const card = (c: Cohort) => (
     <CohortCard key={c.id} panel={panel} cohort={c} open={isOpen(c.id)} onToggle={() => toggle(c.id)}
-      isSectionOpen={k => isSectionOpen(c.id, k)} toggleSection={k => toggleSection(c.id, k)}
+      isSectionOpen={k => isSectionOpen(c, k)} toggleSection={k => toggleSection(c, k)}
+      openSection={(k, focusId) => openSection(c.id, k, focusId)}
       onCopied={name => { setJustCreated(name); setFilter('current') }} />
   )
 
@@ -215,11 +334,13 @@ export default function CohortsTab(panel: AdminPanel) {
           <h1 style={pageTitleStyle}>Cohorts</h1>
           <p style={helpStyle}>
             A cohort is one run of a pathway, with its own dates, participants, schedule and weekly reps. Open a cohort to manage everything about it.
-            New cohorts start as <strong>Draft</strong>: nothing is public until you set the status to Upcoming.
+            New cohorts start as <strong>Draft</strong> and are not public. Draft, Upcoming and In progress cohorts show a setup checklist; it is a guide
+            and never changes the status or opens enrollment for you.
           </p>
           <p style={{ ...metaStyle, margin: '0 0 1rem' }}>
             Lists across all cohorts: <Link href="/admin/reps" style={{ color: '#8a5a10', fontWeight: 600 }}>All weekly reps</Link>
             {' · '}<Link href="/admin/prompts" style={{ color: '#8a5a10', fontWeight: 600 }}>All journal prompts</Link>
+            {' · '}<Link href="/admin/certificates" style={{ color: '#8a5a10', fontWeight: 600 }}>All certificates</Link>
           </p>
         </div>
         {!showForm && (

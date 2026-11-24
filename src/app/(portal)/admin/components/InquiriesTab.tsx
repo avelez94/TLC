@@ -9,6 +9,10 @@ import { DEFAULT_PATHWAYS } from '@/lib/pathways'
 import type { AdminPanel } from '../useAdminPanel'
 import { InlineError, SaveStatus, useSaveStates } from './feedback'
 import { cardStyle, helpStyle, inputStyle, labelStyle, pageTitleStyle, secondaryButtonStyle, statusBadge } from './shared'
+import Link from 'next/link'
+import EnrollFromInquiry from './inquiry/EnrollFromInquiry'
+import PaymentRequestsPanel from './payments/PaymentRequestsPanel'
+import { enrollmentOutcome, OUTCOME_LABEL } from '@/lib/admin-metrics'
 
 interface Inquiry {
   id: string; kind: 'organization' | 'individual'; contact_name: string; organization: string | null
@@ -28,6 +32,17 @@ const STATUSES: { value: string; label: string; badge: string }[] = [
 ]
 const statusLabel = (v: string) => STATUSES.find(s => s.value === v)?.label ?? 'Unknown'
 const isOpen = (status: string) => status !== 'converted' && status !== 'closed'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** The obvious next step for an inquiry, in plain words. */
+function nextStep(r: { status: string; kind: string; follow_up_on: string | null }, enrolled: number, today: string): string {
+  if (r.status === 'new') return 'Reply to them, then set the status to Contacted and choose a follow-up date.'
+  if (r.status === 'converted') return enrolled ? 'Converted. Follow their progress in the people list below.' : 'Marked Converted, but nobody has been enrolled from this inquiry yet.'
+  if (r.status === 'closed') return 'Closed. Nothing more to do.'
+  if (r.follow_up_on && r.follow_up_on <= today) return 'Follow-up is due: contact them, add a note, then set the next date or status.'
+  if (r.kind === 'organization') return enrolled ? 'Add more employees when they confirm, or mark it Converted.' : 'When they are ready, agree the cohort and seats, then enroll their employees below.'
+  return enrolled ? 'Enrolled. Mark the inquiry Converted when you are done.' : 'When they are ready, invite them to a cohort below.'
+}
 const FULL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 
 /** A complete, real calendar date with a plausible year (never a half-typed one such as 0202-…). */
@@ -76,12 +91,26 @@ export default function InquiriesTab(panel: AdminPanel) {
   }, [])
   useEffect(() => { void Promise.resolve().then(load) }, [load])
 
+
   const loadNotes = useCallback(async (id: string) => {
     setNotesError(null)
     const { data, error } = await supabase.from('inquiry_notes').select('id, body, created_at, author_id').eq('inquiry_id', id).order('created_at', { ascending: false })
     if (error) { setNotesError(`Notes could not be loaded: ${friendlyError(error)}`); return }
     setNotes((data as Note[]) ?? [])
   }, [])
+
+  // /admin/inquiries?id=<inquiry> opens that inquiry (whatever its status) and scrolls to it.
+  const linked = useRef<string | null>(null)
+  useEffect(() => {
+    if (loading || linked.current) return
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id || !UUID_RE.test(id) || !rows.some(r => r.id === id)) return
+    linked.current = id
+    void Promise.resolve().then(() => {
+      setStatusFilter('all'); setOpenId(id); void loadNotes(id)
+      setTimeout(() => document.getElementById(`inquiry-${id}`)?.scrollIntoView({ block: 'start' }), 60)
+    })
+  }, [loading, rows, loadNotes])
 
   const pathwayName = useCallback((slug: string) => {
     if (slug === 'unsure') return 'Not sure yet'
@@ -211,7 +240,7 @@ export default function InquiriesTab(panel: AdminPanel) {
       <span style={labelStyle}>People</span>
       <h1 style={pageTitleStyle}>Inquiries</h1>
       <p style={{ ...helpStyle, maxWidth: '46rem' }}>
-        Organization and individual inquiries from the Impact Lab page. Update the status as you follow up, set a follow-up date, and keep notes here so nothing is lost.
+        Organization and individual inquiries from the Impact Lab page. Open one to see its details and next step, invite the person (or an organization&apos;s employees) to a cohort, set a follow-up date and keep notes, so nothing is lost.
         Changes save as soon as you make them. Times are New York time (ET).
       </p>
 
@@ -256,7 +285,7 @@ export default function InquiriesTab(panel: AdminPanel) {
           ['Participants (estimate)', r.participants_estimate], ['Timeline', r.timeline], ['Pathways', pathwayList(r) || null],
         ]
         return (
-          <div key={r.id} style={{ ...cardStyle, padding: 0, borderLeft: `4px solid ${due ? '#b3261e' : r.status === 'new' ? 'var(--gold)' : 'var(--mist)'}` }}>
+          <div key={r.id} id={`inquiry-${r.id}`} style={{ ...cardStyle, padding: 0, scrollMarginTop: '80px', borderLeft: `4px solid ${due ? '#b3261e' : r.status === 'new' ? 'var(--gold)' : 'var(--mist)'}` }}>
             <button type="button" onClick={() => toggle(r)} aria-expanded={open}
               style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '1.1rem 1.25rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', fontFamily: 'inherit' }}>
               <span style={{ flex: '1 1 14rem', minWidth: 0 }}>
@@ -305,6 +334,50 @@ export default function InquiriesTab(panel: AdminPanel) {
                     </div>
                   </div>
                 </div>
+                {(() => {
+                  const people = panel.inquiryParticipants.filter(p => p.inquiry_id === r.id)
+                  const enrolledCount = people.filter(p => p.user_id && panel.enrollments.some(e => e.user_id === p.user_id && e.cohort_id === p.cohort_id && e.status !== 'withdrawn')).length
+                  return (
+                    <>
+                      <p style={{ margin: '1rem 0 0', padding: '0.6rem 0.8rem', background: 'rgba(200,136,32,0.1)', borderRadius: '4px', fontSize: '0.88rem', color: 'var(--ink)' }}>
+                        <strong style={{ color: '#8a5a10' }}>Next step:</strong> {nextStep(r, enrolledCount, today)}
+                      </p>
+                      {people.length > 0 && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <span style={labelStyle}>People from this inquiry ({people.length})</span>
+                          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                            {people.map(p => {
+                              const enr = p.user_id ? panel.enrollments.find(e => e.user_id === p.user_id && e.cohort_id === p.cohort_id) : undefined
+                              const cohort = panel.cohorts.find(c => c.id === p.cohort_id)
+                              const outcome = enr ? enrollmentOutcome(enr.status, cohort?.status ?? null) : null
+                              const user = panel.users.find(u => u.id === p.user_id)
+                              const cert = enr ? panel.certificates.find(c => c.user_id === p.user_id && c.cohort_id === p.cohort_id && !c.revoked_at) : undefined
+                              return (
+                                <li key={p.id} style={{ display: 'flex', gap: '0.4rem 0.9rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--mist)', fontSize: '0.88rem' }}>
+                                  <span style={{ flex: '1 1 200px', minWidth: 0 }}>
+                                    {p.user_id ? <Link href={`/admin/users?person=${p.user_id}`} style={{ fontWeight: 600, color: 'var(--navy)' }}>{p.full_name}</Link> : <strong>{p.full_name}</strong>}
+                                    <span style={{ display: 'block', color: 'var(--slate)', fontSize: '0.8rem', overflowWrap: 'anywhere' }}>{p.email}{cohort ? ` · ${cohort.name}` : ''}</span>
+                                  </span>
+                                  {outcome ? statusBadge(outcome === 'awaiting_review' ? 'pending' : outcome, OUTCOME_LABEL[outcome]) : statusBadge(p.result === 'failed' ? 'full' : 'pending', p.result === 'failed' ? 'Not enrolled' : 'Not enrolled yet')}
+                                  {user && !user.last_sign_in_at && statusBadge('pending', 'Not signed in yet')}
+                                  {cert && statusBadge('open', 'Certificate issued')}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                      {r.status !== 'closed' && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <EnrollFromInquiry panel={panel} inquiry={r} onNoteAdded={() => loadNotes(r.id)} onConverted={async () => { setRows(prev => prev.map(x => x.id === r.id ? { ...x, status: 'converted' } : x)); await panel.fetchAll() }} />
+                        </div>
+                      )}
+                      {(r.kind === 'organization' || panel.paymentRequests.some(p => p.inquiry_id === r.id)) && (
+                        <PaymentRequestsPanel panel={panel} inquiryId={r.id} payerName={r.organization?.trim() || r.contact_name} payerEmail={r.email} seatsHint={r.participants_estimate} />
+                      )}
+                    </>
+                  )
+                })()}
                 <div style={{ marginTop: '1.25rem' }}>
                   <label htmlFor={`note-${r.id}`} style={labelStyle}>Add a note</label>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

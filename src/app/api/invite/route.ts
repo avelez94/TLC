@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin, supabaseAdmin } from '@/lib/supabase-server'
 import { cleanLine, isValidEmail } from '@/lib/security'
 import { audit } from '@/lib/audit'
+import { likeExact } from '@/lib/payments'
 import { authState, describeAccess, sendAccessEmail, type AccessEmailResult } from '@/lib/account-access'
 
 const ALLOWED_ROLES = ['impact_participant', 'coaching_client', 'admin'] as const
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     }
 
     // ------------------------------------------------------------ existing account
-    const { data: existing } = await supabaseAdmin.from('profiles').select('id, full_name, role').ilike('email', email).maybeSingle()
+    const { data: existing } = await supabaseAdmin.from('profiles').select('id, full_name, role').ilike('email', likeExact(email)).maybeSingle()
     if (existing) {
       const name = existing.full_name || full_name || email
       if (role !== 'impact_participant' || !cohort) {
