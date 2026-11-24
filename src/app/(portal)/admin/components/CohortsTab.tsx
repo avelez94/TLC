@@ -92,7 +92,10 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
 
   const program = panel.programs.find(p => p.id === cohort.program_id)
   const taken = seatsTaken(cohort.id, panel.enrollments)
-  const seats = cohort.capacity != null ? `${taken} of ${cohort.capacity} seats` : `${taken} enrolled, no limit`
+  // A finished cohort counts everyone who took part (completion recorded or not); seats no longer matter.
+  const tookPart = panel.enrollments.filter(e => e.cohort_id === cohort.id && e.status !== 'withdrawn').length
+  const seats = cohort.status === 'completed' ? `${tookPart} participant${tookPart === 1 ? '' : 's'}`
+    : cohort.capacity != null ? `${taken} of ${cohort.capacity} seats` : `${taken} enrolled, no limit`
   const availability = cohortAvailability({
     cohortStatus: cohort.status, capacity: cohort.capacity, seatsTaken: taken,
     pathwayEnrollmentOpen: program?.enrollment_open ?? false, checkoutEnabled: panel.checkoutEnabled,

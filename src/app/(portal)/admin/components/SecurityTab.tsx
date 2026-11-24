@@ -368,7 +368,7 @@ export default function SecurityTab(panel: AdminPanel) {
           return (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
-                <thead><tr>{['When', 'Email', 'To', 'Result', ''].map((h, i) => <th key={i} scope="col" style={thStyle}>{h || <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Actions</span>}</th>)}</tr></thead>
+                <thead><tr>{['When', 'Email', 'To', 'Result', ''].map((h, i) => <th key={i} scope="col" style={{ ...thStyle, position: 'relative' }}>{h || <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Actions</span>}</th>)}</tr></thead>
                 <tbody>{shown.map(e => {
                   const st = emailState(e)
                   const problem = PROBLEM_STATUSES.has(e.status) && !e.resolved_at
