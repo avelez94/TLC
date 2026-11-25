@@ -34,10 +34,10 @@ export function ProgramOverview({ membership, sessions, attendance, today }: {
             </p></div>
           )}
           {time && <div><span style={labelStyle}>Sessions</span><p style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>{time}</p></div>}
-          {join && <div><span style={labelStyle}>Meeting link</span><a href={join} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontSize: '0.88rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}>Join session (opens in a new tab)</a></div>}
+          {join && <div><span style={labelStyle}>Meeting link</span><a href={join} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontSize: '0.88rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}>Join session (opens in a new tab)</a></div>}
           {c.book_title && (
             <div><span style={labelStyle}>Program book</span><p style={{ color: 'var(--ink)', fontSize: '0.88rem' }}>
-              {bookHref ? <a href={bookHref} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)' }}>{c.book_title}</a> : c.book_title}
+              {bookHref ? <a href={bookHref} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10' }}>{c.book_title}</a> : c.book_title}
             </p></div>
           )}
         </div>
@@ -58,7 +58,7 @@ export function ProgramOverview({ membership, sessions, attendance, today }: {
               const isPast = s.session_date ? s.session_date < today : false
               return (
                 <li key={s.id} style={{ display: 'flex', gap: '0.75rem 1rem', padding: '0.75rem 0', borderBottom: '1px solid var(--mist)', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', minWidth: '96px' }}>
+                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: '#8a5a10', textTransform: 'uppercase', letterSpacing: '0.1em', minWidth: '96px' }}>
                     {s.session_date ? formatDateET(s.session_date) : `Session ${s.session_number}`}
                   </span>
                   <span style={{ color: 'var(--ink)', fontSize: '0.88rem', fontWeight: 500, flex: '1 1 160px', minWidth: 0 }}>

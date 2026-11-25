@@ -5,16 +5,16 @@ import type { Membership } from './types'
 
 export const cardStyle: CSSProperties = { background: 'white', borderRadius: '6px', border: '1px solid rgba(0,23,55,0.08)', padding: '1.5rem', marginBottom: '1.25rem' }
 export const inputStyle: CSSProperties = { width: '100%', padding: '0.75rem 1rem', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.9rem', color: 'var(--ink)', background: 'white', outline: 'none' }
-export const labelStyle: CSSProperties = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.5rem' }
-export const eyebrowStyle: CSSProperties = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }
+export const labelStyle: CSSProperties = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#8a5a10', display: 'block', marginBottom: '0.5rem' }
+export const eyebrowStyle: CSSProperties = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8a5a10' }
 export const h1Style: CSSProperties = { fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', color: 'var(--navy)', letterSpacing: '0.04em', marginTop: '0.25rem', marginBottom: '1.5rem' }
 export const h2Style: CSSProperties = { fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.1rem', color: 'var(--navy)', letterSpacing: '0.04em', marginBottom: '1rem' }
 export const h3Style: CSSProperties = { fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.15rem', color: 'var(--navy)', letterSpacing: '0.04em' }
 export const mutedText: CSSProperties = { color: 'var(--slate)', fontSize: '0.85rem', lineHeight: 1.7 }
-export const monoMeta: CSSProperties = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }
-export const linkButtonStyle: CSSProperties = { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.85rem', cursor: 'pointer', padding: '0.5rem 0', minHeight: '44px', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600, textAlign: 'left' }
+export const monoMeta: CSSProperties = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a5a10' }
+export const linkButtonStyle: CSSProperties = { background: 'none', border: 'none', color: '#8a5a10', fontSize: '0.85rem', cursor: 'pointer', padding: '0.5rem 0', minHeight: '44px', fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 600, textAlign: 'left' }
 export const smallButtonStyle: CSSProperties = { background: 'none', border: '1.5px solid rgba(0,23,55,0.15)', borderRadius: '4px', padding: '0.45rem 1rem', minHeight: '44px', color: 'var(--slate)', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-montserrat), sans-serif' }
-export const outlineLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: '44px', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: '2px', padding: '0.3rem 0.9rem', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }
+export const outlineLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: '44px', border: '1px solid var(--gold)', color: '#8a5a10', borderRadius: '2px', padding: '0.3rem 0.9rem', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }
 
 /** Visually hidden but read by screen readers (labels for fields that show a placeholder). */
 export const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }
@@ -38,7 +38,7 @@ export function EmptyState({ children, compact }: { children: ReactNode; compact
 }
 
 export function ContactLink() {
-  return <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: 'var(--gold)', fontWeight: 600 }}>{CONTACT_EMAIL}</a>
+  return <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#8a5a10', fontWeight: 600 }}>{CONTACT_EMAIL}</a>
 }
 
 const badgeTones: Record<RepStateKind | 'info', { bg: string; fg: string; mark: string }> = {

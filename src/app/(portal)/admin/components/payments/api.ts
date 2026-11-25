@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 
-export interface PaymentSettings { stripeMode: 'test' | 'live' | 'unconfigured'; enrollOnPayment: 'review' | 'automatic'; checkoutEnabled: boolean }
+export interface PaymentSettings {
+  stripeMode: 'test' | 'live' | 'unconfigured'; enrollOnPayment: 'review' | 'automatic'; checkoutEnabled: boolean
+  /** Whether payment links / invoices may be created in Stripe (false while live payments are switched off). */
+  stripeWrites: boolean
+}
 
 let cached: PaymentSettings | null = null
 
@@ -14,7 +18,7 @@ export function usePaymentSettings(): PaymentSettings | null {
     let live = true
     fetch('/api/admin/registrations').then(r => (r.ok ? r.json() : null)).then(d => {
       if (!d?.ok || !live) return
-      cached = { stripeMode: d.stripe_mode, enrollOnPayment: d.enroll_on_payment, checkoutEnabled: !!d.checkout_enabled }
+      cached = { stripeMode: d.stripe_mode, enrollOnPayment: d.enroll_on_payment, checkoutEnabled: !!d.checkout_enabled, stripeWrites: d.stripe_writes === true }
       setSettings(cached)
     }).catch(() => {})
     return () => { live = false }

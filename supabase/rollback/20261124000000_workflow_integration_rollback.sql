@@ -95,6 +95,8 @@ drop function if exists public.admin_cohort_participation(uuid);
 drop function if exists public.admin_resolve_email(bigint);
 drop function if exists public.enroll_on_payment_mode();
 drop function if exists public.system_enroll_on_payment_mode();
+drop function if exists public.admin_certificate_signature();
+drop function if exists public.admin_set_certificate_signature(text, text, text, text, boolean);
 drop function if exists app_private.can_participate(uuid);
 drop function if exists app_private.cohort_accepts_activity(uuid);
 drop function if exists app_private.is_cohort_participant(uuid);

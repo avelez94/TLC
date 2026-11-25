@@ -7,7 +7,7 @@ export default function PortalLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="portal-ui">{children}</body>
     </html>
   )
 }

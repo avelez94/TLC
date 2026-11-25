@@ -3,7 +3,7 @@
 import type Stripe from 'stripe'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { getStripe } from '@/lib/stripe'
+import { getStripe, stripeWritesAllowed } from '@/lib/stripe'
 import { deliverEmail, FROM_TLC, FROM_PLATFORM, OWNER_INBOX } from '@/lib/email'
 import { sendAccessEmail } from '@/lib/account-access'
 import { audit } from '@/lib/audit'
@@ -15,7 +15,7 @@ export function paymentDeps(): PaymentDeps {
   let stripe: Stripe | null = null
   try { stripe = getStripe() } catch { /* not configured: Stripe actions report it */ }
   return {
-    db: supabaseAdmin, stripe, deliverEmail, sendAccessEmail, audit,
+    db: supabaseAdmin, stripe, deliverEmail, sendAccessEmail, audit, allowStripeWrites: stripeWritesAllowed(),
     enrollMode: () => readEnrollMode(supabaseAdmin),
     emails: { fromTlc: FROM_TLC, fromPlatform: FROM_PLATFORM, ownerInbox: OWNER_INBOX },
   }

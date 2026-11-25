@@ -52,7 +52,7 @@ export function JournalView({ entries, prompt, canCompose, isEditable, programLa
       )}
       {entries.length > 0 && (
         <p style={{ ...mutedText, marginBottom: '1rem' }}>
-          {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}. Looking for your weekly rep reflections too? <button type="button" onClick={onOpenHistory} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--gold)', fontWeight: 600, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}>See My Learning History</button>.
+          {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}. Looking for your weekly rep reflections too? <button type="button" onClick={onOpenHistory} style={{ background: 'none', border: 'none', padding: 0, color: '#8a5a10', fontWeight: 600, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}>See My Learning History</button>.
         </p>
       )}
       {entries.map(entry => {
@@ -61,7 +61,7 @@ export function JournalView({ entries, prompt, canCompose, isEditable, programLa
         return (
           <article key={entry.id} style={{ ...cardStyle, borderLeft: '3px solid var(--gold)' }}>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--gold)', textTransform: 'uppercase' }}>{formatDateET(entry.created_at, 'long')}</span>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', color: '#8a5a10', textTransform: 'uppercase' }}>{formatDateET(entry.created_at, 'long')}</span>
               {program && <span style={{ fontSize: '0.72rem', color: 'var(--slate)' }}>{program}</span>}
               {!editable && <StatusBadge kind="info">Read-only</StatusBadge>}
             </div>

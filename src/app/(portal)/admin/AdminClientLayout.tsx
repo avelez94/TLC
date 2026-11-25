@@ -18,10 +18,10 @@ function Sidebar({ activeId, onSignOut }: { activeId: string; onSignOut: () => v
           <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Admin Panel</span>
         </div>
       </div>
-      <nav style={{ flex: 1, padding: '0.75rem 0' }}>
+      <nav aria-label="Admin menu" style={{ flex: 1, padding: '0.75rem 0' }}>
         {navItems.map(({ id, label, icon, group }, i) => (
           <Fragment key={id}>
-          {navItems[i - 1]?.group !== group && <p style={{ padding: '1rem 1.25rem 0.35rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>{group}</p>}
+          {navItems[i - 1]?.group !== group && <p style={{ padding: '1rem 1.25rem 0.35rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>{group}</p>}
           <Link href={`/admin/${id}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 1.25rem', background: activeId === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${activeId === id ? 'var(--gold)' : 'transparent'}`, color: activeId === id ? 'var(--gold)' : 'rgba(255,255,255,0.72)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font-montserrat), sans-serif', textDecoration: 'none' }}>
             <span aria-hidden="true">{icon}</span>{label}
           </Link>
@@ -29,8 +29,8 @@ function Sidebar({ activeId, onSignOut }: { activeId: string; onSignOut: () => v
         ))}
       </nav>
       <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href="/" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', display: 'block', textAlign: 'center', marginBottom: '0.5rem' }}>View public site</Link>
-        <button onClick={onSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem', cursor: 'pointer', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>
+        <Link href="/" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.62)', display: 'block', textAlign: 'center', marginBottom: '0.5rem' }}>View public site</Link>
+        <button onClick={onSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', fontSize: '0.72rem', cursor: 'pointer', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>
       </div>
     </div>
   )
@@ -62,13 +62,14 @@ function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div style={{ minHeight: '100vh', fontFamily: 'var(--font-montserrat), sans-serif', background: 'var(--paper)' }}>
+      <a href="#admin-main" className="skip-link">Skip to main content</a>
 
       {/* TOP BAR */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--navy3)', borderBottom: '1px solid rgba(200,136,32,0.15)', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.25rem', color: 'var(--gold)', letterSpacing: '0.08em' }}>TLC</span>
-          <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>Admin</span>
+          <span style={{ color: 'rgba(255,255,255,0.62)' }}>/</span>
+          <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>Admin</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {panel.refreshing && <span role="status" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}>Updating…</span>}
@@ -87,14 +88,14 @@ function AdminShell({ children }: { children: ReactNode }) {
           <div style={{ padding: '1rem 0' }}>
             {navItems.map(({ id, label, icon, group }, i) => (
               <Fragment key={id}>
-              {navItems[i - 1]?.group !== group && <p style={{ padding: '1rem 1.5rem 0.4rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>{group}</p>}
+              {navItems[i - 1]?.group !== group && <p style={{ padding: '1rem 1.5rem 0.4rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>{group}</p>}
               <Link href={`/admin/${id}`} onClick={() => setMobileNavOpen(false)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '1rem 1.5rem', background: activeId === id ? 'rgba(200,136,32,0.12)' : 'transparent', border: 'none', borderLeft: `3px solid ${activeId === id ? 'var(--gold)' : 'transparent'}`, borderBottom: '1px solid rgba(255,255,255,0.05)', color: activeId === id ? 'var(--gold)' : 'rgba(255,255,255,0.65)', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-montserrat), sans-serif', textDecoration: 'none' }}>
                 <span aria-hidden="true">{icon}</span>{label}
               </Link>
               </Fragment>
             ))}
             <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '0.5rem' }}>
-              <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', cursor: 'pointer', display: 'block', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>
+              <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', fontSize: '0.85rem', cursor: 'pointer', display: 'block', width: '100%', textAlign: 'center', fontFamily: 'var(--font-montserrat), sans-serif' }}>Sign out</button>
             </div>
           </div>
         </div>
@@ -103,7 +104,7 @@ function AdminShell({ children }: { children: ReactNode }) {
       <div style={{ display: 'flex', paddingTop: '64px', minHeight: '100vh' }}>
         <div className="desktop-sidebar"><Sidebar activeId={activeId} onSignOut={handleSignOut} /></div>
 
-        <div style={{ flex: 1, padding: 'clamp(1.25rem, 3vw, 2rem)', minWidth: 0 }}>
+        <main id="admin-main" tabIndex={-1} style={{ flex: 1, padding: 'clamp(1.25rem, 3vw, 2rem)', minWidth: 0 }}>
 
           {panel.loadError && (
             <div role="alert" style={{ background: '#fdecea', border: '1px solid #f3b7b1', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.25rem', color: '#8c1d18', fontSize: '0.9rem', display: 'flex', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -114,7 +115,7 @@ function AdminShell({ children }: { children: ReactNode }) {
 
           {children}
 
-        </div>
+        </main>
       </div>
 
       <style>{`

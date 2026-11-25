@@ -15,7 +15,7 @@ import { cardStyle, helpStyle, labelStyle, pageTitleStyle, sectionTitleStyle, st
 
 const rowStyle = { padding: '0.7rem 0', borderBottom: '1px solid var(--mist)', fontSize: '0.9rem' } as const
 const emptyStyle = { color: 'var(--slate)', fontSize: '0.9rem', margin: 0, lineHeight: 1.6 } as const
-const linkStyle = { color: '#8a5a10', fontWeight: 600, fontSize: '0.85rem' } as const
+const linkStyle = { color: '#8a5a10', fontWeight: 600, fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', minHeight: '44px' } as const
 
 const SEVERITY: Record<AttentionSeverity, { label: string; color: string; bg: string }> = {
   urgent: { label: 'Urgent', color: '#8c1d18', bg: '#fdecea' },

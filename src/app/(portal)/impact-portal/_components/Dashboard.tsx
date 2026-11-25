@@ -5,7 +5,7 @@ import { nextSession, programName, programStateLabel, repState, thisWeeksRep } f
 import { cardStyle, ContactLink, h1Style, h2Style, linkButtonStyle, mutedText, StatusBadge } from './ui'
 import type { Membership, Page, Rep, SessionRow, Submission } from './types'
 
-const statLabel = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: 'var(--gold)', display: 'block', marginBottom: '0.5rem' }
+const statLabel = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: '#8a5a10', display: 'block', marginBottom: '0.5rem' }
 
 export function Dashboard({ firstName, current, otherCurrent, pastCount, certificateCount, reps, submissions, sessions, announcementCount, today, showStartHere, onDismissStartHere, navigate, openRep, selectCurrent }: {
   firstName: string
@@ -35,7 +35,7 @@ export function Dashboard({ firstName, current, otherCurrent, pastCount, certifi
 
   return (
     <div>
-      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>Dashboard</span>
+      <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8a5a10' }}>Dashboard</span>
       <h1 style={h1Style}>Welcome back, {firstName}.</h1>
 
       {showStartHere && current && (
@@ -58,7 +58,7 @@ export function Dashboard({ firstName, current, otherCurrent, pastCount, certifi
         <section aria-labelledby="not-enrolled" style={cardStyle}>
           <h2 id="not-enrolled" style={h2Style}>You&rsquo;re not in a current program</h2>
           <p style={{ ...mutedText, marginBottom: '0.75rem' }}>
-            To join another program, see the upcoming cohorts on the <Link href="/impact" style={{ color: 'var(--gold)', fontWeight: 600 }}>Impact Lab page</Link>, or email Tramaine at <ContactLink /> for help getting enrolled.
+            To join another program, see the upcoming cohorts on the <Link href="/impact" style={{ color: '#8a5a10', fontWeight: 600 }}>Impact Lab page</Link>, or email Tramaine at <ContactLink /> for help getting enrolled.
           </p>
           <p style={mutedText}>Programs you finished stay in <strong>My Completed Programs</strong>, and any certificates you earned are in <strong>My Certificates</strong>.</p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
@@ -93,7 +93,7 @@ export function Dashboard({ firstName, current, otherCurrent, pastCount, certifi
               <h2 id="this-week" style={h2Style}>This Week</h2>
               {focus ? (
                 <div style={{ background: 'var(--navy)', borderRadius: '4px', padding: '1.25rem', marginBottom: '1rem' }}>
-                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', display: 'block', marginBottom: '0.4rem' }}>
+                  <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8a5a10', display: 'block', marginBottom: '0.4rem' }}>
                     {focus.rep.week_number != null ? `Week ${focus.rep.week_number} rep` : 'Weekly rep'}
                   </span>
                   <p style={{ color: 'white', fontSize: '0.92rem', fontWeight: 600, marginBottom: '0.5rem' }}>{focus.rep.title}</p>
@@ -112,7 +112,7 @@ export function Dashboard({ firstName, current, otherCurrent, pastCount, certifi
                 {upcoming ? (
                   <p style={{ color: 'var(--ink)', fontSize: '0.85rem', lineHeight: 1.6 }}>
                     {formatDateET(upcoming.session_date, 'long')}{upcoming.session_date === today ? ' (today)' : ''} — {upcoming.title || `Session ${upcoming.session_number}`}
-                    {join && <><br /><a href={join} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}>Join session (opens in a new tab)</a></>}
+                    {join && <><br /><a href={join} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontWeight: 600, display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}>Join session (opens in a new tab)</a></>}
                   </p>
                 ) : (
                   <p style={mutedText}>{sessions.length === 0 ? 'Tramaine will post the session dates before the program starts.' : 'No more sessions are scheduled.'}</p>

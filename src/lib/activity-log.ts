@@ -93,6 +93,13 @@ export function describeActivity(row: ActivityRow, look: ActivityLookups = {}): 
   const noun = ENTITY[entityKey]
   const changes = row.changes ?? {}
 
+  if (row.action === 'settings.certificate_signature') {
+    const was = (changes as Record<string, { approved?: boolean } | undefined>).from?.approved === true
+    const now = (changes as Record<string, { approved?: boolean } | undefined>).to?.approved === true
+    return failed + (now && !was ? 'Approved the certificate signature for new certificates'
+      : was && !now ? 'Stopped using the certificate signature on new certificates'
+      : 'Updated the certificate signature settings')
+  }
   if (!noun || (LEGACY[row.action] && !row.changes)) {
     const legacy = LEGACY[row.action]
     return failed + (legacy ? (label ? `${legacy} ${label}` : legacy) : row.action.replace(/[._]/g, ' '))

@@ -61,7 +61,7 @@ export function RepsSection({ membership, reps, submissions, today, onSubmit, bu
             >
               <span style={{ flex: '1 1 200px', minWidth: 0 }}>
                 <span style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-                  {rep.week_number != null && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)' }}>Week {rep.week_number}</span>}
+                  {rep.week_number != null && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8a5a10' }}>Week {rep.week_number}</span>}
                   {rep.due_date && state.kind !== 'due' && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.58rem', color: 'var(--slate)' }}>Due {formatDateET(rep.due_date, 'long')}</span>}
                 </span>
                 <span style={{ ...h3Style, display: 'block' }}>{rep.title}</span>

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerSupabaseClient, requireAdmin } from '@/lib/supabase-server'
-import { renderCertificatePdf } from '@/lib/certificate-pdf'
+import { isSignatureFont, renderCertificatePdf } from '@/lib/certificate-pdf'
 
 // The PDF is drawn with fonts read from disk (src/assets/fonts), so this must run on Node.
 export const runtime = 'nodejs'
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
 
   const { data: cert, error } = await supabase
     .from('certificates')
-    .select('id, user_id, certificate_number, participant_name, pathway_name, cohort_name, completion_date, issued_at, signer_name, signer_title, revoked_at')
+    .select('id, user_id, certificate_number, participant_name, pathway_name, cohort_name, completion_date, issued_at, signer_name, signer_title, signature_text, signature_font, revoked_at')
     .eq('id', id)
     .maybeSingle()
   if (error) return fail(500, 'Could not load the certificate.')
@@ -51,6 +51,8 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
       issuedAt: cert.issued_at,
       signerName: cert.signer_name,
       signerTitle: cert.signer_title,
+      signatureText: cert.signature_text,
+      signatureFont: isSignatureFont(cert.signature_font) ? cert.signature_font : null,
       revokedAt: cert.revoked_at,
     })
   } catch (err) {

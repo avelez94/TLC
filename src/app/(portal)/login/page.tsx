@@ -76,7 +76,7 @@ export default function Login() {
   const labelStyle = {
     fontSize: '0.7rem', fontFamily: 'var(--font-jetbrains), monospace',
     letterSpacing: '0.18em', textTransform: 'uppercase' as const,
-    color: 'rgba(255,255,255,0.45)', marginBottom: '0.4rem', display: 'block'
+    color: 'rgba(255,255,255,0.62)', marginBottom: '0.4rem', display: 'block'
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -162,7 +162,7 @@ export default function Login() {
               </div>
               {error && <p role="alert" style={{ color: '#ff8a80', fontSize: '0.85rem' }}>{error}</p>}
               <button type="submit" disabled={loading || mfaCode.replace(/\s/g, '').length < 6} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>{loading ? 'Verifying…' : 'Verify and continue'}</button>
-              <button type="button" onClick={async () => { await supabase.auth.signOut(); setMfaFactorId(null); setMfaCode(''); setError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', cursor: 'pointer' }}>Use a different account</button>
+              <button type="button" onClick={async () => { await supabase.auth.signOut(); setMfaFactorId(null); setMfaCode(''); setError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', fontSize: '0.8rem', cursor: 'pointer' }}>Use a different account</button>
             </form>
           )}
 
@@ -171,7 +171,7 @@ export default function Login() {
               <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
                 <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Welcome back</span>
                 <h1 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 5vw, 3rem)', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Where are you signing in?</h1>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>Choose the portal you want to access.</p>
+                <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.88rem', lineHeight: 1.6 }}>Choose the portal you want to access.</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -185,7 +185,7 @@ export default function Login() {
                     <span style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.4rem', color: 'white', letterSpacing: '0.04em' }}>Coaching Portal</span>
                     <span style={{ color: 'var(--gold)', fontSize: '1.1rem' }}>&#8594;</span>
                   </div>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>Sign in to access your coaching dashboard, sessions, and action plan.</p>
+                  <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>Sign in to access your coaching dashboard, sessions, and action plan.</p>
                 </button>
 
                 <button
@@ -198,7 +198,7 @@ export default function Login() {
                     <Image src="/images/impact-lab-logo.png" alt="The Impact Lab" width={180} height={50} style={{ width: '180px', height: 'auto' }} />
                     <span style={{ color: 'var(--gold)', fontSize: '1.1rem' }}>&#8594;</span>
                   </div>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>Sign in to access your cohort materials, weekly reps, and reflection journal.</p>
+                  <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>Sign in to access your cohort materials, weekly reps, and reflection journal.</p>
                 </button>
               </div>
 
@@ -212,7 +212,7 @@ export default function Login() {
             <div>
               <button
                 onClick={() => { setPortal(null); setEmail(''); setPassword(''); setError('') }}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-montserrat), sans-serif' }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', fontSize: '0.82rem', cursor: 'pointer', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-montserrat), sans-serif' }}
               >
                 &#8592; Back
               </button>
@@ -224,7 +224,7 @@ export default function Login() {
                   <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Coaching Portal</span>
                 )}
                 <h2 style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: 'clamp(2rem, 5vw, 2.75rem)', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Welcome back.</h2>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>
+                <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.88rem', lineHeight: 1.6 }}>
                   {portal === 'coaching' ? 'Sign in to access your coaching dashboard, sessions, and action plan.' : 'Sign in to access your cohort materials, weekly reps, and reflection journal.'}
                 </p>
               </div>
@@ -244,7 +244,7 @@ export default function Login() {
                   <label style={labelStyle}>Password</label>
                   <div style={{ position: 'relative' }}>
                     <input type={showPw ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
-                    <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+                    <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'var(--font-montserrat), sans-serif' }}>
                       {showPw ? 'Hide' : 'Show'}
                     </button>
                   </div>
@@ -259,7 +259,7 @@ export default function Login() {
               </form>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.25rem' }}>
-                <Link href="/reset" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>Forgot password?</Link>
+                <Link href="/reset" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.82rem' }}>Forgot password?</Link>
                 {portal === 'impact' && <Link href="/register" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>Join a cohort</Link>}
                 {portal === 'coaching' && <Link href="/contact" style={{ color: 'var(--gold)', fontSize: '0.82rem' }}>Need access?</Link>}
               </div>
@@ -270,7 +270,7 @@ export default function Login() {
       </div>
 
       <div style={{ padding: '1.5rem clamp(1.25rem, 5vw, 2.75rem)', borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-        <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>&copy; 2025 TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
+        <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.75rem' }}>&copy; 2025 TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
       </div>
 
       <style>{`

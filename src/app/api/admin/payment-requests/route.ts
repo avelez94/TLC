@@ -11,6 +11,7 @@ import { todayET } from '@/lib/business-time'
 import { sendPaymentRequest, type PaymentRequestRecord } from '@/lib/payments'
 import { audit } from '@/lib/audit'
 import { fail, paymentDeps, stripeFailure, UUID_RE } from './deps'
+import { STRIPE_WRITES_OFF_MESSAGE, stripeWritesAllowed } from '@/lib/stripe'
 
 const METHODS = new Set(['payment_link', 'invoice', 'offline'])
 const MAX_REQUEST_CENTS = 10_000_000 // $100,000 guard against a mistyped amount
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
   if (seats !== null && (typeof seats !== 'number' || !Number.isInteger(seats) || seats < 1 || seats > 500)) return fail(400, 'Seats must be a whole number between 1 and 500.')
   if (due_date && (!DATE_RE.test(due_date) || Number.isNaN(Date.parse(due_date)))) return fail(400, 'Enter the due date as a date.')
   if (due_date && due_date < todayET()) return fail(400, 'The due date is in the past.')
+  if (method !== 'offline' && !stripeWritesAllowed()) return fail(403, STRIPE_WRITES_OFF_MESSAGE)
   if (method === 'invoice' && !payer_email) return fail(400, 'A Stripe invoice is emailed to the payer, so their email address is needed.')
   if (method === 'invoice' && !due_date) return fail(400, 'Choose a due date for the invoice.')
 

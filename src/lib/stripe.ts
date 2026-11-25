@@ -37,3 +37,16 @@ export function stripeMode(key = process.env.STRIPE_SECRET_KEY): StripeMode {
   if (/^(sk|rk)_test_/.test(key)) return 'test'
   return 'unconfigured'
 }
+
+/**
+ * Whether the admin portal may CREATE or CHANGE anything in Stripe (payment links, invoices,
+ * cancelling them). Test-mode keys: always (development). Live keys: only once online payments
+ * are switched on (CHECKOUT_ENABLED=true), so nothing can create a real invoice or charge while
+ * checkout is disabled. Reading from Stripe (refresh, "check payment") is never blocked.
+ */
+export function stripeWritesAllowed(env: Record<string, string | undefined> = process.env): boolean {
+  const mode = stripeMode(env.STRIPE_SECRET_KEY)
+  if (mode === 'test') return true
+  return mode === 'live' && env.CHECKOUT_ENABLED === 'true'
+}
+export const STRIPE_WRITES_OFF_MESSAGE = 'Stripe payment links and invoices are switched off while online payments are disabled. Use an offline payment request, or ask for payments to be switched on first.'

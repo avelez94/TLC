@@ -10,6 +10,7 @@ import { csvDateTimeET, formatDateET } from '@/lib/business-time'
 import { downloadCsv, toCsv } from '@/lib/csv'
 import { cardStyle, helpStyle, inputStyle, labelStyle, pageTitleStyle, secondaryButtonStyle, statusBadge, tdStyle, thStyle } from './shared'
 import { cohortSectionHref, inlineLinkStyle } from './cohort/ui'
+import SignatureSettings from './certificates/SignatureSettings'
 
 type StatusFilter = 'all' | 'valid' | 'revoked'
 
@@ -59,6 +60,8 @@ export default function CertificatesTab(panel: AdminPanel) {
         you record each participant’s completion there first, then issue the certificate.{' '}
         <Link href="/admin/cohorts" style={inlineLinkStyle}>Go to Cohorts</Link>
       </p>
+
+      <SignatureSettings panel={panel} />
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
         <div style={{ flex: '1 1 260px', maxWidth: '420px' }}>

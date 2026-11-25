@@ -65,7 +65,7 @@ export default function PaymentRequestsPanel({ panel, inquiryId, payerName, paye
       {rows.length === 0 && !creating && <p style={{ ...helpStyle, fontSize: '0.85rem', margin: '0 0 0.75rem' }}>No payment requests for this inquiry yet.</p>}
       {rows.map(r => <RequestRow key={r.id} panel={panel} row={r} mode={settings?.stripeMode ?? 'live'} />)}
       {creating
-        ? <CreateRequest panel={panel} inquiryId={inquiryId} payerName={payerName} payerEmail={payerEmail} seatsHint={seatsHint} onDone={() => setCreating(false)} />
+        ? <CreateRequest panel={panel} inquiryId={inquiryId} payerName={payerName} payerEmail={payerEmail} seatsHint={seatsHint} stripeWrites={settings?.stripeWrites ?? false} onDone={() => setCreating(false)} />
         : <button type="button" onClick={() => setCreating(true)} style={{ ...secondaryButtonStyle, fontSize: '0.85rem', minHeight: '44px', marginTop: '0.25rem' }}>New payment request</button>}
       {settings?.stripeMode === 'test' && <p style={{ ...helpStyle, fontSize: '0.8rem', margin: '0.6rem 0 0' }}>Stripe is in test mode on this site: links and invoices are not real.</p>}
     </section>
@@ -180,9 +180,9 @@ function RequestRow({ panel, row, mode }: { panel: AdminPanel; row: PaymentReque
   )
 }
 
-function CreateRequest({ panel, inquiryId, payerName, payerEmail, seatsHint, onDone }: Omit<PaymentRequestsPanelProps, 'panel'> & { panel: AdminPanel; onDone: () => void }) {
+function CreateRequest({ panel, inquiryId, payerName, payerEmail, seatsHint, stripeWrites, onDone }: Omit<PaymentRequestsPanelProps, 'panel'> & { panel: AdminPanel; stripeWrites: boolean; onDone: () => void }) {
   const [form, setForm] = useState({
-    method: 'invoice' as Method, payer_name: payerName, payer_email: payerEmail ?? '', description: '', seats: firstNumber(seatsHint),
+    method: (stripeWrites ? 'invoice' : 'offline') as Method, payer_name: payerName, payer_email: payerEmail ?? '', description: '', seats: firstNumber(seatsHint),
     amount: '', due_date: '', cohort_id: '', notes: '',
   })
   const [busy, setBusy] = useState(false)
@@ -229,9 +229,10 @@ function CreateRequest({ panel, inquiryId, payerName, payerEmail, seatsHint, onD
     <div style={{ border: '1px solid var(--mist)', borderRadius: '4px', padding: '1rem', background: 'var(--paper)', marginTop: '0.25rem' }}>
       <fieldset style={{ border: 'none', padding: 0, margin: '0 0 0.75rem' }}>
         <legend style={labelStyle}>How will they pay?</legend>
+        {!stripeWrites && <p style={{ ...helpStyle, fontSize: '0.84rem', margin: '0 0 0.6rem' }}>Stripe invoices and payment links are switched off while online payments are disabled, so nothing can be charged or invoiced from here. Offline payment requests still work.</p>}
         {(['invoice', 'payment_link', 'offline'] as Method[]).map(m => (
-          <label key={m} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--ink)' }}>
-            <input type="radio" name={`method-${inquiryId}`} checked={form.method === m} onChange={() => set({ method: m })} style={{ marginTop: '0.25rem' }} />
+          <label key={m} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem', cursor: m === 'offline' || stripeWrites ? 'pointer' : 'not-allowed', fontSize: '0.9rem', color: 'var(--ink)', opacity: m === 'offline' || stripeWrites ? 1 : 0.55 }}>
+            <input type="radio" name={`method-${inquiryId}`} checked={form.method === m} disabled={m !== 'offline' && !stripeWrites} onChange={() => set({ method: m })} style={{ marginTop: '0.25rem' }} />
             <span><strong>{METHOD_LABEL[m]}</strong><br /><span style={{ color: 'var(--slate)', fontSize: '0.84rem' }}>{METHOD_HELP[m]}</span></span>
           </label>
         ))}

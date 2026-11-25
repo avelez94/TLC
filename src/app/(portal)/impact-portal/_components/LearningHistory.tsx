@@ -33,7 +33,7 @@ export function LearningHistory({ entries, submissions, repsById, programLabel, 
       <PageHeader
         eyebrow="History"
         title="My Learning History"
-        intro={<>Your journal entries and weekly rep reflections across all your programs, newest first. Only you can see them. This page is read-only; to edit a current-program entry, use the <button type="button" onClick={onOpenJournal} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--gold)', fontWeight: 600, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}>Reflection Journal</button>.</>}
+        intro={<>Your journal entries and weekly rep reflections across all your programs, newest first. Only you can see them. This page is read-only; to edit a current-program entry, use the <button type="button" onClick={onOpenJournal} style={{ background: 'none', border: 'none', padding: 0, color: '#8a5a10', fontWeight: 600, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}>Reflection Journal</button>.</>}
       />
       {items.length === 0 && <EmptyState>Nothing here yet. Your journal entries and weekly rep reflections will be listed here as you write them.</EmptyState>}
       <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -41,7 +41,7 @@ export function LearningHistory({ entries, submissions, repsById, programLabel, 
           <li key={item.key} style={{ ...cardStyle, borderLeft: `3px solid ${item.kind === 'Weekly rep' ? 'var(--navy)' : 'var(--gold)'}` }}>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
               <StatusBadge kind="info">{item.kind}</StatusBadge>
-              {item.at && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', color: 'var(--gold)', textTransform: 'uppercase' }}>{formatDateET(item.at, 'long')}</span>}
+              {item.at && <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.1em', color: '#8a5a10', textTransform: 'uppercase' }}>{formatDateET(item.at, 'long')}</span>}
               {item.context && <span style={{ fontSize: '0.72rem', color: 'var(--slate)' }}>{item.context}</span>}
             </div>
             <h2 style={{ ...h2Style, marginBottom: '0.35rem' }}>{item.heading}</h2>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { friendlyError } from '@/lib/admin-errors'
 import { describeActivity, describeChanges, type ActivityRow } from '@/lib/activity-log'
@@ -95,6 +95,13 @@ export default function SecurityTab(panel: AdminPanel) {
     const id = Number(new URLSearchParams(window.location.search).get('email'))
     if (Number.isInteger(id) && id > 0) void Promise.resolve().then(() => { setHighlightEmail(id); setEmailFilter('problems') })
   }, [])
+  // Once the list has loaded, bring the highlighted email into view.
+  const scrolledTo = useRef<number | null>(null)
+  useEffect(() => {
+    if (!highlightEmail || !emailsLoaded || scrolledTo.current === highlightEmail) return
+    scrolledTo.current = highlightEmail
+    setTimeout(() => document.getElementById(`email-row-${highlightEmail}`)?.scrollIntoView({ block: 'center' }), 60)
+  }, [highlightEmail, emailsLoaded])
   const loadEmails = useCallback(async () => {
     const { data, error } = await supabase.from('email_log').select('*').order('created_at', { ascending: false }).limit(200)
     if (error) setEmailsError(`The email log could not be loaded: ${friendlyError(error)}`)

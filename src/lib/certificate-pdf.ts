@@ -25,6 +25,13 @@ export type CertificatePdfData = {
   issuedAt?: string | Date | null
   signerName?: string | null
   signerTitle?: string | null
+  /**
+   * Stylized text signature (set in a script typeface; not a reproduction of anyone's handwriting).
+   * Drawn above the signature line only when present; certificates issued without it keep the
+   * plain signer line, so a design change never alters certificates already issued.
+   */
+  signatureText?: string | null
+  signatureFont?: SignatureFont | null
   /** When set, the PDF carries a clear "REVOKED" mark. */
   revokedAt?: string | Date | null
 }
@@ -52,6 +59,26 @@ const CONTENT_W = 600 // widest any line of text may be
 
 // ------------------------------------------------------------------ fonts
 const FONT_DIR = path.join(process.cwd(), 'src', 'assets', 'fonts')
+
+/** Script typefaces available for the stylized signature (OFL, files in src/assets/fonts). */
+export const SIGNATURE_FONTS = {
+  'great-vibes': { label: 'Great Vibes', file: 'GreatVibes-Regular.ttf', size: 29 },
+  'pinyon-script': { label: 'Pinyon Script', file: 'PinyonScript-Regular.ttf', size: 25 },
+  'alex-brush': { label: 'Alex Brush', file: 'AlexBrush-Regular.ttf', size: 28 },
+} as const
+export type SignatureFont = keyof typeof SIGNATURE_FONTS
+export const DEFAULT_SIGNATURE_FONT: SignatureFont = 'great-vibes'
+export const isSignatureFont = (v: unknown): v is SignatureFont => typeof v === 'string' && v in SIGNATURE_FONTS
+const scriptBytes = new Map<SignatureFont, Promise<Uint8Array>>()
+function loadScriptFont(font: SignatureFont): Promise<Uint8Array> {
+  let p = scriptBytes.get(font)
+  if (!p) {
+    p = readFile(path.join(FONT_DIR, SIGNATURE_FONTS[font].file))
+    p.catch(() => scriptBytes.delete(font))
+    scriptBytes.set(font, p)
+  }
+  return p
+}
 type FontBytes = { display: Uint8Array; text: Uint8Array; textBold: Uint8Array }
 let fontBytes: Promise<FontBytes> | null = null
 
@@ -236,6 +263,8 @@ export async function renderCertificatePdf(data: CertificatePdfData): Promise<Ui
   const cohort = cleanCertificateText(data.cohortName, 160)
   const signerName = cleanCertificateText(data.signerName, 120)
   const signerTitle = cleanCertificateText(data.signerTitle, 160)
+  const signatureText = cleanCertificateText(data.signatureText, 80)
+  const signatureFont: SignatureFont = isSignatureFont(data.signatureFont) ? data.signatureFont : DEFAULT_SIGNATURE_FONT
   const completedOn = formatCalendarDate(data.completionDate)
   const issuedOn = formatTimestampDate(data.issuedAt)
   const revoked = data.revokedAt != null && data.revokedAt !== ''
@@ -336,8 +365,27 @@ export async function renderCertificatePdf(data: CertificatePdfData): Promise<Ui
   let top = Math.min(bodyTop, bodyBottom + total + Math.max(0, (bodyTop - bodyBottom - total) / 2))
   for (const it of items) { it.draw(top); top -= it.height + it.gapAfter }
 
-  // ---- signature (fixed): a signature line only when a signer is recorded
-  if (signerName) {
+  // ---- signature (fixed)
+  if (signatureText && signerName) {
+    // Stylized text signature in a script face (navy) above a gold rule, then the printed name
+    // and title. Glyphs the script face lacks fall back to the plain signer line below.
+    const script = await doc.embedFont(await loadScriptFont(signatureFont), { subset: true })
+    const scriptChars = new Set(script.getCharacterSet())
+    const drawable = [...signatureText].every((ch) => ch === ' ' || scriptChars.has(ch.codePointAt(0)!))
+    const lineY = 122
+    const nameStyle: Style = { font: fonts.textBold, size: 11, color: INK }
+    const titleStyle: Style = { font: fonts.text, size: 9, color: SLATE }
+    if (drawable) {
+      const sig = fitText(signatureText, { font: script, size: SIGNATURE_FONTS[signatureFont].size, color: NAVY }, 250, 16)
+      drawCentered(page, sig.lines[0], lineY + 9, { font: script, size: sig.size, color: NAVY })
+    }
+    page.drawLine({ start: { x: CENTER_X - 135, y: lineY }, end: { x: CENTER_X + 135, y: lineY }, thickness: 0.7, color: GOLD })
+    const name = fitText(signerName, nameStyle, 320, 8)
+    drawCentered(page, name.lines[0], lineY - 22, { ...nameStyle, size: name.size })
+    const t = signerTitle ? fitText(signerTitle, titleStyle, 460, 7, 2) : null
+    t?.lines.forEach((line, i) => drawCentered(page, line, lineY - 35 - i * 10, { ...titleStyle, size: t.size }))
+  } else if (signerName) {
+    // Plain signer line (certificates issued before the stylized signature was approved).
     const lineY = 128
     const nameStyle: Style = { font: fonts.textBold, size: 11, color: INK }
     const titleStyle: Style = { font: fonts.text, size: 9, color: SLATE }

@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   // files ship with that serverless function (keys are route globs, values project paths).
   outputFileTracingIncludes: {
     '/api/certificates/**': ['./src/assets/fonts/*.ttf'],
+    '/api/admin/certificate-preview': ['./src/assets/fonts/*.ttf'],
   },
 };
 

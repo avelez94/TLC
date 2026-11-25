@@ -156,6 +156,10 @@ alter table public.certificates
   add column if not exists issued_by uuid references auth.users(id) on delete set null,
   add column if not exists signer_name text check (length(signer_name) <= 120),
   add column if not exists signer_title text check (length(signer_title) <= 160),
+  -- Stylized text signature (script typeface) snapshotted at issue; null on certificates issued
+  -- before the design was approved, which keep their plain signer line.
+  add column if not exists signature_text text check (length(signature_text) <= 80),
+  add column if not exists signature_font text check (signature_font in ('great-vibes', 'pinyon-script', 'alex-brush')),
   add column if not exists revoked_at timestamptz,
   add column if not exists revoked_reason text check (length(revoked_reason) <= 300);
 create unique index if not exists certificates_number_key on public.certificates (certificate_number) where certificate_number is not null;
@@ -168,7 +172,7 @@ create sequence if not exists app_private.certificate_seq;
 -- are captured at issue so later edits to profiles or pathways never change an issued one.
 create or replace function app_private.prepare_certificate() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare v_enr record;
+declare v_enr record; v_sig jsonb;
 begin
   if new.cohort_id is null or new.user_id is null then
     raise exception 'Choose the participant and the cohort they completed.' using errcode = '23514', detail = 'certificate_needs_cohort';
@@ -188,6 +192,17 @@ begin
   new.pathway_name := coalesce(nullif(new.pathway_name, ''), v_enr.pathway_name);
   new.cohort_name := coalesce(nullif(new.cohort_name, ''), v_enr.cohort_name);
   new.completion_date := coalesce(new.completion_date, (v_enr.completed_at at time zone 'America/New_York')::date);
+  -- Signature: the approved design from Settings applies to every new certificate; without
+  -- approval no stylized signature is ever added (an explicitly typed signer line still works).
+  select value into v_sig from app_private.settings where key = 'certificate_signature';
+  if coalesce((v_sig ->> 'approved')::boolean, false) then
+    new.signature_text := nullif(v_sig ->> 'signature_text', '');
+    new.signature_font := coalesce(v_sig ->> 'font', 'great-vibes');
+    new.signer_name := nullif(v_sig ->> 'signer_name', '');
+    new.signer_title := nullif(v_sig ->> 'signer_title', '');
+  else
+    new.signature_text := null; new.signature_font := null;
+  end if;
   new.issued_by := coalesce(auth.uid(), new.issued_by);
   new.issued_at := now();
   new.certificate_number := 'TLC-' || to_char(now() at time zone 'America/New_York', 'YYYY') || '-'
@@ -210,8 +225,10 @@ begin
       using errcode = '23514', detail = 'certificate_keep';
   end if;
   if new.certificate_number is distinct from old.certificate_number or new.user_id is distinct from old.user_id
-     or new.cohort_id is distinct from old.cohort_id or new.issued_at is distinct from old.issued_at then
-    raise exception 'The certificate number, person, cohort and issue date cannot be changed.'
+     or new.cohort_id is distinct from old.cohort_id or new.issued_at is distinct from old.issued_at
+     or new.signer_name is distinct from old.signer_name or new.signer_title is distinct from old.signer_title
+     or new.signature_text is distinct from old.signature_text or new.signature_font is distinct from old.signature_font then
+    raise exception 'The certificate number, person, cohort, issue date and signature cannot be changed.'
       using errcode = '23514', detail = 'certificate_fixed';
   end if;
   return new;
@@ -220,6 +237,53 @@ revoke all on function app_private.keep_certificates() from public, anon, authen
 drop trigger if exists keep_certificates on public.certificates;
 create trigger keep_certificates before update or delete on public.certificates
   for each row execute function app_private.keep_certificates();
+
+-- Certificate signature settings. Ships NOT approved: new certificates keep the current design
+-- until an administrator records Tramaine's approval in Certificates → Signature.
+insert into app_private.settings (key, value) values ('certificate_signature', jsonb_build_object(
+  'approved', false, 'signature_text', 'Tramaine L. Crawford', 'signer_name', 'Tramaine L. Crawford',
+  'signer_title', 'Founder, TLC Leadership Consulting & Coaching', 'font', 'great-vibes'))
+on conflict (key) do nothing;
+
+create or replace function public.admin_certificate_signature() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'Only administrators can view certificate settings.' using errcode = '42501'; end if;
+  return (select value || jsonb_build_object('updated_at', updated_at) from app_private.settings where key = 'certificate_signature');
+end $$;
+revoke all on function public.admin_certificate_signature() from public, anon;
+grant execute on function public.admin_certificate_signature() to authenticated;
+
+create or replace function public.admin_set_certificate_signature(
+  p_signature_text text, p_signer_name text, p_signer_title text, p_font text, p_approved boolean
+) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_old jsonb; v_new jsonb;
+begin
+  if not public.is_admin() then raise exception 'Only administrators can change certificate settings.' using errcode = '42501'; end if;
+  p_signature_text := btrim(regexp_replace(coalesce(p_signature_text, ''), '\s+', ' ', 'g'));
+  p_signer_name := btrim(regexp_replace(coalesce(p_signer_name, ''), '\s+', ' ', 'g'));
+  p_signer_title := btrim(regexp_replace(coalesce(p_signer_title, ''), '\s+', ' ', 'g'));
+  if length(p_signature_text) not between 1 and 80 or length(p_signer_name) not between 1 and 120 or length(p_signer_title) > 160 then
+    raise exception 'Enter the signature (up to 80 characters), the printed name (up to 120) and a title (up to 160).' using errcode = '22023';
+  end if;
+  if p_font not in ('great-vibes', 'pinyon-script', 'alex-brush') then
+    raise exception 'Choose one of the listed signature styles.' using errcode = '22023';
+  end if;
+  select value into v_old from app_private.settings where key = 'certificate_signature';
+  v_new := jsonb_build_object('approved', coalesce(p_approved, false), 'signature_text', p_signature_text,
+    'signer_name', p_signer_name, 'signer_title', nullif(p_signer_title, ''), 'font', p_font);
+  insert into app_private.settings (key, value, updated_at) values ('certificate_signature', v_new, now())
+    on conflict (key) do update set value = excluded.value, updated_at = now();
+  if v_old is distinct from v_new then
+    insert into public.admin_audit_log (actor_id, action, entity_type, entity_label, outcome, changes)
+    values (auth.uid(), 'settings.certificate_signature', 'settings', 'Certificate signature', 'success',
+      jsonb_build_object('from', v_old, 'to', v_new));
+  end if;
+  return v_new;
+end $$;
+revoke all on function public.admin_set_certificate_signature(text, text, text, text, boolean) from public, anon;
+grant execute on function public.admin_set_certificate_signature(text, text, text, text, boolean) to authenticated;
 
 -- ======================================================================= 4. participation view
 -- Who submitted which weekly rep in a cohort, for administrators. Never returns reflection text.

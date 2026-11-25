@@ -534,12 +534,12 @@ export default function ImpactPortal() {
                     { label: 'Completed Programs', value: pastList.length ? String(pastList.length) : null },
                   ].map(({ label, value }) => value ? (
                     <div key={label} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--mist)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                      <dt style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)' }}>{label}</dt>
+                      <dt style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#8a5a10' }}>{label}</dt>
                       <dd style={{ color: 'var(--ink)', fontSize: '0.88rem', fontWeight: 500, margin: 0, minWidth: 0 }}>{value}</dd>
                     </div>
                   ) : null)}
                 </dl>
-                <p style={{ ...mutedText, marginTop: '1rem' }}>To change your name or email, contact Tramaine at <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: 'var(--gold)', fontWeight: 600 }}>{CONTACT_EMAIL}</a>.</p>
+                <p style={{ ...mutedText, marginTop: '1rem' }}>To change your name or email, contact Tramaine at <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#8a5a10', fontWeight: 600 }}>{CONTACT_EMAIL}</a>.</p>
               </section>
               <button type="button" onClick={handleSignOut} className="btn btn-ghost-dark" style={{ fontSize: '0.85rem', marginTop: '1rem' }}>Sign Out</button>
             </div>
@@ -578,7 +578,7 @@ function NotEnrolled({ eyebrow, title, text, hasPast, onNavigate }: { eyebrow: s
       <div style={cardStyle}>
         <p style={{ ...mutedText, marginBottom: '0.75rem' }}>{text}</p>
         <p style={{ ...mutedText, marginBottom: '1rem' }}>
-          To join another program, see the upcoming cohorts on the <Link href="/impact" style={{ color: 'var(--gold)', fontWeight: 600 }}>Impact Lab page</Link> or email Tramaine at <ContactLink />.
+          To join another program, see the upcoming cohorts on the <Link href="/impact" style={{ color: '#8a5a10', fontWeight: 600 }}>Impact Lab page</Link> or email Tramaine at <ContactLink />.
         </p>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {hasPast && <button type="button" onClick={() => onNavigate('completed')} className="btn btn-ghost-dark" style={{ fontSize: '0.8rem', padding: '0.65rem 1.25rem' }}>My Completed Programs</button>}

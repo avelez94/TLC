@@ -72,16 +72,32 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
 function ConfirmDialog({ title, message, consequences, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger, requireText, onDone }: ConfirmOptions & { onDone: (ok: boolean) => void }) {
   const [typed, setTyped] = useState('')
   const cancelRef = useRef<HTMLButtonElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  // The latest close handler, so re-renders (e.g. a toast appearing) never re-run the effect below.
+  const done = useRef(onDone)
+  useEffect(() => { done.current = onDone }, [onDone])
   useEffect(() => {
+    // Focus starts on Cancel, stays inside the dialog (Tab / Shift+Tab wrap) and returns to the
+    // control that opened it when the dialog closes.
+    const opener = document.activeElement as HTMLElement | null
     cancelRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDone(false) }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { done.current(false); return }
+      if (e.key !== 'Tab' || !boxRef.current) return
+      const items = [...boxRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')]
+      if (items.length === 0) return
+      const first = items[0], last = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+      else if (!boxRef.current.contains(document.activeElement)) { e.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onDone])
+    return () => { window.removeEventListener('keydown', onKey); if (opener?.isConnected) opener.focus() }
+  }, [])
   const ready = !requireText || typed.trim().toUpperCase() === requireText.toUpperCase()
   return (
     <div onClick={() => onDone(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,23,55,0.55)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body" onClick={e => e.stopPropagation()}
+      <div ref={boxRef} role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body" onClick={e => e.stopPropagation()}
         style={{ background: 'white', borderRadius: '8px', maxWidth: '480px', width: '100%', padding: '1.5rem', borderTop: `4px solid ${danger ? '#b3261e' : 'var(--gold)'}`, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <h2 id="confirm-title" style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', letterSpacing: '0.04em', color: 'var(--navy)', margin: '0 0 0.75rem' }}>{title}</h2>
         <div id="confirm-body">

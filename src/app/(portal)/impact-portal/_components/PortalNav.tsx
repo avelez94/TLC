@@ -35,7 +35,7 @@ function NavList({ page, onNavigate, mobile }: { page: Page; onNavigate: (p: Pag
       {navGroups.map((group, gi) => (
         <div key={gi} style={{ marginTop: gi === 0 ? 0 : '0.5rem' }}>
           {group.label && (
-            <p style={{ padding: mobile ? '0.75rem 1.5rem 0.25rem' : '0.6rem 1.25rem 0.25rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>{group.label}</p>
+            <p style={{ padding: mobile ? '0.75rem 1.5rem 0.25rem' : '0.6rem 1.25rem 0.25rem', fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>{group.label}</p>
           )}
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {group.items.map(({ id, label, icon }) => {

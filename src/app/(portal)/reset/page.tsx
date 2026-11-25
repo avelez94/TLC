@@ -57,7 +57,7 @@ function ResetContent() {
   const labelStyle = {
     fontSize: '0.7rem', fontFamily: "'JetBrains Mono', monospace",
     letterSpacing: '0.18em', textTransform: 'uppercase' as const,
-    color: 'rgba(255,255,255,0.45)', marginBottom: '0.4rem', display: 'block'
+    color: 'rgba(255,255,255,0.62)', marginBottom: '0.4rem', display: 'block'
   }
 
   const handleRequestReset = async (e: React.FormEvent) => {
@@ -117,7 +117,7 @@ function ResetContent() {
           <>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Password Reset</span>
             <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2.5rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>Forgot your password?</h1>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>Enter your email address and we will send you a reset link.</p>
+            <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>Enter your email address and we will send you a reset link.</p>
             {error && <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '3px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{error}</div>}
             <form onSubmit={handleRequestReset} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
@@ -129,7 +129,7 @@ function ResetContent() {
               </button>
             </form>
             <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-              <Link href="/login" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>Back to login</Link>
+              <Link href="/login" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.82rem' }}>Back to login</Link>
             </div>
           </>
         )}
@@ -141,10 +141,10 @@ function ResetContent() {
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,136,32,0.15)', border: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>✉</div>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>Check your email</span>
               <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>Check your inbox.</h2>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>If <strong style={{ color: 'white' }}>{email}</strong> has an account, a password link is on its way. It can take a few minutes; check your spam folder too. The link works once and expires.</p>
+              <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.88rem', lineHeight: 1.6 }}>If <strong style={{ color: 'white' }}>{email}</strong> has an account, a password link is on its way. It can take a few minutes; check your spam folder too. The link works once and expires.</p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <button onClick={handleRequestReset} disabled={loading} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', cursor: 'pointer' }}>
+              <button onClick={handleRequestReset} disabled={loading} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.62)', fontSize: '0.82rem', cursor: 'pointer' }}>
                 {loading ? 'Sending...' : 'Resend email'}
               </button>
             </div>
@@ -156,7 +156,7 @@ function ResetContent() {
           <>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>{welcome ? 'Welcome' : 'Set new password'}</span>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.5rem' }}>{welcome ? 'Choose your password.' : 'Choose a new password.'}</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>{welcome ? 'This finishes setting up your account. Use at least 8 characters; you will sign in with your email and this password.' : 'Use at least 8 characters, and something you will remember.'}</p>
+            <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.88rem', marginBottom: '2rem', lineHeight: 1.6 }}>{welcome ? 'This finishes setting up your account. Use at least 8 characters; you will sign in with your email and this password.' : 'Use at least 8 characters, and something you will remember.'}</p>
             {error && <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: '3px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#ff6b6b', fontSize: '0.85rem' }}>{error}</div>}
             <form onSubmit={handleSetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
@@ -180,7 +180,7 @@ function ResetContent() {
             <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,136,32,0.15)', border: '2px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>✓</div>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '0.75rem', display: 'block' }}>All set</span>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.75rem' }}>{welcome ? 'Your account is ready.' : 'Password updated.'}</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem', lineHeight: 1.6 }}>Taking you to sign in…</p>
+            <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.88rem', lineHeight: 1.6 }}>Taking you to sign in…</p>
           </div>
         )}
       </div>

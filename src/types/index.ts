@@ -140,6 +140,8 @@ export interface Certificate {
   issued_by?: string | null
   signer_name?: string | null
   signer_title?: string | null
+  signature_text?: string | null
+  signature_font?: string | null
   revoked_at?: string | null
   revoked_reason?: string | null
   profiles?: Profile

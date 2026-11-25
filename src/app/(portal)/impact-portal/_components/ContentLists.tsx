@@ -13,7 +13,7 @@ export function AnnouncementsList({ items, profileId, headingLevel = 'h2' }: { i
         return (
           <article key={a.id} style={{ ...cardStyle, borderLeft: '4px solid var(--gold)' }}>
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{formatDateET(a.created_at, 'long')}</span>
+              <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.6rem', color: '#8a5a10', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{formatDateET(a.created_at, 'long')}</span>
               <StatusBadge kind="info">{audience}</StatusBadge>
             </div>
             <Title style={{ ...h2Style, marginBottom: '0.5rem' }}>{a.title}</Title>

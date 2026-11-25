@@ -71,7 +71,7 @@ before(() => {
   rmSync(SINK, { recursive: true, force: true }); mkdirSync(SINK, { recursive: true })
   psql(`delete from public.inquiry_participants; delete from public.inquiries where email like '%journey%' or organization like 'TEST %';
     delete from auth.users where email in (${NEW_PEOPLE.map(e => `'${e}'`).join(',')});
-    delete from public.certificates; update public.cohort_enrollments set status = 'active' where status = 'completed';
+    set session_replication_role = replica; delete from public.certificates; set session_replication_role = origin; update public.cohort_enrollments set status = 'active' where status = 'completed';
     delete from public.cohort_enrollments where (user_id = '${ID.p5}' and cohort_id = '${ID.spring}') or (user_id = '${ID.p1}' and cohort_id = '${ID.winter}');
     update public.cohorts set capacity = 6, activity_open_until = null where id = '${ID.spring}';
     update public.cohorts set status = 'active', end_date = current_date + 28, activity_open_until = null where id = '${ID.winter}';
@@ -287,4 +287,56 @@ test('the joins the admin and portal screens use still work (no ambiguous links 
       assert.equal(error, null, `${who}: ${table} ${sel}: ${error?.message}`)
     }
   }
+})
+
+// ---------------------------------------------------------------- certificate signature approval
+test('certificate signature: none until approved; applies only to new certificates; issued ones never change', async () => {
+  const a = await signIn('admin1@example.test')
+  const p3 = '10000000-0000-0000-0000-0000000000b3'
+  psql(`update app_private.settings set value = value || '{"approved": false}' where key = 'certificate_signature';
+        set session_replication_role = replica; delete from public.certificates where user_id = '${p3}'; set session_replication_role = origin;
+        update public.cohort_enrollments set status = 'active' where user_id = '${p3}' and cohort_id = '${ID.fall}'`)
+  const setting = await a.client.rpc('admin_certificate_signature')
+  assert.equal(setting.error, null); assert.equal(setting.data.approved, false, 'ships not approved')
+  assert.equal(setting.data.signer_title, 'Founder, TLC Leadership Consulting & Coaching')
+
+  // Not approved: a certificate is issued without the stylized signature, even if the browser asks for one.
+  assert.equal((await a.client.from('cohort_enrollments').update({ status: 'completed' }).eq('user_id', p3).eq('cohort_id', ID.fall).select('id')).error, null)
+  const before = await a.client.from('certificates').insert({ user_id: p3, cohort_id: ID.fall, signature_text: 'Injected', signature_font: 'great-vibes' }).select('id, signature_text').single()
+  assert.equal(before.error, null); assert.equal(before.data.signature_text, null, 'no signature without approval')
+
+  // Participants cannot read or change the setting.
+  const p = await signIn('p1@example.test')
+  assert.ok((await p.client.rpc('admin_certificate_signature')).error, 'participant cannot read')
+  assert.ok((await p.client.rpc('admin_set_certificate_signature', { p_signature_text: 'X', p_signer_name: 'X', p_signer_title: '', p_font: 'great-vibes', p_approved: true })).error, 'participant cannot approve')
+
+  // Approve (as Tramaine would through the admin screen); the change is logged.
+  const ok = await a.client.rpc('admin_set_certificate_signature', { p_signature_text: 'Tramaine L. Crawford', p_signer_name: 'Tramaine L. Crawford', p_signer_title: 'Founder, TLC Leadership Consulting & Coaching', p_font: 'great-vibes', p_approved: true })
+  assert.equal(ok.error, null)
+  assert.match(psql(`select count(*) from admin_audit_log where action = 'settings.certificate_signature' and created_at > now() - interval '1 minute'`), /^[1-9]/)
+  assert.ok((await a.client.rpc('admin_set_certificate_signature', { p_signature_text: 'x', p_signer_name: 'y', p_signer_title: '', p_font: 'comic-sans', p_approved: true })).error, 'only listed styles')
+
+  // A revoke + re-issue after approval carries the signature; the earlier certificate is unchanged.
+  assert.equal((await a.client.from('certificates').update({ revoked_at: new Date().toISOString(), revoked_reason: 'test re-issue' }).eq('id', before.data.id).select('id')).error, null)
+  const after = await a.client.from('certificates').insert({ user_id: p3, cohort_id: ID.fall }).select('id, signature_text, signature_font, signer_name, signer_title').single()
+  assert.equal(after.error, null)
+  assert.deepEqual([after.data.signature_text, after.data.signature_font, after.data.signer_name], ['Tramaine L. Crawford', 'great-vibes', 'Tramaine L. Crawford'])
+  assert.equal(psql(`select coalesce(signature_text, 'none') from certificates where id = '${before.data.id}'`), 'none', 'issued certificate keeps its design')
+
+  // Signature details of an issued certificate cannot be edited.
+  const edit = await a.client.from('certificates').update({ signature_text: 'Someone else' }).eq('id', after.data.id).select('id')
+  assert.ok(edit.error, 'signature is fixed once issued')
+
+  // The PDF renders with the script font; the admin preview works and refuses non-admins.
+  const pdf = await a.page(`/api/certificates/${after.data.id}/pdf`)
+  assert.equal(pdf.status, 200)
+  const signed = Buffer.from(await pdf.arrayBuffer())
+  const plain = Buffer.from(await (await a.page(`/api/certificates/${before.data.id}/pdf`)).arrayBuffer())
+  assert.equal(signed.subarray(0, 4).toString(), '%PDF')
+  // The signed certificate embeds the script typeface; the earlier one (issued before approval) does not.
+  assert.ok(signed.length > plain.length + 3000, `signed ${signed.length} bytes vs plain ${plain.length} bytes`)
+  assert.equal((await a.page('/api/admin/certificate-preview?text=Tramaine%20L.%20Crawford&name=Tramaine%20L.%20Crawford&title=Founder&font=pinyon-script')).status, 200)
+  assert.equal((await p.page('/api/admin/certificate-preview?text=x&name=y')).status, 401)
+
+  psql(`update app_private.settings set value = value || '{"approved": false}' where key = 'certificate_signature'`)
 })

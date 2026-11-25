@@ -6,37 +6,25 @@ import type { Certificate } from '@/types'
 import { formatDateET, todayET } from '@/lib/business-time'
 import { InlineError } from '../feedback'
 import { dangerLinkStyle, inputStyle, labelStyle, linkButtonStyle, secondaryButtonStyle, statusBadge } from '../shared'
-import { TRAMAINE_SIGNER, inlineLinkStyle, metaStyle, panelBoxStyle, plural, smallButtonStyle, subheadStyle, type CohortSectionProps } from './ui'
+import { inlineLinkStyle, metaStyle, panelBoxStyle, plural, smallButtonStyle, subheadStyle, type CohortSectionProps } from './ui'
 import { assignedParticipants, currentReps, personAttendance } from './participation'
 import { useCohortParticipation } from './useParticipation'
+import { SignatureNote, useCertificateSignature } from '../certificates/SignatureSettings'
 
 type RowAction = { kind: 'complete' | 'issue' | 'revoke'; enrollmentId: string } | null
 interface BulkResult { name: string; ok: boolean; message: string }
 
 const pdfHref = (id: string, inline = false) => `/api/certificates/${id}/pdf${inline ? '?inline=1' : ''}`
 
-function SignerChoice({ id, checked, onChange }: { id: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div style={{ margin: '0.5rem 0' }}>
-      <label htmlFor={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem', color: 'var(--ink)', cursor: 'pointer' }}>
-        <input id={id} type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ width: '18px', height: '18px' }} aria-describedby={`${id}-hint`} />
-        Print Tramaine’s name and title as signer
-      </label>
-      <p id={`${id}-hint`} style={{ ...metaStyle, fontSize: '0.8rem', margin: '0.2rem 0 0 1.6rem' }}>Only with Tramaine’s approval. Leave unticked to issue it without a printed signer.</p>
-    </div>
-  )
-}
-
 export default function CohortCompletion({ panel, cohort }: CohortSectionProps) {
   const participation = useCohortParticipation(cohort.id)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [action, setAction] = useState<RowAction>(null)
   const [note, setNote] = useState('')
-  const [signer, setSigner] = useState(false)
   const [reason, setReason] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({})
-  const [bulkSigner, setBulkSigner] = useState(false)
+  const signature = useCertificateSignature().value
   const [bulkBusy, setBulkBusy] = useState<string | null>(null)
   const [results, setResults] = useState<{ title: string; items: BulkResult[]; skipped: number } | null>(null)
 
@@ -74,7 +62,7 @@ export default function CohortCompletion({ panel, cohort }: CohortSectionProps) 
   const allSelected = rows.length > 0 && rows.every(r => selected.has(r.p.enrollmentId))
 
   const toggleSelect = (id: string, on: boolean) => setSelected(prev => { const next = new Set(prev); if (on) next.add(id); else next.delete(id); return next })
-  const openAction = (next: RowAction) => { setAction(next); setNote(''); setSigner(false); setReason('') }
+  const openAction = (next: RowAction) => { setAction(next); setNote(''); setReason('') }
   const runRow = async (enrollmentId: string, fn: () => Promise<string | null>) => {
     setBusyId(enrollmentId)
     const err = await fn()
@@ -141,7 +129,7 @@ export default function CohortCompletion({ panel, cohort }: CohortSectionProps) 
       message: list.map(r => r.p.name).join(', '),
       consequences: [
         'Each person can view and download their certificate in their portal right away.',
-        bulkSigner ? `Tramaine’s name and title are printed as signer (${TRAMAINE_SIGNER.name}).` : 'No signer name is printed.',
+        signature?.approved ? `Each certificate carries the approved signature of ${signature.signer_name}.` : 'The certificates have no signature (the signature design is not approved yet).',
         ...(skipped > 0 ? [`${plural(skipped, 'selected person', 'selected people')} without recorded completion, or who already have a certificate, will be skipped.`] : []),
       ],
       confirmLabel: 'Issue certificates',
@@ -149,7 +137,7 @@ export default function CohortCompletion({ panel, cohort }: CohortSectionProps) 
     setBulkBusy('issue')
     const items: BulkResult[] = []
     for (const r of list) {
-      const err = await panel.handleIssueCertificate(r.p.userId, cohort.id, bulkSigner ? TRAMAINE_SIGNER : null, { quiet: true })
+      const err = await panel.handleIssueCertificate(r.p.userId, cohort.id, null, { quiet: true })
       items.push({ name: r.p.name, ok: !err, message: err ?? 'Certificate issued.' })
     }
     await panel.fetchAll()
@@ -190,7 +178,7 @@ export default function CohortCompletion({ panel, cohort }: CohortSectionProps) 
                   </button>
                 </div>
                 <p style={{ ...metaStyle, fontSize: '0.8rem', margin: '0.4rem 0 0' }}>Only eligible people are included: completion can be marked for people still in progress; certificates go to people whose completion is recorded and who have none yet.</p>
-                {eligibleIssue.length > 0 && <SignerChoice id={`bulk-signer-${cohort.id}`} checked={bulkSigner} onChange={setBulkSigner} />}
+                {eligibleIssue.length > 0 && <SignatureNote signature={signature} />}
               </div>
             )}
           </div>
@@ -286,9 +274,9 @@ export default function CohortCompletion({ panel, cohort }: CohortSectionProps) 
                         <div style={{ ...panelBoxStyle, marginTop: '0.6rem' }}>
                           <h4 style={subheadStyle}>Issue a certificate to {p.name}?</h4>
                           <p style={{ ...metaStyle, margin: 0 }}>For {cohort.name}. The number, names, pathway and completion date are filled in automatically. They can view and download it in their portal right away.</p>
-                          <SignerChoice id={fid('signer')} checked={signer} onChange={setSigner} />
+                          <SignatureNote signature={signature} />
                           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void runRow(p.enrollmentId, () => panel.handleIssueCertificate(p.userId, cohort.id, signer ? TRAMAINE_SIGNER : null))} style={smallButtonStyle}>
+                            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void runRow(p.enrollmentId, () => panel.handleIssueCertificate(p.userId, cohort.id, null))} style={smallButtonStyle}>
                               {busy ? 'Issuing…' : 'Issue certificate'}
                             </button>
                             <button type="button" onClick={() => setAction(null)} disabled={busy} style={secondaryButtonStyle}>Cancel</button>

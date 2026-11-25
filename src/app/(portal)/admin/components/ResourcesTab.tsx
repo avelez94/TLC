@@ -365,7 +365,7 @@ export default function ResourcesTab(panel: AdminPanel) {
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{formatDateET(r.created_at)}</td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                          {href && <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${r.title} (opens in a new tab)`} style={{ color: 'var(--navy)', fontSize: '0.88rem', fontWeight: 600 }}>Open</a>}
+                          {href && <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${r.title} (opens in a new tab)`} style={{ color: 'var(--navy)', fontSize: '0.88rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', minWidth: '44px', padding: '0 0.5rem' }}>Open</a>}
                           <button type="button" onClick={() => remove(r)} disabled={removing === r.id} aria-label={`Remove ${r.title}`} style={{ ...dangerLinkStyle, fontSize: '0.88rem', minHeight: '32px' }}>
                             {removing === r.id ? 'Removing…' : 'Remove'}
                           </button>

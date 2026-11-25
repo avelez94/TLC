@@ -127,6 +127,5 @@ export const cohortSectionHref = (cohortId: string, section: SectionKey) => `/ad
 export const inlineLinkStyle = { color: '#8a5a10', fontWeight: 600 }
 
 /** The Tramaine signature printed on certificates only when he has approved it. */
-export const TRAMAINE_SIGNER = { name: 'Tramaine L. Crawford', title: 'Founder, TLC Leadership Consulting & Coaching' }
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`

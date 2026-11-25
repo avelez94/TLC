@@ -218,3 +218,27 @@ test('payment requests: outstanding, collected and overdue follow the records', 
   assert.equal(isOverdue(pr({ due_date: '2026-11-23' }), '2026-11-23'), false, 'due today is not overdue')
   assert.equal(isOverdue(pr({ due_date: '2026-11-01', status: 'paid' }), '2026-11-23'), false)
 })
+
+// ---------------------------------------------------------------- no live Stripe writes while payments are off
+import { stripeWritesAllowed } from '../../src/lib/stripe'
+import { sendPaymentRequest, voidPaymentRequest, PaymentRequestError } from '../../src/lib/payments'
+
+test('Stripe writes: live key needs CHECKOUT_ENABLED=true; test keys always; no key never', () => {
+  assert.equal(stripeWritesAllowed({ STRIPE_SECRET_KEY: 'sk_live_abc' }), false)
+  assert.equal(stripeWritesAllowed({ STRIPE_SECRET_KEY: 'sk_live_abc', CHECKOUT_ENABLED: 'false' }), false)
+  assert.equal(stripeWritesAllowed({ STRIPE_SECRET_KEY: 'rk_live_abc', CHECKOUT_ENABLED: '1' }), false, 'only the exact value true switches it on')
+  assert.equal(stripeWritesAllowed({ STRIPE_SECRET_KEY: 'sk_live_abc', CHECKOUT_ENABLED: 'true' }), true)
+  assert.equal(stripeWritesAllowed({ STRIPE_SECRET_KEY: 'sk_test_abc' }), true)
+  assert.equal(stripeWritesAllowed({}), false)
+})
+
+test('while Stripe writes are off, sending or cancelling a Stripe request never calls Stripe', async () => {
+  const touched: string[] = []
+  const stripe = new Proxy({}, { get: (_t, k) => { touched.push(String(k)); throw new Error('Stripe must not be called') } })
+  const deps = { db: {} as never, stripe: stripe as never, deliverEmail: async () => ({ sent: false, status: 'skipped' as const }), sendAccessEmail: async () => ({}) as never, audit: async () => {}, emails: { fromTlc: '', fromPlatform: '', ownerInbox: '' }, allowStripeWrites: false }
+  const pr = { id: 'r1', method: 'invoice', status: 'draft', payer_name: 'Org', payer_email: 'a@example.test', description: 'Seats', amount_cents: 50000, amount_paid_cents: 0, amount_refunded_cents: 0, currency: 'usd', stripe_object_id: null, stripe_url: null, due_date: '2027-01-31', seats: 2 } as never
+  await assert.rejects(sendPaymentRequest(deps, pr), (e: unknown) => e instanceof PaymentRequestError && e.status === 403)
+  await assert.rejects(sendPaymentRequest(deps, { ...(pr as object), method: 'payment_link' } as never), (e: unknown) => e instanceof PaymentRequestError && e.status === 403)
+  await assert.rejects(voidPaymentRequest(deps, { ...(pr as object), status: 'open', stripe_object_id: 'in_123' } as never), (e: unknown) => e instanceof PaymentRequestError && e.status === 403)
+  assert.deepEqual(touched, [], 'no Stripe method was even looked up')
+})

@@ -28,6 +28,11 @@ export interface PaymentDeps {
   deliverEmail: (msg: OutgoingEmail) => Promise<SendResult>
   sendAccessEmail: (i: AccessEmailInput) => Promise<AccessEmailResult>
   audit: AuditFn
+  /**
+   * False blocks creating or changing anything in Stripe (payment links, invoices, cancelling
+   * them). Set from stripeWritesAllowed() by the admin routes; undefined (tests) means allowed.
+   */
+  allowStripeWrites?: boolean
   /** Defaults to reading the database setting; anything but 'automatic' means review. */
   enrollMode?: () => Promise<EnrollMode>
   emails: { fromTlc: string; fromPlatform: string; ownerInbox: string }
@@ -692,6 +697,8 @@ export interface PaymentRequestRecord {
   stripe_object_id: string | null; stripe_url: string | null; due_date: string | null; inquiry_id: string | null
 }
 
+const STRIPE_WRITES_OFF = 'Stripe payment links and invoices are switched off while online payments are disabled. Use an offline payment request, or ask for payments to be switched on first.'
+
 export class PaymentRequestError extends Error {
   status: number
   constructor(message: string, status = 400) { super(message); this.status = status }
@@ -706,6 +713,7 @@ const daysUntil = (due: string, now: Date) => Math.max(1, Math.ceil((new Date(`$
  */
 export async function sendPaymentRequest(deps: PaymentDeps, pr: PaymentRequestRecord): Promise<PaymentRequestRecord> {
   if (pr.status !== 'draft') throw new PaymentRequestError('Only a request that has not been sent yet can be sent.', 409)
+  if (pr.method !== 'offline' && deps.allowStripeWrites === false) throw new PaymentRequestError(STRIPE_WRITES_OFF, 403)
   const at = nowOf(deps)
   let patch: Record<string, unknown>
   if (pr.method === 'offline') {
@@ -806,6 +814,7 @@ export async function voidPaymentRequest(deps: PaymentDeps, pr: PaymentRequestRe
     throw new PaymentRequestError(pr.status === 'void' ? 'This request is already cancelled.' : 'A paid request cannot be cancelled here. Refund it in Stripe if needed; the refund is recorded automatically.', 409)
   }
   if (pr.stripe_object_id && pr.method !== 'offline') {
+    if (deps.allowStripeWrites === false) throw new PaymentRequestError(STRIPE_WRITES_OFF, 403)
     if (!deps.stripe) throw new PaymentRequestError('Stripe is not configured on the server.', 503)
     if (pr.method === 'invoice') {
       const inv = await deps.stripe.invoices.retrieve(pr.stripe_object_id)
