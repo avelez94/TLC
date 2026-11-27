@@ -25,6 +25,7 @@ Edit the cohort’s pathway: keep the price ($97 / $149 / $197; the price shown 
 ## 4. Check Launch readiness
 Every row should say Done. When it does, the Impact Lab page shows the price and a Register button for that pathway, and people can pay. Each registration records which policy versions the person accepted and when.
 
-## Already done for you (site owner / developer)
-- Stripe: account checked; required webhook events added to the TLC webhook only; signing secret verified with a no-charge test. (Re-run from Launch readiness → Stripe if anything changes in Stripe.)
-- Live payments switch: turned on once by the site owner after final approval (CHECKOUT_ENABLED in Vercel). Until then, Launch readiness shows “Live payments approved by the site owner: To do”.
+## Already done for you
+- Stripe: account checked; required webhook events added to the TLC webhook only (the Rising Sons Academy webhook on the shared account is untouched); signing secret verified with a no-charge test. Re-run from Launch readiness → Stripe if anything changes in Stripe.
+- Live payments switched on by the site owner (2026-11-27). Launch readiness shows **Stripe payments: Enabled**. **Public paid registration** becomes available by itself once steps 1–3 are done; no developer or redeploy is needed.
+- Organisation Stripe payment links and invoices become available at the same moment the policies are published (until then, record organisation payments as offline).
