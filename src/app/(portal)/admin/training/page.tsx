@@ -39,7 +39,7 @@ export default function TrainingPage() {
       </section>
 
       <section style={cardStyle} aria-labelledby="tr-admin">
-        <p style={metaStyle}>Video · 9 min 19 s · 18 chapters</p>
+        <p style={metaStyle}>Video · 9 min 31 s · 18 chapters</p>
         <h2 id="tr-admin" style={sectionTitleStyle}>How to use the admin dashboard</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem', alignItems: 'start' }}>
           <div style={{ gridColumn: 'span 2', minWidth: 0 }} className="training-video">
@@ -63,11 +63,11 @@ export default function TrainingPage() {
       </section>
 
       <section style={cardStyle} aria-labelledby="tr-site">
-        <p style={metaStyle}>Video · 3 min 49 s</p>
+        <p style={metaStyle}>Video · 4 min 1 s</p>
         <h2 id="tr-site" style={sectionTitleStyle}>The Impact Lab website</h2>
         <p style={helpStyle}>A tour of the Impact Lab page: the three pathways, how the Lab works, organizational programs and the inquiry form.</p>
         <video controls preload="metadata" playsInline src={fileUrl('website-tour')} style={{ ...videoStyle, maxWidth: '760px', marginBottom: '1rem' }} aria-label="Website tour video" />
-        <a href={fileUrl('website-tour', true)} style={downloadStyle}>Download the video (MP4, 29 MB)</a>
+        <a href={fileUrl('website-tour', true)} style={downloadStyle}>Download the video (MP4, 31 MB)</a>
       </section>
       <style>{`@media (max-width: 720px) { .training-video { grid-column: auto !important } }`}</style>
     </div>
