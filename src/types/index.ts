@@ -50,6 +50,10 @@ export interface Cohort {
   capacity?: number | null
   /** Completed cohorts: participants may submit/post until this date (ET) when set. */
   activity_open_until?: string | null
+  /** Set when an administrator closes the completion review (no further completion or certificates expected). */
+  completion_review_closed_at?: string | null
+  completion_review_closed_by?: string | null
+  completion_review_note?: string | null
   status: CohortStatus
   created_at: string
   programs?: { name: string }

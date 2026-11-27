@@ -128,7 +128,7 @@ function CohortCard({ panel, cohort, open, onToggle, isSectionOpen, toggleSectio
       : <Link href={`/admin/users?invite=1&cohort=${cohort.id}`} className="btn btn-primary" style={smallButtonStyle}>Invite participants</Link>
   } else if (status === 'active') {
     primary = <button type="button" className="btn btn-primary" onClick={() => openSection('participation')} style={smallButtonStyle}>Review participation</button>
-  } else if (status === 'completed') {
+  } else if (status === 'completed' && !cohort.completion_review_closed_at) {
     primary = <button type="button" className="btn btn-primary" onClick={() => openSection('completion')} style={smallButtonStyle}>Review completion</button>
   }
   const availabilityLabel = availability.key === 'open' ? 'Open for enrollment' : availability.label

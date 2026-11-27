@@ -10,11 +10,85 @@ import { inlineLinkStyle, metaStyle, panelBoxStyle, plural, smallButtonStyle, su
 import { assignedParticipants, currentReps, personAttendance } from './participation'
 import { useCohortParticipation } from './useParticipation'
 import { SignatureNote, useCertificateSignature } from '../certificates/SignatureSettings'
+import { supabase } from '@/lib/supabase'
+import type { AdminPanel } from '../../useAdminPanel'
+import type { Cohort } from '@/types'
 
 type RowAction = { kind: 'complete' | 'issue' | 'revoke'; enrollmentId: string } | null
 interface BulkResult { name: string; ok: boolean; message: string }
 
 const pdfHref = (id: string, inline = false) => `/api/certificates/${id}/pdf${inline ? '?inline=1' : ''}`
+
+/**
+ * Closing the completion review records an owner decision for the whole cohort (for example: no
+ * certificates for this cohort). The dashboard then stops asking about completion and certificates
+ * for it. Nobody's completion status changes, nothing is issued or deleted, and it can be reopened.
+ */
+function CompletionReview({ panel, cohort }: { panel: AdminPanel; cohort: Cohort }) {
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const closed = !!cohort.completion_review_closed_at
+  const finished = cohort.status === 'completed' || cohort.status === 'archived'
+  if (!closed && !finished) return null
+  const by = cohort.completion_review_closed_by
+  const byName = !by ? 'an administrator' : by === panel.me.id ? panel.me.name : panel.users.find(u => u.id === by)?.full_name || 'an administrator'
+
+  const save = async (close: boolean) => {
+    setError(null)
+    const ok = await panel.confirm(close ? {
+      title: `Close the completion review for ${cohort.name}?`,
+      message: note.trim() ? `Note: ${note.trim()}` : undefined,
+      consequences: [
+        'The dashboard stops asking you to record completion or issue certificates for this cohort.',
+        'Nobody’s completion status changes and no certificate is issued or removed.',
+        'Participants keep their access to this program. You can reopen the review at any time.',
+      ],
+      confirmLabel: 'Close completion review',
+    } : {
+      title: `Reopen the completion review for ${cohort.name}?`,
+      consequences: ['The dashboard will remind you again about participants whose completion is not recorded.'],
+      confirmLabel: 'Reopen review',
+    })
+    if (!ok) return
+    setBusy(true)
+    const patch = close
+      ? { completion_review_closed_at: new Date().toISOString(), completion_review_closed_by: panel.me.id, completion_review_note: note.trim().slice(0, 300) || null }
+      : { completion_review_closed_at: null, completion_review_closed_by: null, completion_review_note: null }
+    const { error: e } = await supabase.from('cohorts').update(patch).eq('id', cohort.id).select('id')
+    if (e) { setBusy(false); setError(`It could not be saved: ${e.message}`); return }
+    await supabase.from('admin_audit_log').insert({
+      actor_id: panel.me.id, action: close ? 'cohort.completion_review_close' : 'cohort.completion_review_reopen', entity_type: 'cohort',
+      entity_id: cohort.id, entity_label: cohort.name, outcome: 'success', details: close && patch.completion_review_note ? { note: patch.completion_review_note } : {},
+    })
+    await panel.fetchAll()
+    setBusy(false); setNote('')
+    panel.ok(close ? `Completion review closed for ${cohort.name}. No more completion or certificate reminders for it.` : `Completion review reopened for ${cohort.name}.`)
+  }
+
+  if (closed) {
+    return (
+      <div role="note" style={{ ...panelBoxStyle, marginTop: 0, marginBottom: '0.75rem', background: 'white', borderLeft: '4px solid var(--gold)' }}>
+        <strong style={{ color: 'var(--navy)' }}>Completion review closed</strong>
+        <p style={{ ...metaStyle, margin: '0.3rem 0 0' }}>
+          Closed on {formatDateET(cohort.completion_review_closed_at!)} by {byName}.{cohort.completion_review_note ? ` Note: ${cohort.completion_review_note}` : ''} No completion or certificate reminders are shown for this cohort; participants keep their access.
+        </p>
+        <button type="button" onClick={() => void save(false)} disabled={busy} style={{ ...linkButtonStyle, marginTop: '0.4rem' }}>{busy ? 'Saving…' : 'Reopen review'}</button>
+        <InlineError message={error} />
+      </div>
+    )
+  }
+  return (
+    <div style={{ ...panelBoxStyle, marginTop: 0, marginBottom: '0.75rem', background: 'white' }}>
+      <strong style={{ color: 'var(--navy)', fontSize: '0.9rem' }}>Not recording completion or issuing certificates for this cohort?</strong>
+      <p style={{ ...metaStyle, margin: '0.3rem 0 0.5rem' }}>Close the review to stop the dashboard reminders. Nothing about the participants changes.</p>
+      <label htmlFor={`review-note-${cohort.id}`} style={labelStyle}>Note (optional)</label>
+      <input id={`review-note-${cohort.id}`} value={note} maxLength={300} onChange={e => setNote(e.target.value)} placeholder="For example: no certificates for this cohort (owner decision)" style={inputStyle} />
+      <button type="button" onClick={() => void save(true)} disabled={busy} style={{ ...secondaryButtonStyle, minHeight: '44px', marginTop: '0.5rem' }}>{busy ? 'Saving…' : 'Close completion review'}</button>
+      <InlineError message={error} />
+    </div>
+  )
+}
 
 export default function CohortCompletion({ panel, cohort }: CohortSectionProps) {
   const participation = useCohortParticipation(cohort.id)
@@ -159,6 +233,8 @@ export default function CohortCompletion({ panel, cohort }: CohortSectionProps) 
         {completedCount} of {plural(rows.length, 'participant')} completed · {plural(certCount, 'certificate')} issued.
         {participation.error && <> Weekly rep numbers could not be loaded ({participation.error}). <button type="button" onClick={() => void participation.reload()} style={{ ...linkButtonStyle, fontSize: '0.85rem' }}>Try again</button></>}
       </p>
+
+      <CompletionReview panel={panel} cohort={cohort} />
 
       {rows.length === 0 ? <p style={metaStyle}>Nobody is enrolled in this cohort.</p> : (
         <>

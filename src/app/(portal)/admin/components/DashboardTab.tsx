@@ -55,7 +55,7 @@ export default function DashboardTab(panel: AdminPanel) {
 
   const m = dashboardMetrics({ cohorts, enrollments, people: users.map(u => ({ id: u.id, role: u.role })), inquiries, registrations, today })
   const admins = new Set(users.filter(u => u.role === 'admin').map(u => u.id))
-  const awaitingReview = enrollments.filter(e => !admins.has(e.user_id) && enrollmentOutcome(e.status, cohorts.find(c => c.id === e.cohort_id)?.status ?? null) === 'awaiting_review').length
+  const awaitingReview = enrollments.filter(e => { const c = cohorts.find(x => x.id === e.cohort_id); return !admins.has(e.user_id) && !c?.completion_review_closed_at && enrollmentOutcome(e.status, c?.status ?? null) === 'awaiting_review' }).length
 
   const readiness = {
     programs, sessions: cohortSessions, reps: panel.reps, prompts: panel.journalPrompts, resources: panel.resources,

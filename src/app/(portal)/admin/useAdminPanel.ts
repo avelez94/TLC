@@ -6,7 +6,7 @@ import type { Profile, Program, Cohort, WeeklyRep, Announcement, Resource, Certi
 import { useFeedback } from './components/feedback'
 
 // Every cohorts column except zoom_link, which signed-in users cannot read directly.
-const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description, capacity, activity_open_until'
+const COHORT_COLUMNS = 'id, program_id, name, start_date, end_date, status, created_at, session_day, session_time, includes, expectations, book_title, book_image_url, book_purchase_url, description, capacity, activity_open_until, completion_review_closed_at, completion_review_closed_by, completion_review_note'
 
 export interface AdminIdentity { id: string; name: string; email: string | null }
 export interface AdminPanelOptions { me: AdminIdentity; checkoutEnabled: boolean }

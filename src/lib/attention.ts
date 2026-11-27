@@ -10,7 +10,7 @@ export interface AttentionInput {
   inquiries: { id: string; status: string; follow_up_on: string | null; kind: string; contact_name: string; organization: string | null; created_at: string }[]
   emailProblems: { id: number; template: string; recipient: string; status: string; related_user_id?: string | null; resolved_at?: string | null; created_at: string }[]
   registrations: { id: string; full_name: string; email: string; status: string | null; cohort_id: string | null; created_at: string }[]
-  cohorts: (ReadinessInput['cohort'] & { status: string })[]
+  cohorts: (ReadinessInput['cohort'] & { status: string; completion_review_closed_at?: string | null })[]
   enrollments: { id?: string; cohort_id: string; user_id: string; status: string | null; enrolled_at?: string }[]
   people: { id: string; role: string | null; email: string | null; full_name: string | null; last_sign_in_at?: string | null }[]
   certificates: { user_id: string; cohort_id: string | null; revoked_at?: string | null }[]
@@ -130,7 +130,10 @@ export function attentionItems(i: AttentionInput): AttentionItem[] {
   }
 
   // ---------------------------------------------------------------- completion and certificates
-  for (const c of i.cohorts.filter(c => c.status === 'completed' || c.status === 'archived')) {
+  // A cohort whose completion review an administrator closed (e.g. no certificates for that
+  // cohort) raises no completion or certificate reminders; its records are not changed.
+  const reviewClosed = new Set(i.cohorts.filter(c => c.completion_review_closed_at).map(c => c.id))
+  for (const c of i.cohorts.filter(c => (c.status === 'completed' || c.status === 'archived') && !reviewClosed.has(c.id))) {
     const waiting = i.enrollments.filter(e => e.cohort_id === c.id && e.status === 'active' && !admins.has(e.user_id))
     if (waiting.length) {
       items.push({
@@ -144,6 +147,7 @@ export function attentionItems(i: AttentionInput): AttentionItem[] {
   const byCohort = new Map<string, number>()
   for (const e of noCert) byCohort.set(e.cohort_id, (byCohort.get(e.cohort_id) ?? 0) + 1)
   for (const [cohortId, n] of byCohort) {
+    if (reviewClosed.has(cohortId)) continue
     items.push({
       id: `certificates:${cohortId}`, severity: 'info', group: 'completion',
       title: `${plural(n, 'completed participant')} in ${cohortById.get(cohortId)?.name ?? 'a cohort'} without a certificate`,

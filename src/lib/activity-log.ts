@@ -110,6 +110,8 @@ export function describeActivity(row: ActivityRow, look: ActivityLookups = {}): 
     if (row.outcome === 'failed') return 'Failed: the daily cohort status job did not run'
     return `Automatically changed cohort ${label} from ${show('status', changes.status?.from, look)} to ${show('status', changes.status?.to, look)}${reason}`
   }
+  if (row.action === 'cohort.completion_review_close') return `${failed}Closed the completion review (no further completion or certificate reminders): ${label}`.trim()
+  if (row.action === 'cohort.completion_review_reopen') return `${failed}Reopened the completion review: ${label}`.trim()
   if (row.action === 'enrollment.complete') return `${failed}Recorded program completion: ${label}`.trim()
   if (row.action === 'enrollment.uncomplete') return `${failed}Removed recorded completion: ${label}`.trim()
   if (row.action === 'certificate.revoke') return `${failed}Revoked a certificate: ${label}`.trim()

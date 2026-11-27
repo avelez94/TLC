@@ -92,3 +92,19 @@ test('pasted employee lists accept common formats and report bad lines', () => {
   assert.match(problems[0], /Line 3: no valid email/)
   assert.match(problems[1], /Line 4: add the person's name/)
 })
+
+test('a closed completion review silences completion and certificate reminders for that cohort only', () => {
+  const people = [{ id: 'u1', role: 'impact_participant', email: null, full_name: 'A', last_sign_in_at: '2026-09-01T00:00:00Z' }, { id: 'u2', role: 'impact_participant', email: null, full_name: 'B', last_sign_in_at: '2026-09-01T00:00:00Z' }]
+  const enrollments = [{ cohort_id: 'fall', user_id: 'u1', status: 'active' }, { cohort_id: 'fall', user_id: 'u2', status: 'completed' },
+    { cohort_id: 'other', user_id: 'u1', status: 'active' }]
+  const fall = cohort({ id: 'fall', name: 'Fall 2026', status: 'completed', start_date: '2026-08-18', end_date: '2026-09-29' })
+  const other = cohort({ id: 'other', name: 'Winter 2027', status: 'completed', start_date: '2026-11-01', end_date: '2026-11-20' })
+  const open = attentionItems(base({ cohorts: [fall, other], people, enrollments }))
+  assert.ok(open.some(i => i.id === 'completion:fall') && open.some(i => i.id === 'certificates:fall'), 'reminders while the review is open')
+  const closedFall = { ...fall, completion_review_closed_at: '2026-11-27T12:00:00Z' }
+  const input = base({ cohorts: [closedFall, other], people, enrollments })
+  const closed = attentionItems(input)
+  assert.equal(closed.some(i => i.id.endsWith(':fall')), false, 'no completion or certificate reminder for the closed cohort')
+  assert.ok(closed.some(i => i.id === 'completion:other'), 'other finished cohorts still remind')
+  assert.deepEqual(input.enrollments.map(e => e.status), ['active', 'completed', 'active'], 'nobody’s completion status changes')
+})
