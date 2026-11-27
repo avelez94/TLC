@@ -3,7 +3,8 @@
 import type Stripe from 'stripe'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { getStripe, stripeWritesAllowed } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
+import { orgStripeWritesAllowed } from '@/lib/launch-server'
 import { deliverEmail, FROM_TLC, FROM_PLATFORM, OWNER_INBOX } from '@/lib/email'
 import { sendAccessEmail } from '@/lib/account-access'
 import { audit } from '@/lib/audit'
@@ -11,11 +12,11 @@ import { PaymentRequestError, readEnrollMode, type PaymentDeps } from '@/lib/pay
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export function paymentDeps(): PaymentDeps {
+export async function paymentDeps(): Promise<PaymentDeps> {
   let stripe: Stripe | null = null
   try { stripe = getStripe() } catch { /* not configured: Stripe actions report it */ }
   return {
-    db: supabaseAdmin, stripe, deliverEmail, sendAccessEmail, audit, allowStripeWrites: stripeWritesAllowed(),
+    db: supabaseAdmin, stripe, deliverEmail, sendAccessEmail, audit, allowStripeWrites: (await orgStripeWritesAllowed()).allowed,
     enrollMode: () => readEnrollMode(supabaseAdmin),
     emails: { fromTlc: FROM_TLC, fromPlatform: FROM_PLATFORM, ownerInbox: OWNER_INBOX },
   }

@@ -15,6 +15,9 @@ http.createServer((req, res) => {
       body = body.split('&').filter(kv => !decodeURIComponent(kv.split('=')[0]).startsWith('payment_method_types')).join('&')
     }
     const headers = { ...req.headers, 'content-length': Buffer.byteLength(body) }
+    // stripe-mock only accepts test-style keys. Local runs that simulate production use the fake
+    // live key sk_live_placeholder… (never valid anywhere); swap it so those runs reach the mock.
+    if (/sk_live_placeholder/.test(String(headers.authorization ?? ''))) headers.authorization = 'Bearer sk_test_123'
     const up = http.request({ ...TARGET, method: req.method, path: req.url, headers }, r => { res.writeHead(r.statusCode ?? 502, r.headers); r.pipe(res) })
     up.on('error', e => { res.writeHead(502); res.end(String(e)) })
     up.end(body)

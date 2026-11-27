@@ -39,6 +39,10 @@ export interface LaunchReadiness {
   openCohortIds: string[]
   /** Reasons that block every cohort (empty when the site-wide conditions are met). */
   blockers: string[]
+  /** Technical side: Stripe connected and verified, payment security set, owner switched live payments on. */
+  stripePayments: { enabled: boolean; missing: string[] }
+  /** What visitors can do: pay for at least one cohort right now. */
+  registration: { available: boolean; waitingFor: string[] }
 }
 
 export function priceProblem(p: { type: string | null; price: number | null; price_label: string | null }): string | null {
@@ -83,8 +87,8 @@ export function evaluateLaunchReadiness(i: ReadinessInputs): LaunchReadiness {
       fix: { href: `/admin/policies?policy=${p.slug}`, label: p.published ? 'Review' : 'Write and publish' },
     })),
     {
-      key: 'owner_approval', label: 'Live payments approved by the site owner', ok: i.env.checkoutEnabled,
-      detail: i.env.checkoutEnabled ? 'Approved.' : 'Not yet approved. The site owner switches live payments on once; after that, cohorts open automatically when everything else is ready.',
+      key: 'owner_approval', label: 'Live payments switched on (site owner)', ok: i.env.checkoutEnabled,
+      detail: i.env.checkoutEnabled ? 'Switched on. Paid registration opens by itself for each cohort that meets every condition.' : 'Not switched on yet. The site owner switches live payments on once; after that, cohorts open automatically when everything else is ready.',
     },
   ]
   const globalOk = global.every(c => c.ok)
@@ -120,7 +124,19 @@ export function evaluateLaunchReadiness(i: ReadinessInputs): LaunchReadiness {
   })
 
   const openCohortIds = pathways.flatMap(p => p.cohorts.filter(c => c.open).map(c => c.id))
-  return { global, policies, pathways, open: openCohortIds.length > 0, openCohortIds, blockers: global.filter(g => !g.ok).map(g => g.label) }
+  const technical = ['stripe_key', 'stripe_verified', 'security', 'owner_approval']
+  const stripeMissing = global.filter(g => technical.includes(g.key) && !g.ok).map(g => g.label)
+  const eligibleCohort = pathways.some(p => p.checks.every(c => c.ok) && p.cohorts.some(c => c.configured))
+  const waitingFor = [
+    ...(stripeMissing.length ? ['Stripe payments enabled'] : []),
+    ...policies.filter(p => !p.published).map(p => `${p.name} published`),
+    ...(eligibleCohort ? [] : ['An Upcoming cohort that is fully set up, on a pathway that is open for enrollment with its price']),
+  ]
+  return {
+    global, policies, pathways, open: openCohortIds.length > 0, openCohortIds, blockers: global.filter(g => !g.ok).map(g => g.label),
+    stripePayments: { enabled: stripeMissing.length === 0, missing: stripeMissing },
+    registration: { available: openCohortIds.length > 0, waitingFor: openCohortIds.length > 0 ? [] : waitingFor },
+  }
 }
 
 /** Words a visitor sees when checkout is refused (never internal detail). */

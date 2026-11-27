@@ -1,7 +1,7 @@
 // Server-only loaders for the launch gate and published policies (service role).
 import { createHash } from 'node:crypto'
 import { supabaseAdmin } from './supabase-server'
-import { stripeMode } from './stripe'
+import { stripeMode, stripeWritesAllowed } from './stripe'
 import { isProductionDeployment } from './env-guard'
 import { checkoutEnabled, PATHWAY_SLUGS } from './pathways'
 import { todayET } from './business-time'
@@ -65,4 +65,17 @@ export async function loadLaunchReadiness(): Promise<LaunchReadiness> {
     pathways: (programs.data ?? []).sort((a, b) => order(a.slug) - order(b.slug)),
     cohorts: cohortRows, datedSessions, today: todayET(),
   })
+}
+
+/**
+ * Organisation payment requests (Stripe payment links and invoices) in live mode follow the same
+ * site-wide launch conditions as checkout: owner approval, Stripe verified, payment security and
+ * all three policies published. Test-mode keys (development) are unaffected.
+ */
+export async function orgStripeWritesAllowed(): Promise<{ allowed: boolean; reason: string | null }> {
+  if (!stripeWritesAllowed()) return { allowed: false, reason: null }
+  if (stripeMode() !== 'live') return { allowed: true, reason: null }
+  const r = await loadLaunchReadiness()
+  if (r.blockers.length === 0) return { allowed: true, reason: null }
+  return { allowed: false, reason: `Stripe payment links and invoices open together with online payments. Still needed: ${r.blockers.join(', ')}. Use an offline payment request until then.` }
 }

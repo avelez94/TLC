@@ -102,20 +102,29 @@ export default function LaunchPage() {
       <h1 style={pageTitleStyle}>Launch readiness</h1>
       <p style={helpStyle}>Online payment opens for a cohort only when everything below is done. The website checks this itself every time someone tries to pay, so a missing item always blocks payment, with no exceptions.</p>
 
-      <section aria-labelledby="lr-status" style={{ ...cardStyle, borderTop: `4px solid ${r.open ? '#1E6B3A' : '#B3261E'}` }}>
-        <h2 id="lr-status" style={sectionTitleStyle}>{r.open ? `Payments are open for ${openCohorts.length} cohort${openCohorts.length === 1 ? '' : 's'}` : 'Payments are blocked'}</h2>
-        {r.open ? (
-          <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--navy)', lineHeight: 1.7 }}>{openCohorts.map(c => <li key={c.id}>{c.pathway}: {c.name}</li>)}</ul>
-        ) : (
-          <>
-            <p style={{ ...helpStyle, marginBottom: '0.5rem' }}>Visitors see “enrollment closed” and use the inquiry form. Still needed:</p>
-            <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--navy)', lineHeight: 1.7, fontSize: '0.92rem' }}>
-              {r.blockers.map(b => <li key={b}>{b}</li>)}
-              {r.blockers.length === 0 && <li>At least one cohort that is Upcoming, fully set up, and on a pathway that is open for enrollment (see below).</li>}
-            </ul>
-          </>
-        )}
-      </section>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+        <section aria-labelledby="lr-stripe-status" style={{ ...cardStyle, marginBottom: 0, borderTop: `4px solid ${r.stripePayments.enabled ? '#1E6B3A' : '#B3261E'}` }}>
+          <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.66rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--slate)', margin: '0 0 0.35rem' }}>1 · Stripe payments</p>
+          <h2 id="lr-stripe-status" style={sectionTitleStyle}>{r.stripePayments.enabled ? 'Enabled' : 'Not enabled'}</h2>
+          <p style={{ ...helpStyle, margin: 0 }}>
+            {r.stripePayments.enabled
+              ? 'Stripe is connected and verified, and live payments are switched on. This is the technical side; it does not let anyone pay by itself.'
+              : `Still needed: ${r.stripePayments.missing.join(', ')}.`}
+          </p>
+        </section>
+        <section aria-labelledby="lr-status" style={{ ...cardStyle, marginBottom: 0, borderTop: `4px solid ${r.registration.available ? '#1E6B3A' : '#B3261E'}` }}>
+          <p style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.66rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--slate)', margin: '0 0 0.35rem' }}>2 · Public paid registration</p>
+          <h2 id="lr-status" style={sectionTitleStyle}>{r.registration.available ? `Available for ${openCohorts.length} cohort${openCohorts.length === 1 ? '' : 's'}` : 'Not available'}</h2>
+          {r.registration.available ? (
+            <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--navy)', lineHeight: 1.7, fontSize: '0.92rem' }}>{openCohorts.map(c => <li key={c.id}>{c.pathway}: {c.name}</li>)}</ul>
+          ) : (
+            <>
+              <p style={{ ...helpStyle, marginBottom: '0.4rem' }}>Visitors see “enrollment closed” and use the inquiry form. Waiting for:</p>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--navy)', lineHeight: 1.7, fontSize: '0.92rem' }}>{r.registration.waitingFor.map(w => <li key={w}>{w}</li>)}</ul>
+            </>
+          )}
+        </section>
+      </div>
 
       <section aria-labelledby="lr-site" style={cardStyle}>
         <h2 id="lr-site" style={sectionTitleStyle}>Site-wide</h2>

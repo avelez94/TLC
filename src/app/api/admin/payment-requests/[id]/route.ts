@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!row) return fail(404, 'That payment request no longer exists.')
   const pr = row as PaymentRequestRecord & { notes: string | null }
   const label = `${pr.payer_name} — ${pr.description}`
-  const deps = paymentDeps()
+  const deps = await paymentDeps()
 
   try {
     switch (body.action) {

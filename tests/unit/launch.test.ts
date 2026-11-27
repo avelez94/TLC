@@ -164,3 +164,28 @@ test('every Checkout Session this site creates carries the TLC tag (session and 
   assert.equal(p.metadata?.app, TLC_STRIPE_APP)
   assert.equal((p.payment_intent_data?.metadata as Record<string, string>).app, TLC_STRIPE_APP)
 })
+
+test('dashboard: "Stripe payments enabled" is separate from "public paid registration available"', () => {
+  const all = evaluateLaunchReadiness(ready())
+  assert.equal(all.stripePayments.enabled, true); assert.equal(all.registration.available, true)
+
+  // The state right after the owner switches live payments on: Stripe ready, nothing to buy yet.
+  const afterActivation = ready(); afterActivation.policies = {}; afterActivation.cohorts = []
+  const r = evaluateLaunchReadiness(afterActivation)
+  assert.equal(r.stripePayments.enabled, true, 'Stripe side is enabled')
+  assert.equal(r.registration.available, false, 'but visitors cannot pay')
+  assert.equal(r.open, false); assert.deepEqual(r.openCohortIds, [])
+  assert.ok(r.registration.waitingFor.some(w => /Privacy Policy published/.test(w)))
+  assert.ok(r.registration.waitingFor.some(w => /Upcoming cohort/.test(w)))
+  assert.ok(!r.registration.waitingFor.includes('Stripe payments enabled'))
+
+  const notApproved = ready(); notApproved.env.checkoutEnabled = false
+  const n = evaluateLaunchReadiness(notApproved)
+  assert.equal(n.stripePayments.enabled, false); assert.deepEqual(n.stripePayments.missing, ['Live payments switched on (site owner)'])
+  assert.equal(n.registration.available, false); assert.ok(n.registration.waitingFor.includes('Stripe payments enabled'))
+
+  // Policies published and a configured cohort, but its pathway still closed: still not available.
+  const closed = ready(); closed.pathways = [{ ...PATHWAY, enrollment_open: false }]
+  const c = evaluateLaunchReadiness(closed)
+  assert.equal(c.registration.available, false); assert.ok(c.registration.waitingFor.some(w => /open for enrollment/.test(w)))
+})

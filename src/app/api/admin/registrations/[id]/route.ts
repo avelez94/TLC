@@ -59,7 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     case 'sync': {
       try {
-        const message = await syncRegistrationFromStripe(paymentDeps(), id)
+        const message = await syncRegistrationFromStripe(await paymentDeps(), id)
         await audit(admin.id, 'registration.stripe_sync', 'registration', id, {}, { label: reg.full_name })
         return NextResponse.json({ ok: true, message })
       } catch (e) {
