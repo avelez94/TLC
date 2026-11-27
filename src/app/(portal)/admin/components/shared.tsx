@@ -1,8 +1,8 @@
 import type { Program } from '@/types'
 
-export type Page = 'dashboard' | 'registrations' | 'inquiries' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'certificates' | 'reports' | 'security'
+export type Page = 'dashboard' | 'registrations' | 'inquiries' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'certificates' | 'reports' | 'security' | 'training'
 
-export type NavGroup = 'Overview' | 'People' | 'Programs' | 'Participant experience' | 'Insights & security'
+export type NavGroup = 'Overview' | 'People' | 'Programs' | 'Participant experience' | 'Insights & security' | 'Help'
 
 // Grouped by task. Weekly reps and journal prompts live inside each cohort; certificates
 // inside each participant. Their full-list pages still exist (linked from those screens).
@@ -18,6 +18,7 @@ export const navItems: { id: Page; label: string; icon: string; group: NavGroup 
   { id: 'community', label: 'Community', icon: '💬', group: 'Participant experience' },
   { id: 'reports', label: 'Reports', icon: '📈', group: 'Insights & security' },
   { id: 'security', label: 'Security & activity', icon: '🔒', group: 'Insights & security' },
+  { id: 'training', label: 'Training videos & guide', icon: '🎬', group: 'Help' },
 ]
 
 /** Pages that live inside another section highlight that section in the menu. */
