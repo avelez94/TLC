@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { friendlyError } from '@/lib/admin-errors'
 import { formatDateET, formatDateTimeET } from '@/lib/business-time'
 import {
-  ENROLLMENT_ISSUE, PAYMENT_FILTERS, formatCents, issueIsOpen, paidCents, paymentAttentionItems, paymentState, stripeDashboardUrl,
+  ENROLLMENT_ISSUE, PAYMENT_FILTERS, formatCents, isHistoricalComplimentary, issueIsOpen, paidCents, paymentAttentionItems, paymentState, stripeDashboardUrl,
   type PaymentRegistration, type PaymentTone,
 } from '@/lib/payment-attention'
 import type { AttentionItem } from '@/lib/attention-types'
@@ -233,7 +233,7 @@ function RegistrationDetail({ panel, reg, problem, issues, enrollment, settings 
 
   const confirmAndInvite = async () => {
     setError(null)
-    const unpaid = ['unpaid', 'failed', 'expired', 'pending'].includes(ps) && !!reg.stripe_session_id
+    const unpaid = ['unpaid', 'failed', 'expired', 'pending'].includes(ps) && !!reg.stripe_session_id && !isHistoricalComplimentary(reg)
     const yes = await panel.confirm({
       title: `Confirm ${reg.full_name} and give access?`,
       message: `This gives ${reg.email} access to ${cohortName ?? 'the cohort'}.`,

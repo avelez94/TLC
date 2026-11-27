@@ -242,3 +242,86 @@ test('while Stripe writes are off, sending or cancelling a Stripe request never 
   await assert.rejects(voidPaymentRequest(deps, { ...(pr as object), status: 'open', stripe_object_id: 'in_123' } as never), (e: unknown) => e instanceof PaymentRequestError && e.status === 403)
   assert.deepEqual(touched, [], 'no Stripe method was even looked up')
 })
+
+// ---------------------------------------------------------------- historical complimentary programs
+import { COMPLIMENTARY_ERA_ENDS, isHistoricalComplimentary } from '../../src/lib/payment-attention'
+
+const HIST = '2026-08-12T15:00:00Z' // registered while every program was complimentary
+const NEW = '2027-01-10T15:00:00Z'  // registered after paid enrollment existed
+const cohortsMix = [
+  { id: 'done', name: 'Impact Makers - Fall 2026', status: 'completed', capacity: null },
+  { id: 'live', name: 'New Leaders - Spring 2027', status: 'active', capacity: 10 },
+  { id: 'done27', name: 'New Leaders - Winter 2027', status: 'completed', capacity: 10 },
+]
+const alerts = (regs: PaymentRegistration[], enrollments: { user_id: string; cohort_id: string; status: string | null }[] = []) =>
+  paymentAttentionItems({ today: '2027-02-01', now: new Date('2027-02-01T15:00:00Z'), cohorts: cohortsMix, enrollments, paymentRequests: [], registrations: regs }).map(i => i.id).sort()
+
+test('historical complimentary: the free-era confirmed registration with an unfinished checkout raises no payment alert', () => {
+  const r = reg({ id: 'kemp-like', cohort_id: 'done', status: 'confirmed', payment_status: 'unpaid', stripe_session_id: 'cs_old', created_at: HIST })
+  assert.equal(isHistoricalComplimentary(r), true)
+  assert.deepEqual(alerts([r]), [], 'no "Confirmed without a completed payment"')
+  assert.equal(paymentState(r).label, 'Free program (no payment needed)')
+  for (const s of ['unpaid', 'expired', 'pending', 'failed'] as const) {
+    assert.deepEqual(alerts([reg({ id: s, cohort_id: 'done', status: 'confirmed', payment_status: s, stripe_session_id: 'cs', created_at: HIST })]), [], `free era, ${s}`)
+    assert.deepEqual(alerts([reg({ id: s, cohort_id: 'done', status: 'pending', payment_status: s, created_at: HIST })]), [], `free era pending decision, ${s}`)
+  }
+  // Free-era registrations that completed the free checkout keep their existing label.
+  assert.equal(paymentState(reg({ payment_status: 'paid', amount_paid: null, created_at: HIST })).label, 'Free (no charge)')
+})
+
+test('historical complimentary: filters show free-era registrations as free, never as "Not paid"', () => {
+  const test = (v: string) => PAYMENT_FILTERS.find(f => f.value === v)!.test
+  const r = reg({ status: 'confirmed', payment_status: 'unpaid', stripe_session_id: 'cs', created_at: HIST })
+  assert.equal(test('free')(r), true); assert.equal(test('unpaid')(r), false)
+  const e = reg({ payment_status: 'expired', created_at: HIST })
+  assert.equal(test('free')(e), true); assert.equal(test('expired')(e), false)
+})
+
+test('paid era: a confirmed registration without a completed payment still alerts, in completed and active cohorts', () => {
+  for (const cohort_id of ['done27', 'live', 'done']) {
+    const r = reg({ id: `x-${cohort_id}`, cohort_id, status: 'confirmed', payment_status: 'unpaid', stripe_session_id: 'cs_new', created_at: NEW })
+    assert.equal(isHistoricalComplimentary(r), false)
+    assert.deepEqual(alerts([r]), [`payment-mismatch:x-${cohort_id}`], `cohort ${cohort_id}`)
+    assert.equal(paymentState(r).label, 'Not paid')
+  }
+  // The boundary: one second before is complimentary, the moment itself is not.
+  const before = new Date(Date.parse(COMPLIMENTARY_ERA_ENDS) - 1000).toISOString()
+  assert.equal(isHistoricalComplimentary(reg({ created_at: before })), true)
+  assert.equal(isHistoricalComplimentary(reg({ created_at: COMPLIMENTARY_ERA_ENDS })), false)
+  // No creation date: judged normally (never silently excused).
+  assert.deepEqual(alerts([reg({ id: 'nodate', cohort_id: 'live', status: 'confirmed', payment_status: 'expired', stripe_session_id: 'cs' })]), ['payment-mismatch:nodate'])
+})
+
+test('paid era: genuine payment alerts all still fire (failed, awaiting confirmation, declined-but-paid, enrollment issues)', () => {
+  assert.deepEqual(alerts([
+    reg({ id: 'failed', cohort_id: 'live', status: 'pending', payment_status: 'failed', created_at: NEW }),
+    reg({ id: 'await', cohort_id: 'live', status: 'pending', payment_status: 'paid', amount_paid_cents: 19700, created_at: NEW }),
+    reg({ id: 'declinedpaid', cohort_id: 'done27', status: 'declined', payment_status: 'paid', amount_paid_cents: 19700, created_at: NEW }),
+    reg({ id: 'full', cohort_id: 'live', status: 'pending', payment_status: 'paid', amount_paid_cents: 19700, enrollment_issue: 'cohort_full', created_at: NEW }),
+  ]), ['payment-confirm:await', 'payment-failed:failed', 'payment-issue:full', 'payment-mismatch:declinedpaid'])
+  // Complimentary places (recorded by an admin) never alert, before or after the cutoff.
+  assert.deepEqual(alerts([reg({ id: 'comp', cohort_id: 'live', status: 'confirmed', payment_status: 'complimentary', complimentary_reason: 'Scholarship', created_at: NEW })]), [])
+})
+
+test('free era with real money recorded is judged normally (a real problem is never hidden)', () => {
+  const paid = reg({ id: 'money', cohort_id: 'done', status: 'pending', payment_status: 'paid', amount_paid_cents: 14900, created_at: HIST })
+  assert.equal(isHistoricalComplimentary(paid), false)
+  assert.deepEqual(alerts([paid]), ['payment-confirm:money'])
+  const declinedPaid = reg({ id: 'dp', cohort_id: 'done', status: 'declined', payment_status: 'paid', amount_paid: 149, created_at: HIST })
+  assert.deepEqual(alerts([declinedPaid]), ['payment-mismatch:dp'])
+  assert.equal(isHistoricalComplimentary(reg({ payment_status: 'refunded', amount_refunded_cents: 14900, created_at: HIST })), false)
+  assert.equal(isHistoricalComplimentary(reg({ payment_status: 'complimentary', created_at: HIST })), false, 'already recorded as complimentary: keeps that label')
+})
+
+test('payment and enrollment stay independent; records are only read, never changed', () => {
+  const regs = [
+    reg({ id: 'h', cohort_id: 'done', status: 'confirmed', payment_status: 'unpaid', stripe_session_id: 'cs', created_at: HIST }),
+    reg({ id: 'n', cohort_id: 'live', status: 'confirmed', payment_status: 'unpaid', stripe_session_id: 'cs', created_at: NEW }),
+  ]
+  const snapshot = JSON.stringify(regs)
+  const withoutEnrollments = alerts(regs)
+  const withEnrollments = alerts(regs, [{ user_id: 'u1', cohort_id: 'done', status: 'completed' }, { user_id: 'u2', cohort_id: 'live', status: 'active' }])
+  assert.deepEqual(withoutEnrollments, ['payment-mismatch:n']); assert.deepEqual(withEnrollments, withoutEnrollments, 'enrollment does not change payment alerts')
+  assert.equal(paymentState(regs[1]).label, 'Not paid', 'payment label ignores enrollment and decision')
+  assert.equal(JSON.stringify(regs), snapshot, 'inputs untouched: nothing marked paid or complimentary')
+})

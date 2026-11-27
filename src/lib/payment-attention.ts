@@ -76,6 +76,27 @@ export function isFreeCheckout(r: PaymentRegistration): boolean {
   return r.payment_status === 'paid' && !paidCents(r)
 }
 
+/**
+ * Owner decision (2026-11-26): every Impact Lab program offered before paid enrollment existed was
+ * complimentary. Release 2e (deployed 2026-11-26) introduced paid enrollment, so a registration
+ * created before this moment records a free place even where the old free checkout left it
+ * "unpaid" / "expired" or its program carried a list price. Those records are NOT changed: they
+ * are only described and judged as complimentary. Registrations created later are judged normally,
+ * whatever the status of their cohort.
+ */
+export const COMPLIMENTARY_ERA_ENDS = '2026-11-26T00:00:00Z'
+
+/**
+ * A registration from the complimentary era with no money recorded. Anything that did record money
+ * (paid, refunded) or has no creation date is judged normally, so a real problem is never hidden.
+ */
+export function isHistoricalComplimentary(r: PaymentRegistration): boolean {
+  const created = r.created_at ? Date.parse(r.created_at) : NaN
+  if (Number.isNaN(created) || created >= Date.parse(COMPLIMENTARY_ERA_ENDS)) return false
+  if ((paidCents(r) ?? 0) > 0 || (r.amount_refunded_cents ?? 0) > 0) return false
+  return !['complimentary', 'refunded', 'partially_refunded'].includes(r.payment_status ?? '')
+}
+
 /** Money actually kept: paid minus refunded. Free, complimentary and unpaid are 0. */
 export function netCollectedCents(r: PaymentRegistration): number {
   if (!MONEY_STATES.has(r.payment_status ?? '')) return 0
@@ -87,6 +108,8 @@ export interface PaymentState { key: string; label: string; tone: PaymentTone }
 
 export function paymentState(r: PaymentRegistration, now: Date = new Date()): PaymentState {
   const cur = r.currency ?? 'usd'
+  // Complimentary-era registrations whose old free checkout did not finish (record unchanged).
+  if (r.payment_status !== 'paid' && isHistoricalComplimentary(r)) return { key: 'historical_free', label: 'Free program (no payment needed)', tone: 'muted' }
   switch (r.payment_status) {
     case 'paid':
       return isFreeCheckout(r) ? { key: 'free', label: 'Free (no charge)', tone: 'muted' } : { key: 'paid', label: `Paid ${formatCents(paidCents(r), cur)}`, tone: 'ok' }
@@ -103,15 +126,16 @@ export function paymentState(r: PaymentRegistration, now: Date = new Date()): Pa
   }
 }
 
+const owes = (r: PaymentRegistration) => !isHistoricalComplimentary(r)
 export const PAYMENT_FILTERS: { value: string; label: string; test: (r: PaymentRegistration) => boolean }[] = [
   { value: 'paid', label: 'Paid', test: r => r.payment_status === 'paid' && !isFreeCheckout(r) },
-  { value: 'free', label: 'Free (no charge)', test: isFreeCheckout },
+  { value: 'free', label: 'Free (no charge)', test: r => isFreeCheckout(r) || isHistoricalComplimentary(r) },
   { value: 'complimentary', label: 'Complimentary', test: r => r.payment_status === 'complimentary' },
-  { value: 'pending', label: 'Pending payment', test: r => r.payment_status === 'pending' },
-  { value: 'failed', label: 'Payment failed', test: r => r.payment_status === 'failed' },
-  { value: 'expired', label: 'Checkout expired', test: r => r.payment_status === 'expired' },
+  { value: 'pending', label: 'Pending payment', test: r => r.payment_status === 'pending' && owes(r) },
+  { value: 'failed', label: 'Payment failed', test: r => r.payment_status === 'failed' && owes(r) },
+  { value: 'expired', label: 'Checkout expired', test: r => r.payment_status === 'expired' && owes(r) },
   { value: 'refunded', label: 'Refunded (full or partial)', test: r => r.payment_status === 'refunded' || r.payment_status === 'partially_refunded' },
-  { value: 'unpaid', label: 'Not paid', test: r => !r.payment_status || r.payment_status === 'unpaid' },
+  { value: 'unpaid', label: 'Not paid', test: r => (!r.payment_status || r.payment_status === 'unpaid') && owes(r) },
 ]
 
 // ------------------------------------------------------------------ Stripe dashboard links
@@ -225,6 +249,9 @@ export function paymentAttentionItems(input: PaymentAttentionInput): AttentionIt
       })
       continue
     }
+
+    // Complimentary-era registrations never owed anything: no missing-payment items for them.
+    if (isHistoricalComplimentary(r)) continue
 
     if (r.payment_status === 'failed' && r.status !== 'declined' && r.status !== 'confirmed') {
       items.push({
