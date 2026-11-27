@@ -69,10 +69,21 @@ before(async () => {
   // The owner's prices, set the way the admin Pathways screen sets them (price and shown price together).
   const admin = await signIn('admin1@example.test')
   for (const [slug, dollars] of Object.entries(PRICES)) {
-    const r = await admin.client.from('programs').update({ price: dollars, price_label: `$${dollars}` }).eq('slug', slug).select('id')
+    const r = await admin.client.from('programs').update({ price: dollars, price_label: `$${dollars}`, enrollment_open: true }).eq('slug', slug).select('id')
     assert.equal(r.error, null); assert.equal(r.data.length, 1)
     const id = psql(`insert into cohorts (program_id, name, status, capacity, start_date, end_date) values ('${programId(slug)}', 'TEST Pricing ${slug}', 'upcoming', 2, current_date + 30, current_date + 72) returning id`).split('\n')[0]
     COHORTS[slug] = id
+  }
+})
+
+test('a pathway that is not open for enrollment cannot be paid for, even with an upcoming cohort', async () => {
+  psql(`update programs set enrollment_open = false where slug = 'emerging-leaders'`)
+  try {
+    const r = await checkout({ full_name: 'Pricing Closed', email: 'pricing.closed@example.test', program_id: programId('emerging-leaders'), cohort_id: COHORTS['emerging-leaders'] })
+    assert.equal(r.status, 409)
+    assert.equal(psql(`select count(*) from registrations where email = 'pricing.closed@example.test'`), '0')
+  } finally {
+    psql(`update programs set enrollment_open = true where slug = 'emerging-leaders'`)
   }
 })
 

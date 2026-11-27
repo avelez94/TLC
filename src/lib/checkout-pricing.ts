@@ -8,6 +8,10 @@ export interface PricingProgram {
   type: string | null
   price: number | null // whole US dollars (programs.price is an integer column)
   price_label?: string | null // what the public page displays, e.g. "$97"
+  // Pathway switches (Admin → Pathways). Checkout requires both, so nobody can pay for a
+  // pathway that is hidden or not open for enrollment, even by calling the API directly.
+  is_public?: boolean | null
+  enrollment_open?: boolean | null
 }
 
 export interface PricingCohort {
@@ -33,6 +37,9 @@ export function resolveCheckoutPrice(program: PricingProgram | null, cohort: Pri
   }
   if (program.type !== 'cohort') {
     return { ok: false, status: 400, error: 'This program is not available for online registration.' }
+  }
+  if (program.is_public === false || program.enrollment_open !== true) {
+    return { ok: false, status: 409, error: 'Registration for this program is not open right now. Please contact us.' }
   }
   if (cohort.program_id !== program.id) {
     return { ok: false, status: 400, error: 'That cohort does not belong to the selected program.' }

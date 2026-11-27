@@ -63,12 +63,20 @@ test('clientIp reads the first forwarded address', () => {
 })
 
 // ---------------------------------------------------------------- checkout pricing
-const program = { id: 'p1', name: 'Impact Makers', type: 'cohort', price: 97 }
+const program = { id: 'p1', name: 'Impact Makers', type: 'cohort', price: 97, is_public: true, enrollment_open: true }
 const cohort = { id: 'c1', program_id: 'p1', name: 'Spring 2027', status: 'upcoming' }
 
 test('price comes only from the program record', () => {
   const r = resolveCheckoutPrice(program, cohort)
   assert.deepEqual(r, { ok: true, amountCents: 9700, productName: 'Impact Makers', description: 'Spring 2027' })
+})
+
+test('checkout refuses a pathway that is hidden or not open for enrollment', () => {
+  assert.deepEqual(resolveCheckoutPrice({ ...program, enrollment_open: false }, cohort).ok, false)
+  assert.deepEqual(resolveCheckoutPrice({ ...program, enrollment_open: null }, cohort).ok, false)
+  assert.deepEqual(resolveCheckoutPrice({ ...program, is_public: false }, cohort).ok, false)
+  const r = resolveCheckoutPrice({ ...program, enrollment_open: false }, cohort)
+  assert.equal(!r.ok && r.status, 409)
 })
 
 test('checkout rejects mismatched, closed, unpriced or missing records', () => {

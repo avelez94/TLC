@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   try {
     const [programRes, cohortRes] = await Promise.all([
-      supabaseAdmin.from('programs').select('id, name, type, price, price_label').eq('id', program_id).maybeSingle(),
+      supabaseAdmin.from('programs').select('id, name, type, price, price_label, is_public, enrollment_open').eq('id', program_id).maybeSingle(),
       supabaseAdmin.from('cohorts').select('id, program_id, name, status, capacity').eq('id', cohort_id).maybeSingle(),
     ])
     if (programRes.error || cohortRes.error) {

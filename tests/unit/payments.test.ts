@@ -86,7 +86,7 @@ test('seats: open checkouts and payments awaiting confirmation hold a seat; expi
 })
 
 test('checkout charges only the server price, opens for 30+ minutes, card only, and carries the registration id', () => {
-  const price = resolveCheckoutPrice({ id: 'p', name: 'New Leaders', type: 'cohort', price: 250, price_label: '$250' }, { id: 'c', program_id: 'p', name: 'Spring', status: 'upcoming' })
+  const price = resolveCheckoutPrice({ id: 'p', name: 'New Leaders', type: 'cohort', price: 250, price_label: '$250', is_public: true, enrollment_open: true }, { id: 'c', program_id: 'p', name: 'Spring', status: 'upcoming' })
   assert.ok(price.ok)
   if (!price.ok) return
   const p = checkoutSessionParams({ registrationId: 'r1', cohortId: 'c', email: 'pat@example.test', siteUrl: 'https://site.test', expiresAt: 1_000_000 + CHECKOUT_WINDOW_SECONDS, pricing: price })
