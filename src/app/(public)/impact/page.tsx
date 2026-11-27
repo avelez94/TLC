@@ -3,8 +3,9 @@ import { connection } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { assertSafeEnvironment } from '@/lib/env-guard'
 import { visiblePathwayLinks } from '@/lib/public-pathways'
-import { checkoutEnabled, countWord, mergePathways, PATHWAY_FOR_WHOM, PATHWAY_SLUGS, type PathwayRow } from '@/lib/pathways'
+import { countWord, mergePathways, PATHWAY_FOR_WHOM, PATHWAY_SLUGS, type PathwayRow } from '@/lib/pathways'
 import PathwaySelector from './PathwaySelector'
+import { loadLaunchReadiness } from '@/lib/launch-server'
 import InquiryForm from './InquiryForm'
 import InquiryLink from './InquiryLink'
 import s from './impact.module.css'
@@ -44,7 +45,10 @@ async function loadPathways() {
       .select('id, slug, pathway_number, name, tagline, opening_statement, audience, description, leadership_goal, keywords, price_label, enrollment_open, is_public')
       .in('slug', PATHWAY_SLUGS)
       .abortSignal(AbortSignal.timeout(3000))
-    return mergePathways(error ? null : (data as PathwayRow[]), { checkoutEnabled: checkoutEnabled() })
+    // Price and registration appear only for pathways with a cohort the launch gate has opened.
+    const readiness = await loadLaunchReadiness().catch(() => null)
+    const openProgramIds = new Set(readiness?.pathways.filter(p => p.open).map(p => p.id) ?? [])
+    return mergePathways(error ? null : (data as PathwayRow[]), { openProgramIds })
   } catch {
     return mergePathways(null) // approved copy if the database is unreachable
   }

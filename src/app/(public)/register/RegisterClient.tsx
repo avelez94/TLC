@@ -6,6 +6,15 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import PolicyDocument from '@/components/PolicyDocument'
+import type { PolicyContent, PolicySlug } from '@/lib/policies'
+
+/** What the server's launch gate allows right now (see register/page.tsx). */
+export interface RegisterGate {
+  openCohortIds: string[]
+  policies: { slug: PolicySlug; name: string; path: string; versionId: string; versionNumber: number; updated: string }[]
+  refund: PolicyContent | null
+}
 
 interface Program {
   id: string
@@ -60,7 +69,7 @@ const DEFAULT_EXPECTATIONS = [
   'Apply one idea between sessions',
 ]
 
-function RegisterContent() {
+function RegisterContent({ gate }: { gate: RegisterGate }) {
   const searchParams = useSearchParams()
   const programSlug = searchParams.get('program')
 
@@ -74,6 +83,8 @@ function RegisterContent() {
   const [step, setStep] = useState<'program' | 'cohort' | 'form' | 'success'>('program')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [agreed, setAgreed] = useState(false)
+  const policyLink = (slug: PolicySlug) => gate.policies.find(p => p.slug === slug)
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -97,7 +108,9 @@ function RegisterContent() {
       ])
       if (programsData) {
         // Historical programs stay in the database but are not offered (is_public = false).
-        const offered = programsData.filter((p: Program & { is_public?: boolean; enrollment_open?: boolean }) => p.is_public !== false && p.enrollment_open === true)
+        // Only pathways with a cohort the server's launch gate has opened.
+        const openPrograms = new Set(((cohortsData ?? []) as { id: string; program_id: string }[]).filter(c => gate.openCohortIds.includes(c.id)).map(c => c.program_id))
+        const offered = programsData.filter((p: Program & { is_public?: boolean; enrollment_open?: boolean }) => p.is_public !== false && p.enrollment_open === true && openPrograms.has(p.id))
         setPrograms(offered)
         if (programSlug) {
           const matched = offered.find((p: Program & { slug?: string | null }) =>
@@ -109,13 +122,13 @@ function RegisterContent() {
           }
         }
       }
-      if (cohortsData) setCohorts(cohortsData as unknown as Cohort[])
+      if (cohortsData) setCohorts((cohortsData as unknown as Cohort[]).filter(c => gate.openCohortIds.includes(c.id)))
       if (sessionsData) setSessions(sessionsData)
       if (includesData) setIncludes(includesData)
       setLoading(false)
     }
     fetchData()
-  }, [programSlug])
+  }, [programSlug, gate.openCohortIds])
 
   const programCohorts = selectedProgram
     ? cohorts.filter(c => c.program_id === selectedProgram.id)
@@ -156,13 +169,15 @@ function RegisterContent() {
           why: form.why,
           program_id: selectedProgram.id,
           cohort_id: selectedCohort.id,
+          // The exact published versions shown on this page and accepted above.
+          accepted_policies: Object.fromEntries(gate.policies.map(p => [p.slug, p.versionId])),
         }),
       })
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
       } else {
-        setSubmitError(data.error || 'We could not start checkout. Please try again or contact us.')
+        setSubmitError(data.policies_changed ? 'Our policies were just updated. Please reload this page, review them and try again.' : (data.error || 'We could not start checkout. Please try again or contact us.'))
         setSubmitting(false)
       }
     } catch (err) {
@@ -467,10 +482,32 @@ function RegisterContent() {
                 </label>
                 <textarea value={form.why} onChange={e => setForm({ ...form, why: e.target.value })} placeholder={selectedProgram.price_label === 'Request a Quote' ? 'Tell us about your team size, goals, and what you are looking for...' : 'What are you hoping to get out of this experience?'} rows={4} style={{ ...inputStyle, resize: 'vertical' }} required />
               </div>
+              <section aria-labelledby="refund-heading" style={{ border: '1.5px solid rgba(0,23,55,0.14)', borderRadius: '6px', background: 'white' }}>
+                <div style={{ padding: '1rem 1.25rem 0.5rem' }}>
+                  <h2 id="refund-heading" style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.66rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a5a10', margin: 0 }}>Before you pay: refunds and cancellations</h2>
+                </div>
+                <div tabIndex={0} aria-label="Refund and Cancellation Policy" style={{ maxHeight: '300px', overflowY: 'auto', padding: '0.5rem 1.25rem 0.75rem', borderBottom: '1px solid rgba(0,23,55,0.08)' }}>
+                  {gate.refund && <PolicyDocument content={gate.refund} updated={policyLink('refund')?.updated} version={policyLink('refund')?.versionNumber} compact headingLevel={2} />}
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--slate)', lineHeight: 1.6, margin: 0, padding: '0.75rem 1.25rem' }}>
+                  Read the full{' '}
+                  {gate.policies.map((p, i) => (
+                    <span key={p.slug}>{i > 0 && (i === gate.policies.length - 1 ? ' and ' : ', ')}<a href={p.path} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontWeight: 600 }}>{p.name}</a></span>
+                  ))}{' '}(each opens in a new tab).
+                </p>
+              </section>
+              <label htmlFor="policy-agree" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', fontSize: '0.9rem', lineHeight: 1.55, color: 'var(--ink, #1C2430)', cursor: 'pointer' }}>
+                <input id="policy-agree" type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} required style={{ width: '20px', height: '20px', marginTop: '2px', flexShrink: 0, accentColor: 'var(--navy)' }} />
+                <span>
+                  I have read and agree to the <a href={policyLink('terms')?.path} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontWeight: 600 }}>Terms &amp; Conditions</a> and the{' '}
+                  <a href={policyLink('refund')?.path} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontWeight: 600 }}>Refund &amp; Cancellation Policy</a>, and I have read the{' '}
+                  <a href={policyLink('privacy')?.path} target="_blank" rel="noopener noreferrer" style={{ color: '#8a5a10', fontWeight: 600 }}>Privacy Policy</a>.
+                </span>
+              </label>
               <button
                 type="submit"
-                disabled={submitting}
-                style={{ width: '100%', padding: '1rem', background: submitting ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: submitting ? 'not-allowed' : 'pointer' }}
+                disabled={submitting || !agreed}
+                style={{ width: '100%', padding: '1rem', background: submitting || !agreed ? 'rgba(200,136,32,0.5)' : 'var(--gold)', color: 'var(--navy)', border: 'none', borderRadius: '3px', fontFamily: 'var(--font-montserrat), sans-serif', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: submitting || !agreed ? 'not-allowed' : 'pointer' }}
               >
                 {submitting ? 'Redirecting to payment...' : `Continue to Payment — ${selectedProgram.price_label}`}
               </button>
@@ -528,14 +565,14 @@ function RegisterContent() {
   )
 }
 
-export default function RegisterClient() {
+export default function RegisterClient({ gate }: { gate: RegisterGate }) {
   return (
     <Suspense fallback={
       <div style={{ minHeight: '100vh', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontFamily: 'var(--font-bebas), sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.08em' }}>Loading...</div>
       </div>
     }>
-      <RegisterContent />
+      <RegisterContent gate={gate} />
     </Suspense>
   )
 }

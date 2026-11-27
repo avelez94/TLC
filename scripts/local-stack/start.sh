@@ -32,7 +32,7 @@ run -c "alter table auth.users add column if not exists encrypted_password text,
         alter table auth.mfa_factors add column if not exists friendly_name text, add column if not exists secret text;"
 run -f "$ROOT/supabase/tests/rls/01_live_replica.sql"
 run -f "$HERE/prod-foreign-keys.sql"
-for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions 20261122000000_pathways_inquiries_admin ${LOCAL_EXTRA_MIGRATIONS-20261123000000_admin_hardening 20261123000001_admin_hardening_search_path 20261124000000_workflow_integration 20261127000000_completion_review}; do
+for m in 20261121000000_emergency_rls_lockdown 20261121100000_privacy_phase2a_additive 20261121110000_privacy_phase2b_column_restrictions 20261122000000_pathways_inquiries_admin ${LOCAL_EXTRA_MIGRATIONS-20261123000000_admin_hardening 20261123000001_admin_hardening_search_path 20261124000000_workflow_integration 20261127000000_completion_review 20261128000000_policies_launch}; do
   run -f "$ROOT/supabase/migrations/$m.sql"
 done
 # The 2c pathway rows exist in production; the 2c migration only inserts them when missing.

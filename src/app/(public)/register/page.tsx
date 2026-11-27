@@ -4,8 +4,10 @@ import Image from 'next/image'
 import { connection } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { assertSafeEnvironment } from '@/lib/env-guard'
-import { checkoutEnabled, mergePathways, PATHWAY_FOR_WHOM, PATHWAY_SLUGS, type PathwayRow } from '@/lib/pathways'
+import { mergePathways, PATHWAY_FOR_WHOM, PATHWAY_SLUGS, type PathwayRow } from '@/lib/pathways'
 import RegisterClient from './RegisterClient'
+import { loadLaunchReadiness, loadPublishedPolicy } from '@/lib/launch-server'
+import { POLICY_META, POLICY_SLUGS, policyDate } from '@/lib/policies'
 
 export const metadata: Metadata = {
   title: 'Join The Impact Lab | TLC Leadership',
@@ -34,7 +36,18 @@ async function visiblePathways() {
 // prices or payment buttons: it sends visitors to the inquiry form for their pathway instead.
 export default async function RegisterPage() {
   await connection()
-  if (checkoutEnabled()) return <RegisterClient />
+  // The server-side launch gate decides: only cohorts that pass every check are offered, with the
+  // published policies the participant must accept.
+  const readiness = await loadLaunchReadiness().catch(() => null)
+  if (readiness?.open) {
+    const refund = await loadPublishedPolicy('refund')
+    const policies = readiness.policies.filter(p => p.published && p.versionId).map(p => ({
+      slug: p.slug, name: POLICY_META[p.slug].name, path: POLICY_META[p.slug].path, versionId: p.versionId as string, versionNumber: p.version ?? 0, updated: policyDate(p.publishedAt),
+    }))
+    if (refund && policies.length === POLICY_SLUGS.length) {
+      return <RegisterClient gate={{ openCohortIds: readiness.openCohortIds, policies, refund: refund.content }} />
+    }
+  }
   const pathways = await visiblePathways()
 
   const mono = { fontFamily: 'var(--font-jetbrains), monospace', fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase' as const }

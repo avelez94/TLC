@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { OutgoingEmail, SendResult } from './email'
 import type { AccessEmailInput, AccessEmailResult } from './account-access'
 import { escapeHtml as esc, safeHttpUrl } from './security'
+import { TLC_STRIPE_APP } from './checkout-pricing'
 
 export type EnrollMode = 'review' | 'automatic'
 type AuditFn = (actorId: string | null, action: string, entityType: string, entityId: string | null,
@@ -103,7 +104,8 @@ export async function processStripeEvent(event: Stripe.Event, deps: PaymentDeps)
 
   let result: HandlerResult
   try {
-    result = await dispatch(event, deps)
+    // Shared Stripe account: act only on payments that belong to TLC.
+    result = (await belongsToTlc(event, deps)) ? await dispatch(event, deps) : { outcome: 'ignored_other_business' }
   } catch (e) {
     result = { outcome: 'error', detail: e instanceof Error ? e.message : String(e), retry: true }
   }
@@ -112,6 +114,55 @@ export async function processStripeEvent(event: Stripe.Event, deps: PaymentDeps)
     processed_at: result.retry ? null : nowOf(deps).toISOString(),
   }).eq('id', event.id)
   return { httpStatus: result.retry ? 500 : 200, outcome: result.outcome, detail: result.detail }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+async function exists(deps: PaymentDeps, table: 'registrations' | 'payment_requests', column: string, value: string | null | undefined): Promise<boolean> {
+  if (!value) return false
+  if (column === 'id' && !UUID.test(value)) return false
+  const { data, error } = await deps.db.from(table).select('id').eq(column, value).limit(1)
+  return !error && !!data?.length
+}
+
+/**
+ * Whether a Stripe event belongs to TLC. TLC and Rising Sons Academy share one Stripe account,
+ * so every event of the shared account reaches this webhook. An event is TLC's only when:
+ *  - the Stripe object carries TLC's tag (metadata.app, set on everything this site creates), or
+ *  - it points at a record that exists in TLC's own database (registration or payment request
+ *    id, or a Checkout Session / payment link / payment / invoice id this site stored).
+ * Anything else is acknowledged and ignored: never matched, flagged or written to TLC records.
+ */
+export async function belongsToTlc(event: Stripe.Event, deps: PaymentDeps): Promise<boolean> {
+  const obj = event.data.object as { id?: string; metadata?: Record<string, string> | null; payment_link?: unknown; payment_intent?: unknown }
+  const md = obj.metadata ?? {}
+  if (md.app === TLC_STRIPE_APP) return true
+  if (await exists(deps, 'registrations', 'id', md.registration_id)) return true
+  if (await exists(deps, 'payment_requests', 'id', md.payment_request_id)) return true
+  switch (event.type) {
+    case 'checkout.session.completed': case 'checkout.session.async_payment_succeeded':
+    case 'checkout.session.async_payment_failed': case 'checkout.session.expired': {
+      const link = idOf(obj.payment_link as string | Stripe.PaymentLink | null)
+      if (link) return exists(deps, 'payment_requests', 'stripe_object_id', link)
+      return (await exists(deps, 'registrations', 'stripe_session_id', obj.id)) || exists(deps, 'payment_requests', 'stripe_object_id', obj.id)
+    }
+    case 'payment_intent.payment_failed':
+      return exists(deps, 'registrations', 'stripe_payment_intent_id', obj.id)
+    case 'charge.refunded': {
+      const pi = idOf(obj.payment_intent as string | Stripe.PaymentIntent | null)
+      if (await exists(deps, 'registrations', 'stripe_payment_intent_id', pi)) return true
+      if (!pi || !deps.stripe) return false
+      try {
+        const intent = await deps.stripe.paymentIntents.retrieve(pi)
+        if (intent.metadata?.app === TLC_STRIPE_APP) return true
+        if (await exists(deps, 'payment_requests', 'id', intent.metadata?.payment_request_id)) return true
+      } catch { /* not retrievable */ }
+      return exists(deps, 'payment_requests', 'id', await paymentRequestForPaymentIntent(deps, pi))
+    }
+    case 'invoice.paid': case 'invoice.payment_failed': case 'invoice.voided': case 'invoice.marked_uncollectible':
+      return exists(deps, 'payment_requests', 'stripe_object_id', obj.id)
+    default:
+      return false
+  }
 }
 
 async function dispatch(event: Stripe.Event, deps: PaymentDeps): Promise<HandlerResult> {
@@ -137,6 +188,8 @@ async function dispatch(event: Stripe.Event, deps: PaymentDeps): Promise<Handler
 
 // ====================================================================== checkout sessions
 async function onCheckoutSession(session: Stripe.Checkout.Session, type: string, deps: PaymentDeps): Promise<HandlerResult> {
+  // The no-charge connection test from Admin → Launch readiness (never a payment).
+  if (session.metadata?.webhook_test === 'true') return { outcome: 'webhook_test_received' }
   const prId = session.metadata?.payment_request_id
   if (prId || session.payment_link) return onPaymentRequestSession(session, type, deps)
   const regId = session.metadata?.registration_id
@@ -721,7 +774,7 @@ export async function sendPaymentRequest(deps: PaymentDeps, pr: PaymentRequestRe
   } else {
     const stripe = deps.stripe
     if (!stripe) throw new PaymentRequestError('Stripe is not configured on the server.', 503)
-    const metadata = { payment_request_id: pr.id }
+    const metadata = { app: TLC_STRIPE_APP, payment_request_id: pr.id }
     const seats = pr.seats ? ` (${pr.seats} seat${pr.seats === 1 ? '' : 's'})` : ''
     const key = (step: string) => `payment-request:${pr.id}:${step}`
     if (pr.method === 'payment_link') {

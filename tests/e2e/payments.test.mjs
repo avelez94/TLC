@@ -352,11 +352,15 @@ describe('individual checkout', () => {
     assert.equal(paymentAttentionItems({ registrations: [row], paymentRequests: [], cohorts: [], enrollments: [] }).length, 0, 'awaits the normal confirm, no payment alert')
   })
 
-  test('events for other products (coaching payment links, unknown charges) are ignored, still recorded once', async () => {
+  test('events for other products or the other organisation on the shared account are ignored, still recorded once', async () => {
     const out = await run('checkout.session.completed', session({ id: 'cs_test_pay_coaching', metadata: {} }))
-    assert.equal(out.outcome, 'ignored_no_metadata')
+    assert.equal(out.outcome, 'ignored_other_business')
+    const rising = await run('checkout.session.completed', session({ id: 'cs_test_rising_sons', metadata: { registration_id: 'RSA-2026-0042' } }))
+    assert.equal(rising.outcome, 'ignored_other_business', 'a Rising Sons Academy registration id never touches TLC records')
     const ch = await run('charge.refunded', { id: 'ch_x', object: 'charge', payment_intent: 'pi_unknown_test', amount: 100, amount_refunded: 100, refunded: true }, { stripe: null })
-    assert.equal(ch.outcome, 'ignored_unknown_charge')
+    assert.equal(ch.outcome, 'ignored_other_business')
+    const tagged = await run('checkout.session.expired', session({ id: 'cs_test_webhook_check', status: 'expired', payment_status: 'unpaid', metadata: { app: 'tlc-impact-lab', webhook_test: 'true' } }))
+    assert.equal(tagged.outcome, 'webhook_test_received', 'the no-charge connection test is recognised and changes nothing')
     assert.equal((await run('customer.created', { id: 'cus_x', object: 'customer' })).outcome, 'ignored_type')
   })
 })

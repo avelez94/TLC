@@ -5,6 +5,9 @@ import { CHECKOUT_WINDOW_SECONDS, checkoutSeatCheck, checkoutSessionParams, reso
 import { cleanLine, cleanText, clientIp, isValidEmail } from '@/lib/security'
 import { rateLimit } from '@/lib/rate-limit'
 import { likeExact } from '@/lib/payments'
+import { loadLaunchReadiness } from '@/lib/launch-server'
+import { publicClosedMessage } from '@/lib/launch-readiness'
+import { POLICY_SLUGS, type AcceptedPolicy } from '@/lib/policies'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // A registration in one of these payment states already holds (or is paying for) the place.
@@ -14,8 +17,9 @@ const REUSABLE_PAYMENT = new Set(['unpaid', 'expired', 'failed'])
 const REUSABLE_STATUS = new Set(['pending', 'waitlist'])
 
 export async function POST(request: Request) {
-  // Owner decision 2026-11-21: online checkout stays closed until pathway pricing is set and
-  // approved. Re-open by setting CHECKOUT_ENABLED=true in Vercel (Production).
+  // The site owner's approval of live payments (CHECKOUT_ENABLED=true in Vercel) is the first of
+  // the launch conditions; the full gate (policies, Stripe verification, cohort, pathway,
+  // price) is checked below for the requested cohort.
   if (process.env.CHECKOUT_ENABLED !== 'true') {
     return NextResponse.json(
       { error: 'Online registration is not open right now. Please contact us and we will help you enroll.' },
@@ -49,6 +53,24 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Server-side launch gate: every condition must hold for this cohort right now.
+    const readiness = await loadLaunchReadiness()
+    const gate = readiness.pathways.flatMap(p => p.cohorts).find(c => c.id === cohort_id)
+    if (!gate?.open) {
+      return NextResponse.json({ error: publicClosedMessage(readiness, cohort_id) }, { status: gate ? 503 : 409 })
+    }
+    // The participant must accept exactly the policies that are published right now.
+    const sent = (body.accepted_policies ?? {}) as Record<string, unknown>
+    const accepted: AcceptedPolicy[] = []
+    for (const slug of POLICY_SLUGS) {
+      const live = readiness.policies.find(p => p.slug === slug)
+      if (!live?.versionId || sent[slug] !== live.versionId) {
+        return NextResponse.json({ error: 'Please review and accept the current Terms & Conditions, Refund & Cancellation Policy and Privacy Policy before paying. They may have just been updated.', policies_changed: true }, { status: 409 })
+      }
+      accepted.push({ slug, version_id: live.versionId, version_number: live.version ?? 0, published_at: live.publishedAt })
+    }
+    const acceptedAt = new Date().toISOString()
+
     const [programRes, cohortRes] = await Promise.all([
       supabaseAdmin.from('programs').select('id, name, type, price, price_label, is_public, enrollment_open').eq('id', program_id).maybeSingle(),
       supabaseAdmin.from('cohorts').select('id, program_id, name, status, capacity').eq('id', cohort_id).maybeSingle(),
@@ -122,6 +144,7 @@ export async function POST(request: Request) {
     const details = {
       full_name, email, phone: phone || null, organization: organization || null, why: why || null, program_id, cohort_id,
       payment_status: 'unpaid', payment_error: null, checkout_expires_at: new Date(expiresAt * 1000).toISOString(),
+      policies_accepted: accepted, policies_accepted_at: acceptedAt,
     }
     const { data: registration, error: dbError } = reusable
       ? await supabaseAdmin.from('registrations').update(details).eq('id', reusable.id).select('id').single()

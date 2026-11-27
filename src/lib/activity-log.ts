@@ -110,6 +110,12 @@ export function describeActivity(row: ActivityRow, look: ActivityLookups = {}): 
     if (row.outcome === 'failed') return 'Failed: the daily cohort status job did not run'
     return `Automatically changed cohort ${label} from ${show('status', changes.status?.from, look)} to ${show('status', changes.status?.to, look)}${reason}`
   }
+  if (row.action === 'stripe.webhook_events') return `${failed}Added the required events to the TLC Stripe webhook`.trim()
+  if (row.action === 'stripe.verified') return `${failed}Verified the Stripe connection and webhook`.trim()
+  if (row.action === 'policy.save') return `${failed}Saved a draft: ${label}`.trim()
+  if (row.action === 'policy.publish') return `${failed}Published: ${label}`.trim()
+  if (row.action === 'policy.unpublish') return `${failed}Unpublished: ${label}`.trim()
+  if (row.action === 'policy.restore') return `${failed}Restored an earlier version into the draft: ${label}`.trim()
   if (row.action === 'stripe.webhook_test') return `${failed}Ran the Stripe webhook connection test (no charge)`.trim()
   if (row.action === 'cohort.completion_review_close') return `${failed}Closed the completion review (no further completion or certificate reminders): ${label}`.trim()
   if (row.action === 'cohort.completion_review_reopen') return `${failed}Reopened the completion review: ${label}`.trim()

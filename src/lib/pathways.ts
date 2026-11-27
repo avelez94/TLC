@@ -104,12 +104,15 @@ export interface PathwayRow {
  *   so the public page never renders empty. (A pathway hidden by the owner could briefly
  *   reappear during such an outage; that trade-off is documented in docs/admin-metrics.md.)
  */
-export function mergePathways(rows: PathwayRow[] | null | undefined, opts: { checkoutEnabled?: boolean } = {}): Pathway[] {
+export function mergePathways(rows: PathwayRow[] | null | undefined, opts: { checkoutEnabled?: boolean; openProgramIds?: Set<string> } = {}): Pathway[] {
   if (!rows) return DEFAULT_PATHWAYS
   return DEFAULT_PATHWAYS.flatMap(def => {
     const row = rows.find(r => r.slug === def.slug)
     if (!row || row.is_public === false) return []
-    return [mergeRow(def, row, !!opts.checkoutEnabled)]
+    // With the launch gate (openProgramIds), a pathway is enrollable only when it has a cohort
+    // that passes every launch check right now.
+    const purchasable = opts.openProgramIds ? opts.openProgramIds.has(row.id) : !!opts.checkoutEnabled
+    return [mergeRow(def, row, purchasable)]
   })
 }
 

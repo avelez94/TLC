@@ -1,13 +1,14 @@
 import type { Program } from '@/types'
 
-export type Page = 'dashboard' | 'registrations' | 'inquiries' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'certificates' | 'reports' | 'security' | 'training'
+export type Page = 'dashboard' | 'registrations' | 'inquiries' | 'users' | 'programs' | 'cohorts' | 'reps' | 'prompts' | 'community' | 'announcements' | 'resources' | 'certificates' | 'reports' | 'security' | 'training' | 'launch' | 'policies'
 
-export type NavGroup = 'Overview' | 'People' | 'Programs' | 'Participant experience' | 'Insights & security' | 'Help'
+export type NavGroup = 'Overview' | 'People' | 'Programs' | 'Participant experience' | 'Website & legal' | 'Insights & security' | 'Help'
 
 // Grouped by task. Weekly reps and journal prompts live inside each cohort; certificates
 // inside each participant. Their full-list pages still exist (linked from those screens).
 export const navItems: { id: Page; label: string; icon: string; group: NavGroup }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞', group: 'Overview' },
+  { id: 'launch', label: 'Launch readiness', icon: '✅', group: 'Overview' },
   { id: 'inquiries', label: 'Inquiries', icon: '✉️', group: 'People' },
   { id: 'users', label: 'Participants', icon: '👥', group: 'People' },
   { id: 'registrations', label: 'Registration history', icon: '📥', group: 'People' },
@@ -16,6 +17,7 @@ export const navItems: { id: Page; label: string; icon: string; group: NavGroup 
   { id: 'announcements', label: 'Announcements', icon: '📢', group: 'Participant experience' },
   { id: 'resources', label: 'Resources', icon: '📚', group: 'Participant experience' },
   { id: 'community', label: 'Community', icon: '💬', group: 'Participant experience' },
+  { id: 'policies', label: 'Policies & legal', icon: '📜', group: 'Website & legal' },
   { id: 'reports', label: 'Reports', icon: '📈', group: 'Insights & security' },
   { id: 'security', label: 'Security & activity', icon: '🔒', group: 'Insights & security' },
   { id: 'training', label: 'Training videos & guide', icon: '🎬', group: 'Help' },

@@ -230,8 +230,8 @@ function PathwayEditor({ panel, program }: { panel: AdminPanel; program: Program
                 <SaveStatus state={toggles.get('enrollment_open')} />
               </label>
               <p style={{ ...helpStyle, margin: '0 0 0 1.85rem' }}>
-                Visitors can register and see the price only when this is on and online registration is switched on for the site.
-                {!panel.checkoutEnabled && <> <strong style={{ color: 'var(--navy)' }}>Online registration is currently off for the whole site, so visitors still see “enrollment closed” and are sent to the inquiry form.</strong></>}
+                Visitors can register and see the price only when this is on, the pathway has an Upcoming cohort that is fully set up, and online registration is on for the site.
+                {!panel.checkoutEnabled && <> <strong style={{ color: 'var(--navy)' }}>Online registration is not on for the site yet, so visitors see “enrollment closed” and are sent to the inquiry form.</strong> <a href="/admin/launch" style={{ color: '#8a5a10', fontWeight: 600 }}>See what is missing in Launch readiness →</a></>}
               </p>
             </div>
           </div>

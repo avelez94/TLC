@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { visiblePathwayLinks } from '@/lib/public-pathways'
+import { publishedPolicyLinks, visiblePathwayLinks } from '@/lib/public-pathways'
 
 export default async function Footer() {
-  const pathways = await visiblePathwayLinks()
+  const [pathways, policies] = await Promise.all([visiblePathwayLinks(), publishedPolicyLinks()])
   return (
     <footer role="contentinfo" style={{ background: 'var(--navy3)', borderTop: '3px solid var(--gold)', padding: 'clamp(3.5rem, 7vw, 5.5rem) 0 2rem' }}>
       <div className="container">
@@ -45,7 +45,16 @@ export default async function Footer() {
           </div>
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' as const }}>
-          <p style={{ color: 'rgba(255,255,255,0.58)', fontSize: '0.82rem' }}>&copy; {new Date().getFullYear()} TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 1.25rem' }}>
+            <p style={{ color: 'rgba(255,255,255,0.58)', fontSize: '0.82rem' }}>&copy; {new Date().getFullYear()} TLC Leadership Consulting &amp; Coaching. All rights reserved.</p>
+            {policies.length > 0 && (
+              <nav aria-label="Policies">
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: '0.25rem 1rem' }}>
+                  {policies.map(p => <li key={p.slug}><Link href={p.path} style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.82rem', textDecoration: 'underline', textUnderlineOffset: '3px', display: 'inline-block', padding: '0.35rem 0' }}>{p.name}</Link></li>)}
+                </ul>
+              </nav>
+            )}
+          </div>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.55)' }}>
         Develop Leaders. Solve Problems. Create Impact.
   {' · '}

@@ -25,6 +25,13 @@ export type PricingResult =
   | { ok: true; amountCents: number; productName: string; description: string }
   | { ok: false; status: number; error: string }
 
+/**
+ * TLC and Rising Sons Academy share one Stripe account. Everything this site creates in Stripe
+ * carries this tag in its metadata, so the webhook can tell TLC's payments from the other
+ * organisation's (see belongsToTlc in payments.ts).
+ */
+export const TLC_STRIPE_APP = 'tlc-impact-lab'
+
 /** Cohorts the public register page offers for sign-up. */
 export const REGISTRABLE_COHORT_STATUSES = ['upcoming'] as const
 
@@ -124,10 +131,10 @@ export function checkoutSessionParams(i: {
     client_reference_id: i.registrationId,
     expires_at: i.expiresAt,
     // Stripe emails the receipt (live mode); our confirmation email is not a receipt.
-    payment_intent_data: { receipt_email: i.email, metadata: { registration_id: i.registrationId }, description: `${i.pricing.productName} — ${i.pricing.description}`.slice(0, 500) },
+    payment_intent_data: { receipt_email: i.email, metadata: { app: TLC_STRIPE_APP, registration_id: i.registrationId }, description: `${i.pricing.productName} — ${i.pricing.description}`.slice(0, 500) },
     success_url: `${i.siteUrl}/register/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${i.siteUrl}/register/cancelled`,
     // Set only here, on the server; the webhook trusts it because the event is signed.
-    metadata: { registration_id: i.registrationId, expected_amount_cents: String(i.pricing.amountCents), cohort_id: i.cohortId },
+    metadata: { app: TLC_STRIPE_APP, registration_id: i.registrationId, expected_amount_cents: String(i.pricing.amountCents), cohort_id: i.cohortId },
   }
 }
